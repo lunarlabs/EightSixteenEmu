@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace EightSixteenEmu
+﻿namespace EightSixteenEmu
 {
     public interface IMappableDevice
     {
-        uint size { get; }
-        uint base_address { get; }
+        uint Size { get; }
+        uint BaseAddress { get; }
         byte this[uint index]
-        {  get; set; }
+        { get; set; }
     }
 }
