@@ -110,7 +110,7 @@ namespace EightSixteenEmu
         {
             return (Word)(l | (h << 8));
         }
-        static Addr Join(byte b, Word w)
+        static Addr Address(byte b, Word w)
         {
             return (Bank(b) | w);
         }
@@ -118,7 +118,7 @@ namespace EightSixteenEmu
         {
             return (Word)((w >> 8) | (w << 8));
         }
-        private Addr LongPC { get => Join(RegPB, RegPC); }
+        private Addr LongPC { get => Address(RegPB, RegPC); }
 
         #region Memory Access
 
@@ -158,7 +158,7 @@ namespace EightSixteenEmu
 
         private Addr ReadAddr(Addr address)
         {
-            return Join(ReadByte(address + 2), ReadWord(address));
+            return Address(ReadByte(address + 2), ReadWord(address));
         }
 
         private byte ReadByteAtPC()
@@ -242,7 +242,7 @@ namespace EightSixteenEmu
 
         private void SetStatusFlag(StatusFlags flag, bool value)
         {
-            if (aborting == false)
+            if (!FlagE || (flag & (StatusFlags.M | StatusFlags.X)) == 0)
             {
                 if (value)
                 {
@@ -289,29 +289,29 @@ namespace EightSixteenEmu
 
         private Addr AddrModeAbsolute()
         {
-            return Join(RegDB, ReadWordAtPC());
+            return Address(RegDB, ReadWordAtPC());
         }
 
         private Addr AddrModeAbsoluteIndexedX()
         {
-            return Join(RegDB, ReadWordAtPC()) + RegX;
+            return Address(RegDB, ReadWordAtPC()) + RegX;
         }
 
         private Addr AddrModeAbsoluteIndexedY()
         {
-            return Join(RegDB, ReadWordAtPC()) + RegY;
+            return Address(RegDB, ReadWordAtPC()) + RegY;
         }
 
         private Addr AddrModeAbsoluteIndirect()
         {
-            Addr intermediateAddress = Join(0, ReadWordAtPC());
-            return Join(0, ReadWord(intermediateAddress));
+            Addr intermediateAddress = Address(0, ReadWordAtPC());
+            return Address(0, ReadWord(intermediateAddress));
         }
 
         private Addr AddrModeAbsoluteIndexedIndirect()
         {
-            Addr intermediateAddress = Join(RegPB, ReadWordAtPC()) + RegX;
-            return Join(0, ReadWord(intermediateAddress));
+            Addr intermediateAddress = Address(RegPB, ReadWordAtPC()) + RegX;
+            return Address(0, ReadWord(intermediateAddress));
         }
 
         private Addr AddrModeAbsoluteLong()
@@ -326,54 +326,54 @@ namespace EightSixteenEmu
 
         private Addr AddrModeAbsoluteIndirectLong()
         {
-            Addr intermediateAddress = Bank(0) | ReadWordAtPC();
+            Addr intermediateAddress = Address(0,ReadWordAtPC());
             return ReadAddr(intermediateAddress);
         }
 
-        private Addr AddrModeDirectPage()
+        private Addr AddrModeDirect()
         {
             return (Bank(0) | (Word)(RegDP + ReadByteAtPC()));
         }
 
-        private Addr AddrModeDirectPageIndexedX()
+        private Addr AddrModeDirectIndexedX()
         {
             byte offset = (byte)(ReadByteAtPC() + (byte)RegX);
-            return (Bank(0) | (Word)(RegDP + offset));
+            return Address(0,(Word)(RegDP + offset));
         }
 
-        private Addr AddrModeDirectPageIndexedY()
+        private Addr AddrModeDirectIndexedY()
         {
             byte offset = (byte)(ReadByteAtPC() + (byte)RegY);
-            return (Bank(0) | (Word)(RegDP + offset));
+            return Address(0, (Word)(RegDP + offset));
         }
 
-        private Addr AddrModeDirectPageIndirect()
+        private Addr AddrModeDirectIndirect()
         {
             return (Bank(RegDB) | ReadWord((Bank(0) | (Word)(RegDP + ReadByteAtPC()))));
         }
 
-        private Addr AddrModeDirectPageIndexedIndirect()
+        private Addr AddrModeDirectIndexedIndirect()
         {
             return (Bank(RegDB) | ReadWord((Bank(0) | (Word)(RegDP + ReadByteAtPC() + RegX))));
         }
 
-        private Addr AddrModeDirectPageIndirectIndexed()
+        private Addr AddrModeDirectIndirectIndexed()
         {
             byte offset = ReadByteAtPC();
             Addr intermediateAddress = (Addr)(Bank(0) | (byte)(RegDP + offset));
-            return (Bank(RegDB) | (Word)(ReadWord(intermediateAddress) + RegY));
+            return Address(RegDB, (Word)(ReadWord(intermediateAddress) + RegY));
         }
 
-        private Addr AddrModeDirectPageIndirectLong()
+        private Addr AddrModeDirectIndirectLong()
         {
             byte offset = ReadByteAtPC();
-            return ReadAddr(Bank(0) | (Word)(RegDP + offset));
+            return ReadAddr(Address(0, (Word)(RegDP + offset)));
         }
 
-        private Addr AddrModeDirectPageIndirectLongIndexed()
+        private Addr AddrModeDirectIndirectLongIndexed()
         {
             byte offset = ReadByteAtPC();
-            return ReadAddr(Bank(0) | (Word)(RegDP + offset)) + RegY;
+            return ReadAddr(Address(0, (Word)(RegDP + offset))) + RegY;
         }
 
         private Addr AddrModeImmediate(bool use_word)
@@ -386,25 +386,58 @@ namespace EightSixteenEmu
         private Addr AddrModeRelative(bool use_word)
         {
             Word offset = use_word ? ReadWordAtPC() : ReadByteAtPC();
-            return Join(RegPB, (Word)(RegPC + offset));
+            return Address(RegPB, (Word)(RegPC + offset));
         }
 
         private Addr AddrModeStackRelative()
         {
             byte offset = ReadByteAtPC();
-            return Join(0, (Word)(RegSP + offset));
+            return Address(0, (Word)(RegSP + offset));
         }
 
         private Addr AddrModeStackRelativeIndirectIndexedY()
         {
             Word intermediateAddress = (ushort)(ReadByteAtPC() + RegSP);
-            return Join(RegDB, (Word)(intermediateAddress + RegY));
+            return Address(RegDB, (Word)(intermediateAddress + RegY));
         }
 
         #endregion
 
         #region Opcodes
-
+        private void OpAdc(Addr address)
+        {
+            Word addend = ReadStatusFlag(StatusFlags.M) ? ReadWord(address) : ReadByte(address);
+            byte carry = (byte)(ReadStatusFlag(StatusFlags.C) ? 1 : 0);
+            if (!ReadStatusFlag(StatusFlags.M))
+            {
+                int al = LowByte(RegA) + addend + carry;
+                if (ReadStatusFlag(StatusFlags.D))
+                {
+                    if (((al) & 0x0f) > 0x09) al += 0x06;
+                    if (((al) & 0xf0) > 0x90) al += 0x60;
+                }
+                SetStatusFlag(StatusFlags.C, al > 0xffu);
+                SetStatusFlag(StatusFlags.V, ((Word)((~(RegA ^ addend)) & (RegA ^ al) & 0x80) != 0));
+                SetNZStatusFlagsFromValue((byte)al);
+                RegA = Join((byte)al, HighByte(RegA));
+            }
+            else
+            {
+                int al = RegA + addend + carry;
+                if (ReadStatusFlag(StatusFlags.D))
+                {
+                    if (((al) & 0x000f) > 0x0009) al += 0x0006;
+                    if (((al) & 0x00f0) > 0x0090) al += 0x0060;
+                    if (((al) & 0x0f00) > 0x0900) al += 0x0600;
+                    if (((al) & 0xf000) > 0x9000) al += 0x6000;
+                }
+                SetStatusFlag(StatusFlags.C, al > 0xffffu);
+                SetStatusFlag(StatusFlags.V, ((Word)((~(RegA ^ addend)) & (RegA ^ al) & 0x8000) != 0));
+                SetNZStatusFlagsFromValue((Word)al);
+                RegA = (Word)al;
+            }
+            cycles += 2;
+        }
         #endregion
 
         #region HW Interrupts
@@ -431,10 +464,6 @@ namespace EightSixteenEmu
         {
             throw new NotImplementedException();
         }
-        private void Abort()
-        {
-            throw new NotImplementedException();
-        }
         #endregion
 
         public void Step()
@@ -445,11 +474,7 @@ namespace EightSixteenEmu
             }
             else if (!stopped)
             {
-                if (aborting)
-                {
-                    Abort();
-                }
-                else if (interruptingNonMaskable)
+                if (interruptingNonMaskable)
                 {
                     InterruptNonMaskable();
                 }
@@ -462,6 +487,91 @@ namespace EightSixteenEmu
                     RegIR = ReadByteAtPC();
                     switch (RegIR)
                     {
+                        // ADC SBC
+                        case 0x61: OpAdc(AddrModeDirectIndexedIndirect()); break;
+                        case 0x63: OpAdc(AddrModeStackRelative()); break;
+                        case 0x65: OpAdc(AddrModeDirect()); break;
+                        case 0x67: OpAdc(AddrModeDirectIndirectLong()); break;
+                        case 0x69: OpAdc(AddrModeImmediate(!ReadStatusFlag(StatusFlags.M))); break;
+                        case 0x6d: OpAdc(AddrModeAbsolute()); break;
+                        case 0x6f: OpAdc(AddrModeAbsoluteLong()); break;
+                        case 0x71: OpAdc(AddrModeDirectIndirectIndexed()); break;
+
+                        // CMP CPX CPY
+
+
+                        // DEA DEC DEX DEY INA INC INX INY
+
+
+                        // AND EOR ORA
+
+
+                        // BIT
+
+
+                        // TRB TSB
+
+
+                        // ASL LSR ROL ROR
+
+
+                        // BCC BCS BEQ BMI BNE BPL BRA BVC BVS
+
+
+                        // BRL
+
+
+                        // JMP JSL JSR
+
+
+                        // RTL RTS
+
+
+                        // BRK COP
+
+
+                        // RTI
+
+
+                        // CLC CLD CLI CLV SEC SED SEI
+
+
+                        // REP SEP
+
+
+                        // LDA LDX LDY STA STX STY STZ
+
+
+                        // MVN MVP
+
+
+                        // NOP WDM
+
+
+                        // PEA PEI PER
+
+
+                        // PHA PHX PHY PLA PLX PLY
+
+
+                        // PHD PHD PHK PHP PLD PLP
+
+
+                        // STP WAI
+
+
+                        // TAX TAY TSX TXA TXS TXY TYA TYX
+
+
+                        // TCD TCS TDC TSC
+
+
+                        // XBA
+
+
+                        // XCE
+
+
                         default:
                             throw new NotImplementedException($"Opcode ${RegIR:x2} not yet implemented");
                     }
