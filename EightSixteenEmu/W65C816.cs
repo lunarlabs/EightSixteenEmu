@@ -175,7 +175,6 @@ namespace EightSixteenEmu
             INC,
             INX,
             INY,
-            JML,
             JMP,
             JSL,
             JSR,
