@@ -972,8 +972,42 @@ namespace EightSixteenEmu
                     };
                     #endregion
                     operation(m);
+#if DEBUG
+                    int cyclesThisOp = cycles - oldCycles;
+                    Console.WriteLine($"Cycles: {cyclesThisOp}");
+
+                    string flags = FormatStatusFlags();
+
+                    Console.WriteLine($"A: 0x{RegA:x4}\n X: 0x{RegX:x4}\n Y: 0x{RegY:x4}\n DP: 0x{RegDP:x4}\n SP: 0x{RegSP:x4}\n DB: 0x{RegDP:x2}");
+                    Console.WriteLine($"PB: 0x{RegPB:x2} PC: 0x{RegPC:x4}");
+                    Console.WriteLine($"Flags: {flags}");
+#endif
                 }
             }
+        }
+
+        private string FormatStatusFlags()
+        {
+            string flags = "";
+            flags += ReadStatusFlag(StatusFlags.N) ? "N" : "-";
+            flags += ReadStatusFlag(StatusFlags.V) ? "V" : "-";
+            if (FlagE)
+            {
+                flags += ".";
+                flags += ReadStatusFlag(StatusFlags.X) ? "B" : "-";
+            }
+            else
+            {
+                flags += ReadStatusFlag(StatusFlags.M) ? "M" : "-";
+                flags += ReadStatusFlag(StatusFlags.X) ? "X" : "-";
+            }
+            flags += ReadStatusFlag(StatusFlags.D) ? "D" : "-";
+            flags += ReadStatusFlag(StatusFlags.I) ? "I" : "-";
+            flags += ReadStatusFlag(StatusFlags.Z) ? "Z" : "-";
+            flags += ReadStatusFlag(StatusFlags.C) ? "C" : "-";
+            flags += " ";
+            flags += FlagE ? "E" : "-";
+            return flags;
         }
 
         public Status GetStatus()
@@ -1008,6 +1042,30 @@ namespace EightSixteenEmu
             public UInt16 A, X, Y, DP, SP, PC;
             public Byte DB, PB;
             public bool FlagN, FlagV, FlagM, FlagX, FlagD, FlagI, FlagZ, FlagC, FlagE;
+
+            public override string ToString()
+            {
+                string flags = "";
+                flags += FlagN ? "N" : "-";
+                flags += FlagV ? "V" : "-";
+                if (FlagE)
+                {
+                    flags += ".";
+                    flags += FlagX ? "B" : "-";
+                }
+                else
+                {
+                    flags += FlagM ? "M" : "-";
+                    flags += FlagX ? "X" : "-";
+                }
+                flags += FlagD ? "D" : "-";
+                flags += FlagI ? "I" : "-";
+                flags += FlagZ ? "Z" : "-";
+                flags += FlagC ? "C" : "-";
+                flags += " ";
+                flags += FlagE ? "E" : "-";
+                return $"Cycles: {Cycles}\nA: 0x{A:x4}\n X: 0x{X:x4}\n Y: 0x{Y:x4}\n DP: 0x{DP:x4}\n SP: 0x{SP:x4}\n DB: 0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
+            }
         }
     }
 }
