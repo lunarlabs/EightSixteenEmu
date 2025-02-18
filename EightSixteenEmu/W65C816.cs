@@ -8,17 +8,18 @@ namespace EightSixteenEmu
 {
     internal class W65C816
     {
-        enum Locations
+        public enum Vector : uint
         {
-            Memory,
-            RegA,
-            RegX,
-            RegY,
-            RegDP,
-            RegSP,
-            RegDB,
-            RegPB,
-            RegPC,
+            NativeCOP = 0x00ffe4,
+            NativeBRK = 0x00ffe6,
+            NativeAbort = 0x00ffe8,
+            NativeNMI = 0x00ffea, 
+            NativeIRQ = 0x00ffee,
+            EmulationCOP = 0x00fff4,
+            EmulationAbort = 0x00fff8,
+            EmulationNMI = 0x00fffa,
+            Reset = 0x00fffc,
+            EmulationIRQ = 0x00fffe,
         }
         /// <summary>
         /// Represents the different addressing modes of the 65C816

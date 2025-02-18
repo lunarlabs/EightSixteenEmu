@@ -773,7 +773,7 @@ namespace EightSixteenEmu
             waiting = false;
             interruptingMaskable = false;
 
-            RegPC = ReadWord(0xFFFC);
+            RegPC = ReadWord((Addr)W65C816.Vector.Reset);
             resetting = false;
         }
         private void InterruptMaskable()
