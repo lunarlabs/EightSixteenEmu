@@ -8,6 +8,14 @@ using Word = System.UInt16;
 
 namespace EightSixteenEmu
 {
+    /// <summary>
+    /// A class representing the W65C816 microprocessor.
+    /// </summary>
+    /// <remarks>
+    /// This class is a work in progress. Most opcodes are not yet implemented.
+    /// Steps are by operation, not by cycle. This is a simplification for now.
+    /// The ABORT signal is not implemented. Since very few actual designs use it, it has been deemed unnecessary.
+    /// </remarks>
     public class Microprocessor
     {
         private int cycles;
@@ -66,6 +74,18 @@ namespace EightSixteenEmu
         private byte RegIR; // instruction register
         private byte RegMD; // memory data register
 
+        /// <summary>
+        /// Creates a new instance of the W65C816 microprocessor.
+        /// </summary>
+        /// <param name="deviceList">
+        /// A list of <c>IMappableDevice</c> to assign to the microprocessor's address space.
+        /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when the base address of a device falls outside the 24-bit address space.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the address range of a device conflicts with an existing device.
+        /// </exception>
         public Microprocessor(List<IMappableDevice> deviceList)
         {
             RegA = 0x0000;
@@ -98,7 +118,7 @@ namespace EightSixteenEmu
                 Addr bottom = newDevice.BaseAddress + newDevice.Size;
                 if (bottom > 0xFFFFFF)
                 {
-                    throw new Exception($"Addresses for {newDevice.GetType()} fall outside the 24-bit address space.");
+                    throw new ArgumentOutOfRangeException($"Addresses for {newDevice.GetType()} fall outside the 24-bit address space.");
                 }
                 else
                 {
@@ -106,7 +126,7 @@ namespace EightSixteenEmu
                     {
                         if (Math.Min(top, s) - Math.Min(bottom, e) > 0)
                         {
-                            throw new Exception($"Addresses for {newDevice.GetType()} (${top:x6} - ${bottom:x6}) conflict with existing device at ${s:x6} - ${e:x6}");
+                            throw new InvalidOperationException($"Addresses for {newDevice.GetType()} (${top:x6} - ${bottom:x6}) conflict with existing device at ${s:x6} - ${e:x6}");
                         }
                     }
                     devices.Add((top, bottom), newDevice);
@@ -985,7 +1005,21 @@ namespace EightSixteenEmu
                 }
             }
         }
-
+        public string DeviceList()
+        {
+            string result = "";
+            Addr lastUsedAddress = 0xffffffff;
+            foreach (var device in devices)
+            {
+                (Addr start, Addr end) = device.Key;
+                if (start != lastUsedAddress + 1)
+                {
+                    result += $"${lastUsedAddress + 1:x6} - ${start - 1:x6}: Unused\n";
+                }
+                result += $"${start:x6} - ${end:x6}: {device.Value}\n";
+            }
+            return result;
+        }
         private string FormatStatusFlags()
         {
             string flags = "";
