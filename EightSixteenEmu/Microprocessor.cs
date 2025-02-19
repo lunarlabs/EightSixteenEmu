@@ -28,6 +28,7 @@ namespace EightSixteenEmu
         private bool breakActive;
         private bool verbose;
         private readonly SortedDictionary<(Addr start, Addr end), IMappableDevice> devices;
+        private readonly Clock clock;
 
         public bool Verbose
         {
@@ -70,6 +71,48 @@ namespace EightSixteenEmu
         private Word RegPC; // program counter
         private StatusFlags RegSR;  // status flags register
         private bool FlagE; // emulation flag
+
+        private byte RegAH // high byte of accumulator
+        {
+            get => HighByte(RegA);
+            set => RegA = Join(LowByte(RegA), value);
+        }
+        private byte RegAL // low byte of accumulator
+        {
+            get => LowByte(RegA);
+            set => RegA = Join(value, HighByte(RegA));
+        }
+        private byte RegXH // high byte of X register
+        {
+            get => HighByte(RegX);
+            set => RegX = Join(LowByte(RegX), value);
+        }
+        private byte RegXL // low byte of X register
+        {
+            get => LowByte(RegX);
+            set => RegX = Join(value, HighByte(RegX));
+        }
+        private byte RegYH // high byte of Y register
+        {
+            get => HighByte(RegY);
+            set => RegY = Join(LowByte(RegY), value);
+        }
+        private byte RegYL // low byte of Y register
+        {
+            get => LowByte(RegY);
+            set => RegY = Join(value, HighByte(RegY));
+        }
+        private byte RegSH // high byte of stack pointer
+        {
+            get => HighByte(RegSP);
+            set => RegSP = Join(LowByte(RegSP), value);
+        }
+        private byte RegSL // low byte of stack pointer
+        {
+            get => LowByte(RegSP);
+            set => RegSP = Join(value, HighByte(RegSP));
+        }
+
         // non-accessible registers
         private byte RegIR; // instruction register
         private byte RegMD; // memory data register
@@ -86,8 +129,11 @@ namespace EightSixteenEmu
         /// <exception cref="InvalidOperationException">
         /// Thrown when the address range of a device conflicts with an existing device.
         /// </exception>
-        public Microprocessor(List<IMappableDevice> deviceList)
+        public Microprocessor(List<IMappableDevice> deviceList, Clock clock)
         {
+            this.clock = clock;
+            this.clock.Tick += OnClockTick;
+
             RegA = 0x0000;
             RegX = 0x0000;
             RegY = 0x0000;
@@ -132,6 +178,19 @@ namespace EightSixteenEmu
                     devices.Add((top, bottom), newDevice);
                 }
             }
+        }
+        
+        private TaskCompletionSource<bool> tickTcs = new TaskCompletionSource<bool>();
+
+        private void OnClockTick(object? sender, EventArgs e)
+        {
+            tickTcs.SetResult(true);
+        }
+
+        private async Task WaitForTickAsync()
+        {
+            await tickTcs.Task;
+            tickTcs = new TaskCompletionSource<bool>();
         }
 
         static byte LowByte(Word word)
