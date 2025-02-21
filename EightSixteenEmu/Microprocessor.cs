@@ -25,6 +25,7 @@ namespace EightSixteenEmu
         private bool aborting;
         private bool stopped;
         private bool waiting;
+        private bool operationComplete;
         private bool breakActive;
         private bool verbose;
         private readonly SortedDictionary<(Addr start, Addr end), IMappableDevice> devices;
@@ -47,7 +48,7 @@ namespace EightSixteenEmu
         private delegate Task DoOperation(W65C816.AddressingMode mode);
 
         [Flags]
-        public enum StatusFlags : byte
+        internal enum StatusFlags : byte
         {
             None = 0,
             C = 0x01,   // carry
@@ -182,16 +183,31 @@ namespace EightSixteenEmu
         
         private TaskCompletionSource<bool> tickTcs = new TaskCompletionSource<bool>();
 
+        private void OnResetSignal(object? sender, EventArgs e)
+        {
+            resetting = true;
+        }
         private void OnClockTick(object? sender, EventArgs e)
         {
-            cycles++;
-            tickTcs.SetResult(true);
+            tickTcs.SetResult(!resetting);
+            if (operationComplete)
+            {
+                ExecuteOperationAsync().ConfigureAwait(false);
+            }
         }
 
         private async Task WaitForTickAsync()
         {
-            await tickTcs.Task;
+            bool continueOp = await tickTcs.Task;
             tickTcs = new TaskCompletionSource<bool>();
+            if (!continueOp)
+            {
+                cycles++;
+            }
+            else
+            {
+                Reset();
+            }
         }
 
         static byte LowByte(Word word)
@@ -410,7 +426,7 @@ namespace EightSixteenEmu
                 }
         }
         private bool AccumulatorIs8Bit { get { return ReadStatusFlag(StatusFlags.M); } }
-        private bool IndexesAre8Bit { get { return ReadStatusFlag(StatusFlags.X); } }
+        private bool IndexesAre8Bit { get { return FlagE || ReadStatusFlag(StatusFlags.X); } }
 
         private bool ReadStatusFlag(StatusFlags flag)
         {
@@ -641,7 +657,7 @@ namespace EightSixteenEmu
                 SetNZStatusFlagsFromValue((Word)al);
                 RegA = (Word)al;
             }
-            cycles += 1;
+            await WaitForTickAsync();
         }
 
         private async Task OpSbc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -814,9 +830,16 @@ namespace EightSixteenEmu
         private async Task OpMvp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region NOP WDM
-        private async Task OpNop(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpNop(W65C816.AddressingMode addressingMode) 
+        {
+            await WaitForTickAsync();
+        }
 
-        private async Task OpWdm(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpWdm(W65C816.AddressingMode addressingMode)
+        {
+            RegPC++;
+            await WaitForTickAsync();
+        }
         #endregion
         #region PEA PEI PER
         private async Task OpPea(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -826,17 +849,85 @@ namespace EightSixteenEmu
         private async Task OpPer(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region PHA PHX PHY PLA PLX PLY
-        private async Task OpPha(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPha(W65C816.AddressingMode addressingMode)
+        {
+            if (AccumulatorIs8Bit)
+            {
+                await PushByte(RegAL);
+            }
+            else
+            {
+                await PushWord(RegA);
+            }
+            await WaitForTickAsync();
+        }
 
-        private async Task OpPhx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPhx(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                await PushByte(RegXL);
+            }
+            else
+            {
+                await PushWord(RegX);
+            }
+            await WaitForTickAsync();
+        }
 
-        private async Task OpPhy(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPhy(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                await PushByte(RegYL);
+            }
+            else
+            {
+                await PushWord(RegY);
+            }
+        }
 
-        private async Task OpPla(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPla(W65C816.AddressingMode addressingMode)
+        {
+            if (AccumulatorIs8Bit)
+            {
+                RegAL = await PullByte();
+                SetNZStatusFlagsFromValue(RegAL);
+            }
+            else
+            {
+                RegA = await PullWord();
+                SetNZStatusFlagsFromValue(RegA);
+            }
+        }
 
-        private async Task OpPlx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPlx(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                RegXL = await PullByte();
+                SetNZStatusFlagsFromValue(RegXL);
+            }
+            else
+            {
+                RegX = await PullWord();
+                SetNZStatusFlagsFromValue(RegX);
+            }
+        }
 
-        private async Task OpPly(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpPly(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                RegYL = await PullByte();
+                SetNZStatusFlagsFromValue(RegYL);
+            }
+            else
+            {
+                RegY = await PullWord();
+                SetNZStatusFlagsFromValue(RegY);
+            }
+        }
         #endregion
         #region PHB PHD PHK PHP PLB PLD PLP
         private async Task OpPhb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -854,9 +945,18 @@ namespace EightSixteenEmu
         private async Task OpPlp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region STP WAI
-        private async Task OpStp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpStp(W65C816.AddressingMode addressingMode)
+        {
+            await WaitForTickAsync();
+            stopped = true;
+            clock.Stop();
+        }
 
-        private async Task OpWai(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpWai(W65C816.AddressingMode addressingMode)
+        {
+            await WaitForTickAsync();
+            waiting = true;
+        }
         #endregion
         #region TAX TAY TSX TXA TXS TXY TYA TYX
         private async Task OpTax(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -884,7 +984,11 @@ namespace EightSixteenEmu
 
         private async Task OpTsc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
-        private async Task OpXba(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpXba(W65C816.AddressingMode addressingMode)
+        {
+            await WaitForTickAsync();
+            RegA = Swap(RegA);
+        }
 
         private async Task OpXce(W65C816.AddressingMode addressingMode) 
         { 
@@ -897,7 +1001,7 @@ namespace EightSixteenEmu
         #endregion
 
         #region HW Interrupts
-        private async Task Reset()
+        private void Reset()
         {
             cycles = 0;
             FlagE = true;
@@ -909,10 +1013,12 @@ namespace EightSixteenEmu
             stopped = false;
             waiting = false;
             interruptingMaskable = false;
-
-            await LoadInterruptVector(W65C816.Vector.Reset);
             resetting = false;
+            
+            if (verbose) Console.WriteLine("RESET");
+            LoadInterruptVector(W65C816.Vector.Reset);
         }
+
         private async Task InterruptMaskable()
         {
             throw new NotImplementedException();
@@ -923,15 +1029,16 @@ namespace EightSixteenEmu
         }
         #endregion
 
-        public async Task StepAsync()
+        private async Task ExecuteOperationAsync()
         {
             if (resetting)
             {
-                await Reset();
+                Reset();
             }
             else if (!stopped)
             {
                 int oldCycles = cycles;
+                operationComplete = false;
                 if (interruptingNonMaskable)
                 {
                     waiting = false;
@@ -952,7 +1059,6 @@ namespace EightSixteenEmu
                 else if (!waiting)
                 {
                     RegIR = await ReadByte();
-                    cycles += 1;
                     (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(RegIR);
                     if (verbose) Console.Write(o.ToString() + " ");
                     DoOperation operation = o switch
@@ -1053,6 +1159,7 @@ namespace EightSixteenEmu
                     };
                     #endregion
                     await operation(m);
+                    if (!stopped) operationComplete = true;
 #if DEBUG
                     int cyclesThisOp = cycles - oldCycles;
                     Console.WriteLine($"Cycles: {cyclesThisOp}");
