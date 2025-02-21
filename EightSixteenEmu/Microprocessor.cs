@@ -60,12 +60,14 @@ namespace EightSixteenEmu
             V = 0x40,   // overflow
             N = 0x80,   // negative
         }
-         internal enum HardwareInterruptSource : byte
+         internal enum InterruptType : byte
         {
             Reset,
             Abort,
             NMI,
             IRQ,
+            BRK,
+            COP,
         }
 
         // accessible registers
@@ -758,43 +760,11 @@ namespace EightSixteenEmu
         #region BRK COP
         private async Task OpBrk(W65C816.AddressingMode addressingMode) 
         { 
-            if (_flagE)
-            {
-                await PushWord((Word)(_regPC + 1));
-                await PushByte((byte)(_regSR | StatusFlags.X));
-                SetStatusFlag(StatusFlags.I, true);
-                SetStatusFlag(StatusFlags.D, false);
-                await LoadInterruptVector(W65C816.Vector.EmulationIRQ);
-            }
-            else
-            {
-                await PushByte(_regPB);
-                await PushWord((Word)(_regPC + 1));
-                await PushByte((byte)(_regSR));
-                SetStatusFlag(StatusFlags.I, true);
-                SetStatusFlag(StatusFlags.D, false);
-                await LoadInterruptVector(W65C816.Vector.NativeBRK);
-            }
+            await Interrupt(InterruptType.BRK);
         }
 
         private async Task OpCop(W65C816.AddressingMode addressingMode) {
-            if (_flagE)
-            {
-                await PushWord((Word)(_regPC + 1));
-                await PushByte((byte)(_regSR));
-                SetStatusFlag(StatusFlags.I, true);
-                SetStatusFlag(StatusFlags.D, false);
-                await LoadInterruptVector(W65C816.Vector.EmulationCOP);
-            }
-            else
-            {
-                await PushByte(_regPB);
-                await PushWord((Word)(_regPC + 1));
-                await PushByte((byte)(_regSR));
-                SetStatusFlag(StatusFlags.I, true);
-                SetStatusFlag(StatusFlags.D, false);
-                await LoadInterruptVector(W65C816.Vector.NativeCOP);
-            }
+            await Interrupt(InterruptType.COP);
         }
         #endregion
         #region RTI
@@ -1030,17 +1000,55 @@ namespace EightSixteenEmu
             LoadInterruptVector(W65C816.Vector.Reset);
         }
 
-        private async Task InterruptMaskable()
+        private async Task Interrupt(InterruptType source)
         {
-            await WaitForTickAsync();
-            if (!_flagE) await WaitForTickAsync();
-            throw new NotImplementedException();
+            if (source == InterruptType.Reset)
+            {
+                Reset();
+            }
+            else
+            {
+                Word addressToPush = (source == InterruptType.BRK || source == InterruptType.COP) ? (Word)(_regPC + 1) : _regPC;
+                await WaitForTickAsync();
+                await WaitForTickAsync();
+                if (!_flagE) await PushByte(_regPB);
+                await PushWord(addressToPush);
+                if (_flagE && source == InterruptType.BRK)
+                {
+                    await PushByte((byte)(_regSR | StatusFlags.X));
+                }
+                else
+                {
+                    await PushByte((byte)(_regSR));
+                }
+                SetStatusFlag(StatusFlags.I, true);
+                SetStatusFlag(StatusFlags.D, false);
+                W65C816.Vector vector;
+                if (_flagE)
+                {
+                    vector = source switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.EmulationIRQ,
+                        InterruptType.COP => W65C816.Vector.EmulationCOP,
+                        InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
+                        InterruptType.NMI => W65C816.Vector.EmulationNMI,
+                        _ => throw new NotImplementedException(),
+                    };
+                }
+                else
+                {
+                    vector = source switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.NativeBRK,
+                        InterruptType.COP => W65C816.Vector.NativeCOP,
+                        InterruptType.IRQ => W65C816.Vector.NativeIRQ,
+                        InterruptType.NMI => W65C816.Vector.NativeNMI,
+                        _ => throw new NotImplementedException(),
+                    };
+                }
+                await LoadInterruptVector(vector);
+            }
         }
-        private async Task InterruptNonMaskable()
-        {
-            throw new NotImplementedException();
-        }
-        #endregion
 
         private async Task ExecuteOperationAsync()
         {
@@ -1055,14 +1063,14 @@ namespace EightSixteenEmu
                 if (_interruptingNonMaskable)
                 {
                     _waiting = false;
-                    await InterruptNonMaskable();
+                    await Interrupt(InterruptType.NMI);
                 }
                 else if (_interruptingMaskable)
                 {
                     if (!ReadStatusFlag(StatusFlags.I))
                     {
                         _waiting = false;
-                        await InterruptMaskable();
+                        await Interrupt(InterruptType.IRQ);
                     }
                     else if (_waiting)
                     {
