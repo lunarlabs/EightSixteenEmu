@@ -5,22 +5,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using EightSixteenEmu.Devices;
 
 namespace EightSixteenEmu.Tests
 {
     [TestClass()]
-    public class MicroprocessorTests
+    public class ClockTests
     {
         [TestMethod()]
-        public void MicroprocessorTest()
+        public void ClockTest()
         {
-            var deviceList = new List<IMappableDevice>();
             var clock = new Clock(TimeSpan.FromSeconds(1), true);
-            var ram = new DevRAM(0, 0x10000);
-            deviceList.Add(ram);
-            var mp = new Microprocessor(deviceList, clock);
-            Assert.IsNotNull(mp);
+            Assert.IsNotNull(clock);
         }
     }
 }
