@@ -639,10 +639,10 @@ namespace EightSixteenEmu
             else
             {
                 Addr address = await GetEffectiveAddress(addressingMode);
-                addend = AccumulatorIs8Bit ? await ReadByte(address) : await ReadWord(address);
+                addend = await ReadValue(AccumulatorIs8Bit, address);
             }
             byte carry = (byte)(ReadStatusFlag(StatusFlags.C) ? 1 : 0);
-            if (!ReadStatusFlag(StatusFlags.M))
+            if (AccumulatorIs8Bit)
             {
                 int al = LowByte(_regA) + addend + carry;
                 if (ReadStatusFlag(StatusFlags.D))
@@ -650,10 +650,10 @@ namespace EightSixteenEmu
                     if (((al) & 0x0f) > 0x09) al += 0x06;
                     if (((al) & 0xf0) > 0x90) al += 0x60;
                 }
-                SetStatusFlag(StatusFlags.C, al > 0xffu);
+                SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
                 SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0));
                 SetNZStatusFlagsFromValue((byte)al);
-                _regA = Join((byte)al, HighByte(_regA));
+                _regAL = (byte)al;
             }
             else
             {
@@ -665,7 +665,7 @@ namespace EightSixteenEmu
                     if (((al) & 0x0f00) > 0x0900) al += 0x0600;
                     if (((al) & 0xf000) > 0x9000) al += 0x6000;
                 }
-                SetStatusFlag(StatusFlags.C, al > 0xffffu);
+                SetStatusFlag(StatusFlags.C, (al & 0x10000u) != 0);
                 SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x8000) != 0));
                 SetNZStatusFlagsFromValue((Word)al);
                 _regA = (Word)al;
@@ -673,9 +673,49 @@ namespace EightSixteenEmu
             await WaitForTickAsync();
         }
 
-        private async Task OpSbc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpSbc(W65C816.AddressingMode addressingMode)
+        {
+            Word subtrahend;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                subtrahend = await ReadImmediate(AccumulatorIs8Bit);
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                subtrahend = await ReadValue(AccumulatorIs8Bit, address);
+            }
+            if (AccumulatorIs8Bit)
+            {
+                int al = _regAL + ~(byte)subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
+                if (ReadStatusFlag(StatusFlags.D))
+                {
+                    if (((al) & 0x0f) > 0x09) al += 0x06;
+                    if (((al) & 0xf0) > 0x90) al += 0x60;
+                }
+                SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
+                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ subtrahend)) & (_regA ^ al) & 0x80) != 0);
+                SetNZStatusFlagsFromValue((byte)al);
+                _regAL = (byte)al;
+            }
+            else
+            {
+                int al = _regA + ~subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
+                if (ReadStatusFlag(StatusFlags.D))
+                {
+                    if (((al) & 0x000f) > 0x0009) al += 0x0006;
+                    if (((al) & 0x00f0) > 0x0090) al += 0x0060;
+                    if (((al) & 0x0f00) > 0x0900) al += 0x0600;
+                    if (((al) & 0xf000) > 0x9000) al += 0x6000;
+                }
+                SetStatusFlag(StatusFlags.C, (al & 0x10000u) != 0);
+                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ subtrahend)) & (_regA ^ al) & 0x8000) != 0);
+                SetNZStatusFlagsFromValue((Word)al);
+                _regA = (Word)al;
+            }
+        }
         #endregion
-        #region CMP CPX CPY
+            #region CMP CPX CPY
         private async Task OpCmp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
         private async Task OpCpx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -683,21 +723,129 @@ namespace EightSixteenEmu
         private async Task OpCpy(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region DEA DEC DEX DEY INA INC INX INY
-        private async Task OpDea(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpDec(W65C816.AddressingMode addressingMode)
+        {
+            if (addressingMode == W65C816.AddressingMode.Accumulator)
+            {
+                if (AccumulatorIs8Bit)
+                {
+                    byte al = _regAL;
+                    SetNZStatusFlagsFromValue(--al);
+                    _regAL = al;
+                }
+                else
+                {
+                    Word a = _regA;
+                    SetNZStatusFlagsFromValue(--a);
+                    _regA = a;
+                }
+                await WaitForTickAsync();
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                Word value = await ReadValue(AccumulatorIs8Bit, address);
+                value -= 1;
+                await WaitForTickAsync();
+                if (AccumulatorIs8Bit)
+                {
+                    SetNZStatusFlagsFromValue((byte)value);
+                }
+                else
+                {
+                    SetNZStatusFlagsFromValue(value);
+                }
+                await WriteValue(value, AccumulatorIs8Bit, address);
+            }
+        }
 
-        private async Task OpDec(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpDex(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue(--_regXL);
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(--_regX);
+            }
+            await WaitForTickAsync();
+        }
 
-        private async Task OpDex(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpDey(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue(--_regYL);
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(--_regY);
+            }
+            await WaitForTickAsync();
+        }
 
-        private async Task OpDey(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpInc(W65C816.AddressingMode addressingMode)
+        {
+            if (addressingMode == W65C816.AddressingMode.Accumulator)
+            {
+                if (AccumulatorIs8Bit)
+                {
+                    byte al = _regAL;
+                    SetNZStatusFlagsFromValue(++al);
+                    _regAL = al;
+                }
+                else
+                {
+                    Word a = _regA;
+                    SetNZStatusFlagsFromValue(++a);
+                    _regA = a;
+                }
+                await WaitForTickAsync();
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                Word value = await ReadValue(AccumulatorIs8Bit, address);
+                value += 1;
+                await WaitForTickAsync();
+                if (AccumulatorIs8Bit)
+                {
+                    SetNZStatusFlagsFromValue((byte)value);
+                }
+                else
+                {
+                    SetNZStatusFlagsFromValue(value);
+                }
+                await WriteValue(value, AccumulatorIs8Bit, address);
+            }
+        }
 
-        private async Task OpIna(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpInx(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue(++_regXL);
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(++_regX);
+            }
+            await WaitForTickAsync();
+        }
 
-        private async Task OpInc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
-
-        private async Task OpInx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
-
-        private async Task OpIny(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpIny(W65C816.AddressingMode addressingMode)
+        {
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue(++_regYL);
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(++_regY);
+            }
+            await WaitForTickAsync();
+        }
         #endregion
         #region AND EOR ORA
         private async Task OpAnd(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
