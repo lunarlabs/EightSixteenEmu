@@ -18,22 +18,21 @@ namespace EightSixteenEmu
     /// </remarks>
     public class Microprocessor
     {
-        private int cycles;
-        private bool resetting;
-        private bool interruptingMaskable;
-        private bool interruptingNonMaskable;
-        private bool aborting;
-        private bool stopped;
-        private bool waiting;
-        private bool operationComplete;
-        private bool breakActive;
-        private bool verbose;
-        private readonly SortedDictionary<(Addr start, Addr end), IMappableDevice> devices;
-        private readonly Clock clock;
+        private int _cycles;
+        private bool _resetting;
+        private bool _interruptingMaskable;
+        private bool _interruptingNonMaskable;
+        private bool _aborting;
+        private bool _stopped;
+        private bool _waiting;
+        private bool _operationComplete;
+        private bool _verbose;
+        private readonly SortedDictionary<(Addr start, Addr end), IMappableDevice> _devices;
+        private readonly Clock _clock;
 
         public bool Verbose
         {
-            get => verbose;
+            get => _verbose;
 #if !DEBUG
             set => verbose = value;
 #endif
@@ -41,9 +40,10 @@ namespace EightSixteenEmu
 
         public int Cycles
         {
-            get => cycles;
+            get => _cycles;
         }
-        public bool Stopped { get => stopped; }
+        public bool Stopped { get => _stopped; }
+        public bool Waiting { get => _waiting; }
 
         private delegate Task DoOperation(W65C816.AddressingMode mode);
 
@@ -60,63 +60,74 @@ namespace EightSixteenEmu
             V = 0x40,   // overflow
             N = 0x80,   // negative
         }
+         internal enum HardwareInterruptSource : byte
+        {
+            Reset,
+            Abort,
+            NMI,
+            IRQ,
+        }
 
         // accessible registers
-        private Word RegA;  // accumulator
-        private Word RegX;  // index register X
-        private Word RegY;  // index register Y
-        private Word RegDP; // direct page pointer
-        private Word RegSP; // stack pointer
-        private byte RegDB; // data bank
-        private byte RegPB; // program bank
-        private Word RegPC; // program counter
-        private StatusFlags RegSR;  // status flags register
-        private bool FlagE; // emulation flag
+        private Word _regA;  // accumulator
+        private Word _regX;  // index register X
+        private Word _regY;  // index register Y
+        private Word _regDP; // direct page pointer
+        private Word _regSP; // stack pointer
+        private byte _regDB; // data bank
+        private byte _regPB; // program bank
+        private Word _regPC; // program counter
+        private StatusFlags _regSR;  // status flags register
+        private bool _flagE; // emulation flag
 
-        private byte RegAH // high byte of accumulator
+        private byte _regAH // high byte of accumulator
         {
-            get => HighByte(RegA);
-            set => RegA = Join(LowByte(RegA), value);
+            get => HighByte(_regA);
+            set => _regA = Join(LowByte(_regA), value);
         }
-        private byte RegAL // low byte of accumulator
+        private byte _regAL // low byte of accumulator
         {
-            get => LowByte(RegA);
-            set => RegA = Join(value, HighByte(RegA));
+            get => LowByte(_regA);
+            set => _regA = Join(value, HighByte(_regA));
         }
-        private byte RegXH // high byte of X register
+        private byte _regXH // high byte of X register
         {
-            get => HighByte(RegX);
-            set => RegX = Join(LowByte(RegX), value);
+            get => HighByte(_regX);
+            set => _regX = Join(LowByte(_regX), value);
         }
-        private byte RegXL // low byte of X register
+        private byte _regXL // low byte of X register
         {
-            get => LowByte(RegX);
-            set => RegX = Join(value, HighByte(RegX));
+            get => LowByte(_regX);
+            set => _regX = Join(value, HighByte(_regX));
         }
-        private byte RegYH // high byte of Y register
+        private byte _regYH // high byte of Y register
         {
-            get => HighByte(RegY);
-            set => RegY = Join(LowByte(RegY), value);
+            get => HighByte(_regY);
+            set => _regY = Join(LowByte(_regY), value);
         }
-        private byte RegYL // low byte of Y register
+        private byte _regYL // low byte of Y register
         {
-            get => LowByte(RegY);
-            set => RegY = Join(value, HighByte(RegY));
+            get => LowByte(_regY);
+            set => _regY = Join(value, HighByte(_regY));
         }
-        private byte RegSH // high byte of stack pointer
+        private byte _regSH // high byte of stack pointer
         {
-            get => HighByte(RegSP);
-            set => RegSP = Join(LowByte(RegSP), value);
+            get => HighByte(_regSP);
+            set => _regSP = Join(LowByte(_regSP), value);
         }
-        private byte RegSL // low byte of stack pointer
+        private byte _regSL // low byte of stack pointer
         {
-            get => LowByte(RegSP);
-            set => RegSP = Join(value, HighByte(RegSP));
+            get => LowByte(_regSP);
+            set => _regSP = Join(value, HighByte(_regSP));
         }
+
+        public bool FlagE { get => _flagE; }
+        public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
+        public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
 
         // non-accessible registers
-        private byte RegIR; // instruction register
-        private byte RegMD; // memory data register
+        private byte _regIR; // instruction register
+        private byte _regMD; // memory data register
 
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
@@ -132,35 +143,34 @@ namespace EightSixteenEmu
         /// </exception>
         public Microprocessor(List<IMappableDevice> deviceList, Clock clock)
         {
-            this.clock = clock;
-            this.clock.Tick += OnClockTick;
+            this._clock = clock;
+            this._clock.Tick += OnClockTick;
 
-            RegA = 0x0000;
-            RegX = 0x0000;
-            RegY = 0x0000;
-            RegDP = 0x0000;
-            RegSP = 0x0100;
-            RegDB = 0x00;
-            RegPB = 0x00;
-            RegPC = 0x0000;
-            RegSR = (StatusFlags)0x34;
-            FlagE = false;
-            RegMD = 0x00;
+            _regA = 0x0000;
+            _regX = 0x0000;
+            _regY = 0x0000;
+            _regDP = 0x0000;
+            _regSP = 0x0100;
+            _regDB = 0x00;
+            _regPB = 0x00;
+            _regPC = 0x0000;
+            _regSR = (StatusFlags)0x34;
+            _flagE = false;
+            _regMD = 0x00;
 
-            cycles = 0;
-            resetting = true;
-            interruptingMaskable = false;
-            interruptingNonMaskable = false;
-            stopped = false;
-            breakActive = false;
+            _cycles = 0;
+            _resetting = true;
+            _interruptingMaskable = false;
+            _interruptingNonMaskable = false;
+            _stopped = false;
 #if DEBUG
-            verbose = true;
+            _verbose = true;
 #endif
 
-            devices = new SortedDictionary<(Addr start, Addr end), IMappableDevice>();
+            _devices = new SortedDictionary<(Addr start, Addr end), IMappableDevice>();
             foreach (IMappableDevice newDevice in deviceList)
             {
-                SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = devices.Keys;
+                SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
                 Addr top = newDevice.BaseAddress;
                 Addr bottom = newDevice.BaseAddress + newDevice.Size;
                 if (bottom > 0xFFFFFF)
@@ -176,7 +186,7 @@ namespace EightSixteenEmu
                             throw new InvalidOperationException($"Addresses for {newDevice.GetType()} (${top:x6} - ${bottom:x6}) conflict with existing device at ${s:x6} - ${e:x6}");
                         }
                     }
-                    devices.Add((top, bottom), newDevice);
+                    _devices.Add((top, bottom), newDevice);
                 }
             }
         }
@@ -185,12 +195,12 @@ namespace EightSixteenEmu
 
         private void OnResetSignal(object? sender, EventArgs e)
         {
-            resetting = true;
+            _resetting = true;
         }
         private void OnClockTick(object? sender, EventArgs e)
         {
-            tickTcs.SetResult(!resetting);
-            if (operationComplete)
+            tickTcs.SetResult(!_resetting);
+            if (_operationComplete)
             {
                 ExecuteOperationAsync().ConfigureAwait(false);
             }
@@ -202,7 +212,7 @@ namespace EightSixteenEmu
             tickTcs = new TaskCompletionSource<bool>();
             if (!continueOp)
             {
-                cycles++;
+                _cycles++;
             }
             else
             {
@@ -244,19 +254,19 @@ namespace EightSixteenEmu
         {
             return (Word)((w >> 8) | (w << 8));
         }
-        private Addr LongPC { get => Address(RegPB, RegPC); }
+        private Addr LongPC { get => Address(_regPB, _regPC); }
 
         #region Memory Access
 
         private IMappableDevice? GetDevice(Addr address)
         {
             IMappableDevice? result = null;
-            SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = devices.Keys;
+            SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
             foreach ((Addr s, Addr e) in ranges)
             {
                 if ((address >= s && address <= e))
                 {
-                    result = devices[(s, e)];
+                    result = _devices[(s, e)];
                 }
             }
             return result;
@@ -278,7 +288,7 @@ namespace EightSixteenEmu
                 false => await ReadWord(),
                 true => await ReadByte(),
             };
-            if (verbose)
+            if (_verbose)
             {
                 string arg = isByte ? $"${result:x2}" : $"${result:x4}";
                 Console.WriteLine(arg);
@@ -308,9 +318,9 @@ namespace EightSixteenEmu
             }
             else
             {
-                RegMD = device[address];
+                _regMD = device[address];
             }
-            return RegMD;
+            return _regMD;
         }
 
         private async Task<Word> ReadWord(Addr address, bool wrapping = false)
@@ -338,30 +348,30 @@ namespace EightSixteenEmu
         private async Task<byte> ReadByte()
         {
             byte result = await ReadByte(LongPC);
-            RegPC += 1;
+            _regPC += 1;
             return result;
         }
 
         private async Task<Word> ReadWord()
         {
             Word result = await ReadWord(LongPC, true);
-            RegPC += 2;
+            _regPC += 2;
             return result;
         }
 
         private async Task<Addr> ReadAddr()
         {
             Addr result = await ReadAddr(LongPC, true);
-            RegPC += 3;
+            _regPC += 3;
             return result;
         }
 
         private async Task WriteByte(byte value, Addr address)
         {
             await WaitForTickAsync();
-            if (aborting == false)
+            if (_aborting == false)
             {
-                RegMD = value;
+                _regMD = value;
                 IMappableDevice? device = GetDevice(address);
                 if (device == null)
                 {
@@ -369,7 +379,7 @@ namespace EightSixteenEmu
                 }
                 else
                 {
-                    device[address] = RegMD;
+                    device[address] = _regMD;
                 }
             }
         }
@@ -382,10 +392,10 @@ namespace EightSixteenEmu
 
         private async Task PushByte(byte value)
         {
-            await WriteByte(value, RegSP--);
-            if (FlagE)
+            await WriteByte(value, _regSP--);
+            if (_flagE)
             {
-                RegSL = 0x01;
+                _regSL = 0x01;
             }
         }
 
@@ -397,10 +407,10 @@ namespace EightSixteenEmu
 
         private async Task<byte> PullByte()
         {
-            byte result = await ReadByte(++RegSP);
-            if (FlagE)
+            byte result = await ReadByte(++_regSP);
+            if (_flagE)
             {
-                RegSP = Join(LowByte(RegSP), 0x01);
+                _regSP = Join(LowByte(_regSP), 0x01);
             }
             return result;
         }
@@ -418,19 +428,19 @@ namespace EightSixteenEmu
         {
                 if (value)
                 {
-                    RegSR |= flag;
+                    _regSR |= flag;
                 }
                 else
                 {
-                    RegSR &= ~flag;
+                    _regSR &= ~flag;
                 }
         }
         private bool AccumulatorIs8Bit { get { return ReadStatusFlag(StatusFlags.M); } }
-        private bool IndexesAre8Bit { get { return FlagE || ReadStatusFlag(StatusFlags.X); } }
+        private bool IndexesAre8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.X); } }
 
         private bool ReadStatusFlag(StatusFlags flag)
         {
-            return (RegSR & flag) != 0;
+            return (_regSR & flag) != 0;
         }
 
         private void SetNZStatusFlagsFromValue(byte value)
@@ -450,12 +460,12 @@ namespace EightSixteenEmu
             if (value)
             {
                 SetStatusFlag(StatusFlags.M | StatusFlags.X, true);
-                RegX = (Word)LowByte(RegX);
-                RegY = (Word)LowByte(RegY);
-                RegSP = (Word)(0x0100 | LowByte(RegSP));
-                FlagE = true;
+                _regX = (Word)LowByte(_regX);
+                _regY = (Word)LowByte(_regY);
+                _regSP = (Word)(0x0100 | LowByte(_regSP));
+                _flagE = true;
             }
-            else { FlagE = false; }
+            else { _flagE = false; }
         }
 
         private async Task<Addr> GetEffectiveAddress(W65C816.AddressingMode addressingMode)
@@ -469,137 +479,137 @@ namespace EightSixteenEmu
             {
                 case W65C816.AddressingMode.Immediate:
                     // WARN: Do the reads (and subsequent RegPC advances) in the operation
-                    if (verbose) Console.Write("#");
+                    if (_verbose) Console.Write("#");
                     return LongPC;
                 case W65C816.AddressingMode.Accumulator:
-                    if (verbose) Console.WriteLine("A");
+                    if (_verbose) Console.WriteLine("A");
                     return 0;
                 case W65C816.AddressingMode.ProgramCounterRelative:
                     offsetS8 = (sbyte)(await ReadByte());
-                    if (verbose) Console.WriteLine($"{offsetS8:+0,-#}");
-                    return Address(RegPB, RegPC + offsetS8);
+                    if (_verbose) Console.WriteLine($"{offsetS8:+0,-#}");
+                    return Address(_regPB, _regPC + offsetS8);
                 case W65C816.AddressingMode.ProgramCounterRelativeLong:
                     offsetS16 = (short)(await ReadWord());
-                    if (verbose) Console.WriteLine($"{offsetS16:+0,-#}");
-                    return Address(RegPB, RegPC + offsetS16);
+                    if (_verbose) Console.WriteLine($"{offsetS16:+0,-#}");
+                    return Address(_regPB, _regPC + offsetS16);
                 case W65C816.AddressingMode.Implied:
                     return 0;
                 case W65C816.AddressingMode.Stack:
                     return 0;
                 case W65C816.AddressingMode.Direct:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"${offsetU8:x2}");
-                    return Address(0, RegDP + offsetU8);
+                    if (_verbose) Console.WriteLine($"${offsetU8:x2}");
+                    return Address(0, _regDP + offsetU8);
                 case W65C816.AddressingMode.DirectIndexedWithX:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"${offsetU8:x2}, X");
-                    if (FlagE && LowByte(RegDP) == 0)
+                    if (_verbose) Console.WriteLine($"${offsetU8:x2}, X");
+                    if (_flagE && LowByte(_regDP) == 0)
                     {
-                        return Address(0, Join((byte)(offsetU8 + (byte)RegX), HighByte(RegDP)));
+                        return Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
                     }
                     else
                     {
-                        return Address(0, RegDP + offsetU8 + (byte)RegX);
+                        return Address(0, _regDP + offsetU8 + (byte)_regX);
                     }
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"${offsetU8:x2}, Y");
-                    if (FlagE && LowByte(RegDP) == 0)
+                    if (_verbose) Console.WriteLine($"${offsetU8:x2}, Y");
+                    if (_flagE && LowByte(_regDP) == 0)
                     {
-                        return Address(0, Join((byte)(offsetU8 + (byte)RegY), HighByte(RegDP)));
+                        return Address(0, Join((byte)(offsetU8 + (byte)_regY), HighByte(_regDP)));
                     }
                     else
                     {
-                        return Address(0, RegDP + offsetU8 + (byte)RegY);
+                        return Address(0, _regDP + offsetU8 + (byte)_regY);
                     }
                 case W65C816.AddressingMode.DirectIndirect:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"(${offsetU8:x2})");
-                    if (FlagE && LowByte(RegDP) == 0)
+                    if (_verbose) Console.WriteLine($"(${offsetU8:x2})");
+                    if (_flagE && LowByte(_regDP) == 0)
                     {
-                        pointer = Address(0, Join((byte)(offsetU8), HighByte(RegDP)));
+                        pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
                     }
                     else
                     {
-                        pointer = Address(0, RegDP + offsetU8);
+                        pointer = Address(0, _regDP + offsetU8);
                     }
-                    return Address(RegDB, await ReadWord(pointer));
+                    return Address(_regDB, await ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"(${offsetU8:x2}, X)");
-                    if (FlagE && LowByte(RegDP) == 0)
+                    if (_verbose) Console.WriteLine($"(${offsetU8:x2}, X)");
+                    if (_flagE && LowByte(_regDP) == 0)
                     {
-                        pointer = Address(0, Join((byte)(offsetU8 + (byte)RegX), HighByte(RegDP)));
+                        pointer = Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
                     }
                     else
                     {
-                        pointer = Address(0, RegDP + offsetU8 + (byte)RegX);
+                        pointer = Address(0, _regDP + offsetU8 + (byte)_regX);
                     }
-                    return Address(RegDB, await ReadWord(pointer));
+                    return Address(_regDB, await ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"(${offsetU8:x2}), Y");
-                    if (FlagE && LowByte(RegDP) == 0)
+                    if (_verbose) Console.WriteLine($"(${offsetU8:x2}), Y");
+                    if (_flagE && LowByte(_regDP) == 0)
                     {
-                        pointer = Address(0, Join((byte)(offsetU8), HighByte(RegDP)));
+                        pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
                     }
                     else
                     {
-                        pointer = Address(0, RegDP + offsetU8);
+                        pointer = Address(0, _regDP + offsetU8);
                     }
-                    return Address(RegDB, await ReadWord(pointer + RegY));
+                    return Address(_regDB, await ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"[${offsetU8:x2}]");
-                    return await ReadAddr(Address(0, RegDP + offsetU8), true);
+                    if (_verbose) Console.WriteLine($"[${offsetU8:x2}]");
+                    return await ReadAddr(Address(0, _regDP + offsetU8), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"[${offsetU8:x2}], Y");
-                    return await ReadAddr(Address(0, RegDP + offsetU8), true) + RegY;
+                    if (_verbose) Console.WriteLine($"[${offsetU8:x2}], Y");
+                    return await ReadAddr(Address(0, _regDP + offsetU8), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
                     location = await ReadWord();
-                    if (verbose) Console.WriteLine($"${location:x4}");
-                    return Address(RegDB, location);
+                    if (_verbose) Console.WriteLine($"${location:x4}");
+                    return Address(_regDB, location);
                 case W65C816.AddressingMode.AbsoluteIndexedWithX:
                     location = await ReadWord();
-                    if (verbose) Console.WriteLine($"${location:x4}, X");
-                    return Address(RegDB, location + RegX);
+                    if (_verbose) Console.WriteLine($"${location:x4}, X");
+                    return Address(_regDB, location + _regX);
                 case W65C816.AddressingMode.AbsoluteIndexedWithY:
                     location = await ReadWord();
-                    if (verbose) Console.WriteLine($"${location:x4}, Y");
-                    return Address(RegDB, location + RegY);
+                    if (_verbose) Console.WriteLine($"${location:x4}, Y");
+                    return Address(_regDB, location + _regY);
                 case W65C816.AddressingMode.AbsoluteLong:
                     pointer = await ReadAddr();
-                    if (verbose) Console.WriteLine($"{pointer:x6}");
+                    if (_verbose) Console.WriteLine($"{pointer:x6}");
                     return pointer;
                 case W65C816.AddressingMode.AbsoluteLongIndexed:
                     pointer = await ReadAddr();
-                    if (verbose) Console.WriteLine($"{pointer:x6}, X");
-                    return pointer + RegX;
+                    if (_verbose) Console.WriteLine($"{pointer:x6}, X");
+                    return pointer + _regX;
                 case W65C816.AddressingMode.StackRelative:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"{offsetU8:x2}, S");
-                    return Address(0, offsetU8 + RegSP);
+                    if (_verbose) Console.WriteLine($"{offsetU8:x2}, S");
+                    return Address(0, offsetU8 + _regSP);
                 case W65C816.AddressingMode.StackRelativeIndirectIndexed:
                     offsetU8 = await ReadByte();
-                    if (verbose) Console.WriteLine($"({offsetU8:x2}, S), Y");
-                    pointer = Address(0, offsetU8 + RegSP);
-                    return Address(RegDB, await ReadWord(pointer + RegY));
+                    if (_verbose) Console.WriteLine($"({offsetU8:x2}, S), Y");
+                    pointer = Address(0, offsetU8 + _regSP);
+                    return Address(_regDB, await ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.AbsoluteIndirect:
                     location = await ReadWord();
-                    if (verbose) Console.WriteLine($"(${location:x4})");
+                    if (_verbose) Console.WriteLine($"(${location:x4})");
                     pointer = Address(0, location);
-                    return Address(RegPB, await ReadWord(pointer));
+                    return Address(_regPB, await ReadWord(pointer));
                 case W65C816.AddressingMode.AbsoluteIndexedIndirect:
                     location = await ReadWord();
-                    if (verbose) Console.WriteLine($"(${location:x4}, X)");
-                    pointer = Address(RegPB, location);
-                    return Address(RegPB, await ReadWord(pointer) + RegX);
+                    if (_verbose) Console.WriteLine($"(${location:x4}, X)");
+                    pointer = Address(_regPB, location);
+                    return Address(_regPB, await ReadWord(pointer) + _regX);
                 case W65C816.AddressingMode.BlockMove:
                     byte destination = await ReadByte();
                     byte source = await ReadByte();
-                    if (verbose) Console.WriteLine($"${source:x2}, ${destination:x2}");
+                    if (_verbose) Console.WriteLine($"${source:x2}, ${destination:x2}");
                     // WARN: Decode source and destination banks in the operation function
                     return Address(0, Join(destination, source));
                 default:
@@ -609,8 +619,9 @@ namespace EightSixteenEmu
 
         private async Task LoadInterruptVector(W65C816.Vector vector)
         {
-            RegPC = await ReadWord((Addr)vector);
-            RegPB = 0x00;
+            _regPC = await ReadWord((Addr)vector);
+            _regPB = 0x00;
+            _operationComplete = true;
         }
 
         #region Opcodes
@@ -631,20 +642,20 @@ namespace EightSixteenEmu
             byte carry = (byte)(ReadStatusFlag(StatusFlags.C) ? 1 : 0);
             if (!ReadStatusFlag(StatusFlags.M))
             {
-                int al = LowByte(RegA) + addend + carry;
+                int al = LowByte(_regA) + addend + carry;
                 if (ReadStatusFlag(StatusFlags.D))
                 {
                     if (((al) & 0x0f) > 0x09) al += 0x06;
                     if (((al) & 0xf0) > 0x90) al += 0x60;
                 }
                 SetStatusFlag(StatusFlags.C, al > 0xffu);
-                SetStatusFlag(StatusFlags.V, ((Word)((~(RegA ^ addend)) & (RegA ^ al) & 0x80) != 0));
+                SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0));
                 SetNZStatusFlagsFromValue((byte)al);
-                RegA = Join((byte)al, HighByte(RegA));
+                _regA = Join((byte)al, HighByte(_regA));
             }
             else
             {
-                int al = RegA + addend + carry;
+                int al = _regA + addend + carry;
                 if (ReadStatusFlag(StatusFlags.D))
                 {
                     if (((al) & 0x000f) > 0x0009) al += 0x0006;
@@ -653,9 +664,9 @@ namespace EightSixteenEmu
                     if (((al) & 0xf000) > 0x9000) al += 0x6000;
                 }
                 SetStatusFlag(StatusFlags.C, al > 0xffffu);
-                SetStatusFlag(StatusFlags.V, ((Word)((~(RegA ^ addend)) & (RegA ^ al) & 0x8000) != 0));
+                SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x8000) != 0));
                 SetNZStatusFlagsFromValue((Word)al);
-                RegA = (Word)al;
+                _regA = (Word)al;
             }
             await WaitForTickAsync();
         }
@@ -747,19 +758,19 @@ namespace EightSixteenEmu
         #region BRK COP
         private async Task OpBrk(W65C816.AddressingMode addressingMode) 
         { 
-            if (FlagE)
+            if (_flagE)
             {
-                await PushWord((Word)(RegPC + 1));
-                await PushByte((byte)(RegSR | StatusFlags.X));
+                await PushWord((Word)(_regPC + 1));
+                await PushByte((byte)(_regSR | StatusFlags.X));
                 SetStatusFlag(StatusFlags.I, true);
                 SetStatusFlag(StatusFlags.D, false);
                 await LoadInterruptVector(W65C816.Vector.EmulationIRQ);
             }
             else
             {
-                await PushByte(RegPB);
-                await PushWord((Word)(RegPC + 1));
-                await PushByte((byte)(RegSR));
+                await PushByte(_regPB);
+                await PushWord((Word)(_regPC + 1));
+                await PushByte((byte)(_regSR));
                 SetStatusFlag(StatusFlags.I, true);
                 SetStatusFlag(StatusFlags.D, false);
                 await LoadInterruptVector(W65C816.Vector.NativeBRK);
@@ -767,19 +778,19 @@ namespace EightSixteenEmu
         }
 
         private async Task OpCop(W65C816.AddressingMode addressingMode) {
-            if (FlagE)
+            if (_flagE)
             {
-                await PushWord((Word)(RegPC + 1));
-                await PushByte((byte)(RegSR));
+                await PushWord((Word)(_regPC + 1));
+                await PushByte((byte)(_regSR));
                 SetStatusFlag(StatusFlags.I, true);
                 SetStatusFlag(StatusFlags.D, false);
                 await LoadInterruptVector(W65C816.Vector.EmulationCOP);
             }
             else
             {
-                await PushByte(RegPB);
-                await PushWord((Word)(RegPC + 1));
-                await PushByte((byte)(RegSR));
+                await PushByte(_regPB);
+                await PushWord((Word)(_regPC + 1));
+                await PushByte((byte)(_regSR));
                 SetStatusFlag(StatusFlags.I, true);
                 SetStatusFlag(StatusFlags.D, false);
                 await LoadInterruptVector(W65C816.Vector.NativeCOP);
@@ -837,7 +848,7 @@ namespace EightSixteenEmu
 
         private async Task OpWdm(W65C816.AddressingMode addressingMode)
         {
-            RegPC++;
+            _regPC++;
             await WaitForTickAsync();
         }
         #endregion
@@ -853,11 +864,11 @@ namespace EightSixteenEmu
         {
             if (AccumulatorIs8Bit)
             {
-                await PushByte(RegAL);
+                await PushByte(_regAL);
             }
             else
             {
-                await PushWord(RegA);
+                await PushWord(_regA);
             }
             await WaitForTickAsync();
         }
@@ -866,11 +877,11 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                await PushByte(RegXL);
+                await PushByte(_regXL);
             }
             else
             {
-                await PushWord(RegX);
+                await PushWord(_regX);
             }
             await WaitForTickAsync();
         }
@@ -879,11 +890,11 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                await PushByte(RegYL);
+                await PushByte(_regYL);
             }
             else
             {
-                await PushWord(RegY);
+                await PushWord(_regY);
             }
         }
 
@@ -891,13 +902,13 @@ namespace EightSixteenEmu
         {
             if (AccumulatorIs8Bit)
             {
-                RegAL = await PullByte();
-                SetNZStatusFlagsFromValue(RegAL);
+                _regAL = await PullByte();
+                SetNZStatusFlagsFromValue(_regAL);
             }
             else
             {
-                RegA = await PullWord();
-                SetNZStatusFlagsFromValue(RegA);
+                _regA = await PullWord();
+                SetNZStatusFlagsFromValue(_regA);
             }
         }
 
@@ -905,13 +916,13 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                RegXL = await PullByte();
-                SetNZStatusFlagsFromValue(RegXL);
+                _regXL = await PullByte();
+                SetNZStatusFlagsFromValue(_regXL);
             }
             else
             {
-                RegX = await PullWord();
-                SetNZStatusFlagsFromValue(RegX);
+                _regX = await PullWord();
+                SetNZStatusFlagsFromValue(_regX);
             }
         }
 
@@ -919,13 +930,13 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                RegYL = await PullByte();
-                SetNZStatusFlagsFromValue(RegYL);
+                _regYL = await PullByte();
+                SetNZStatusFlagsFromValue(_regYL);
             }
             else
             {
-                RegY = await PullWord();
-                SetNZStatusFlagsFromValue(RegY);
+                _regY = await PullWord();
+                SetNZStatusFlagsFromValue(_regY);
             }
         }
         #endregion
@@ -948,14 +959,14 @@ namespace EightSixteenEmu
         private async Task OpStp(W65C816.AddressingMode addressingMode)
         {
             await WaitForTickAsync();
-            stopped = true;
-            clock.Stop();
+            _stopped = true;
+            _clock.Stop();
         }
 
         private async Task OpWai(W65C816.AddressingMode addressingMode)
         {
             await WaitForTickAsync();
-            waiting = true;
+            _waiting = true;
         }
         #endregion
         #region TAX TAY TSX TXA TXS TXY TYA TYX
@@ -987,14 +998,14 @@ namespace EightSixteenEmu
         private async Task OpXba(W65C816.AddressingMode addressingMode)
         {
             await WaitForTickAsync();
-            RegA = Swap(RegA);
+            _regA = Swap(_regA);
         }
 
         private async Task OpXce(W65C816.AddressingMode addressingMode) 
         { 
             await WaitForTickAsync();
             bool carry = ReadStatusFlag(StatusFlags.C);
-            SetStatusFlag(StatusFlags.C, FlagE);
+            SetStatusFlag(StatusFlags.C, _flagE);
             SetEmulationMode(carry);
         }
 
@@ -1003,24 +1014,26 @@ namespace EightSixteenEmu
         #region HW Interrupts
         private void Reset()
         {
-            cycles = 0;
-            FlagE = true;
-            RegPB = 0x00;
-            RegDB = 0x00;
-            RegDP = 0x0000;
-            RegSP = 0x0100;
-            RegSR = (StatusFlags)0x34;
-            stopped = false;
-            waiting = false;
-            interruptingMaskable = false;
-            resetting = false;
+            _cycles = 0;
+            _flagE = true;
+            _regPB = 0x00;
+            _regDB = 0x00;
+            _regDP = 0x0000;
+            _regSP = 0x0100;
+            _regSR = (StatusFlags)0x34;
+            _stopped = false;
+            _waiting = false;
+            _interruptingMaskable = false;
+            _resetting = false;
             
-            if (verbose) Console.WriteLine("RESET");
+            if (_verbose) Console.WriteLine("RESET");
             LoadInterruptVector(W65C816.Vector.Reset);
         }
 
         private async Task InterruptMaskable()
         {
+            await WaitForTickAsync();
+            if (!_flagE) await WaitForTickAsync();
             throw new NotImplementedException();
         }
         private async Task InterruptNonMaskable()
@@ -1031,36 +1044,36 @@ namespace EightSixteenEmu
 
         private async Task ExecuteOperationAsync()
         {
-            if (resetting)
+            if (_resetting)
             {
                 Reset();
             }
-            else if (!stopped)
+            else if (!_stopped)
             {
-                int oldCycles = cycles;
-                operationComplete = false;
-                if (interruptingNonMaskable)
+                int oldCycles = _cycles;
+                _operationComplete = false;
+                if (_interruptingNonMaskable)
                 {
-                    waiting = false;
+                    _waiting = false;
                     await InterruptNonMaskable();
                 }
-                else if (interruptingMaskable)
+                else if (_interruptingMaskable)
                 {
                     if (!ReadStatusFlag(StatusFlags.I))
                     {
-                        waiting = false;
+                        _waiting = false;
                         await InterruptMaskable();
                     }
-                    else if (waiting)
+                    else if (_waiting)
                     {
-                        waiting = false;
+                        _waiting = false;
                     }
                 }
-                else if (!waiting)
+                else if (!_waiting)
                 {
-                    RegIR = await ReadByte();
-                    (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(RegIR);
-                    if (verbose) Console.Write(o.ToString() + " ");
+                    _regIR = await ReadByte();
+                    (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(_regIR);
+                    if (_verbose) Console.Write(o.ToString() + " ");
                     DoOperation operation = o switch
                     #region operation switch
                     {
@@ -1159,15 +1172,15 @@ namespace EightSixteenEmu
                     };
                     #endregion
                     await operation(m);
-                    if (!stopped) operationComplete = true;
+                    if (!_stopped) _operationComplete = true;
 #if DEBUG
-                    int cyclesThisOp = cycles - oldCycles;
+                    int cyclesThisOp = _cycles - oldCycles;
                     Console.WriteLine($"Cycles: {cyclesThisOp}");
 
                     string flags = FormatStatusFlags();
 
-                    Console.WriteLine($"A: 0x{RegA:x4}\n X: 0x{RegX:x4}\n Y: 0x{RegY:x4}\n DP: 0x{RegDP:x4}\n SP: 0x{RegSP:x4}\n DB: 0x{RegDP:x2}");
-                    Console.WriteLine($"PB: 0x{RegPB:x2} PC: 0x{RegPC:x4}");
+                    Console.WriteLine($"A: 0x{_regA:x4}\n X: 0x{_regX:x4}\n Y: 0x{_regY:x4}\n DP: 0x{_regDP:x4}\n SP: 0x{_regSP:x4}\n DB: 0x{_regDP:x2}");
+                    Console.WriteLine($"PB: 0x{_regPB:x2} PC: 0x{_regPC:x4}");
                     Console.WriteLine($"Flags: {flags}");
 #endif
                 }
@@ -1177,7 +1190,7 @@ namespace EightSixteenEmu
         {
             string result = "";
             Addr lastUsedAddress = 0xffffffff;
-            foreach (var device in devices)
+            foreach (var device in _devices)
             {
                 (Addr start, Addr end) = device.Key;
                 if (start != lastUsedAddress + 1)
@@ -1193,7 +1206,7 @@ namespace EightSixteenEmu
             string flags = "";
             flags += ReadStatusFlag(StatusFlags.N) ? "N" : "-";
             flags += ReadStatusFlag(StatusFlags.V) ? "V" : "-";
-            if (FlagE)
+            if (_flagE)
             {
                 flags += ".";
                 flags += ReadStatusFlag(StatusFlags.X) ? "B" : "-";
@@ -1208,7 +1221,7 @@ namespace EightSixteenEmu
             flags += ReadStatusFlag(StatusFlags.Z) ? "Z" : "-";
             flags += ReadStatusFlag(StatusFlags.C) ? "C" : "-";
             flags += " ";
-            flags += FlagE ? "E" : "-";
+            flags += _flagE ? "E" : "-";
             return flags;
         }
 
@@ -1216,24 +1229,24 @@ namespace EightSixteenEmu
         {
             Status result = new()
             {
-                Cycles = cycles,
-                A = RegA,
-                X = RegX,
-                Y = RegY,
-                DP = RegDP,
-                SP = RegSP,
-                PC = RegPC,
-                DB = RegDB,
-                PB = RegPB,
-                FlagN = (RegSR & StatusFlags.N) == StatusFlags.N,
-                FlagV = (RegSR & StatusFlags.V) == StatusFlags.V,
-                FlagM = (RegSR & StatusFlags.M) == StatusFlags.M,
-                FlagX = (RegSR & StatusFlags.X) == StatusFlags.X,
-                FlagD = (RegSR & StatusFlags.D) == StatusFlags.D,
-                FlagI = (RegSR & StatusFlags.I) == StatusFlags.I,
-                FlagZ = (RegSR & StatusFlags.Z) == StatusFlags.Z,
-                FlagC = (RegSR & StatusFlags.C) == StatusFlags.C,
-                FlagE = FlagE
+                Cycles = _cycles,
+                A = _regA,
+                X = _regX,
+                Y = _regY,
+                DP = _regDP,
+                SP = _regSP,
+                PC = _regPC,
+                DB = _regDB,
+                PB = _regPB,
+                FlagN = (_regSR & StatusFlags.N) == StatusFlags.N,
+                FlagV = (_regSR & StatusFlags.V) == StatusFlags.V,
+                FlagM = (_regSR & StatusFlags.M) == StatusFlags.M,
+                FlagX = (_regSR & StatusFlags.X) == StatusFlags.X,
+                FlagD = (_regSR & StatusFlags.D) == StatusFlags.D,
+                FlagI = (_regSR & StatusFlags.I) == StatusFlags.I,
+                FlagZ = (_regSR & StatusFlags.Z) == StatusFlags.Z,
+                FlagC = (_regSR & StatusFlags.C) == StatusFlags.C,
+                FlagE = _flagE
             };
             return result;
         }
