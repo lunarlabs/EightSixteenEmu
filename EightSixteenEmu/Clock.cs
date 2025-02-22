@@ -6,10 +6,22 @@ namespace EightSixteenEmu;
 public class Clock
 {
     private readonly TimeSpan interval;
-    private readonly bool continuous;
+    private bool continuous;
     private CancellationTokenSource? cancellationTokenSource;
 
-    public Clock(TimeSpan interval, bool continuous)
+    public bool Continuous { get => continuous; }
+    public TimeSpan Interval => interval;
+
+    public void SetSingleShot()
+    {
+        continuous = false;
+    }
+    public void SetContinuous()
+    {
+        continuous = true;
+    }
+
+    public Clock(TimeSpan interval, bool continuous = true)
     {
         this.interval = interval;
         this.continuous = continuous;
