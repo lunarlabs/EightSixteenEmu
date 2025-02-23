@@ -16,11 +16,26 @@ namespace EightSixteenEmu.Tests
         public void MicroprocessorTest()
         {
             var deviceList = new List<IMappableDevice>();
-            var clock = new Clock(TimeSpan.FromSeconds(1), true);
             var ram = new DevRAM(0, 0x10000);
             deviceList.Add(ram);
-            var mp = new Microprocessor(deviceList, clock);
+            var mp = new Microprocessor(deviceList);
             Assert.IsNotNull(mp);
+        }
+
+        [TestMethod()]
+        [Timeout(10000)]
+        public void InitializeTest()
+        {
+            var deviceList = new List<IMappableDevice>();
+            var ram = new DevRAM(0, 0x10000);
+            deviceList.Add(ram);
+            var mp = new Microprocessor(deviceList);
+            mp.ExecuteOperation();
+            Microprocessor.Status status = mp.GetStatus();
+            Console.WriteLine(status);
+            Assert.AreEqual(status.PC, 0);
+            Assert.AreEqual(status.SP, 0x0100);
+
         }
     }
 }

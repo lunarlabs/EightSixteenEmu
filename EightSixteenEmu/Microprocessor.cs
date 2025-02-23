@@ -1272,7 +1272,7 @@ namespace EightSixteenEmu
             }
         }
 
-        private void ExecuteOperationAsync()
+        public void ExecuteOperation()
         {
             if (_resetting)
             {
