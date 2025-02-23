@@ -7,9 +7,11 @@ public class Clock
 {
     private readonly TimeSpan interval;
     private bool continuous;
+    private bool running;
     private CancellationTokenSource? cancellationTokenSource;
 
     public bool Continuous { get => continuous; }
+    public bool Running { get => running; }
     public TimeSpan Interval => interval;
 
     public void SetSingleShot()
@@ -32,11 +34,13 @@ public class Clock
         cancellationTokenSource = new CancellationTokenSource();
         if (continuous)
         {
+            running = true;
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
                 await Task.Delay(interval, cancellationTokenSource.Token);
                 Tick?.Invoke(this, EventArgs.Empty);
             }
+            running = false;
         }
         else
         {
