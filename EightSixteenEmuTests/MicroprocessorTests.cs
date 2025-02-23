@@ -23,7 +23,6 @@ namespace EightSixteenEmu.Tests
         }
 
         [TestMethod()]
-        [Timeout(10000)]
         public void InitializeTest()
         {
             var deviceList = new List<IMappableDevice>();
@@ -49,6 +48,30 @@ namespace EightSixteenEmu.Tests
             var mp = new Microprocessor(deviceList);
             Console.WriteLine(mp.DeviceList());
             Assert.IsNotNull(mp.DeviceList());
+        }
+
+        [TestMethod()]
+        [Timeout(10000)]
+        public void LoadStoreTest()
+        {
+            var deviceList = new List<IMappableDevice>();
+            var ram = new DevRAM(0, 0x8000);
+            deviceList.Add(ram);
+            var rom = new DevROM("LoadStoreTest.rom", 0x8000);
+            deviceList.Add(rom);
+            var mp = new Microprocessor(deviceList);
+            mp.ExecuteOperation();
+            Microprocessor.Status status = mp.GetStatus();
+            Assert.AreEqual(0x8000, status.PC);
+            while (!mp.Stopped)
+            {
+                mp.ExecuteOperation();
+            }
+            status = mp.GetStatus();
+            Console.WriteLine(status);
+            Assert.AreEqual(0x12, status.A);
+            Assert.AreEqual(0x34, status.X);
+            Assert.AreEqual(0x56, status.Y);
         }
     }
 }

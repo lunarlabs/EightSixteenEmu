@@ -7,15 +7,30 @@
 
 ;test code goes here
 .code
-	sec
-	xce
+start:	clc
+		xce
 
-	lda #$12
-	ldx #$34
-	ldy #$56
+		lda #$12
+		ldx #$34
+		ldy #$56
 
-	stp
+		stp
 
 ; reset vector
-	.org $FFFC
-	.word $8000
+		.segment "HEADER"
+		.byte "LoadStore       "	; 16 byte program name
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; native COP not used
+		.word $ffff				; native BRK not used
+		.word $ffff				; native ABORT not used
+		.word $ffff				; native NMI not used
+		.word $ffff				; unused vector
+		.word $ffff				; native IRQ not used
+
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; emulation COP not used
+		.word $ffff				; unused vector
+		.word $ffff				; emulation ABORT not used
+		.word $ffff				; emulation NMI not used
+		.addr start				; reset vector
+		.word $ffff				; emulation IRQ/BRK not used

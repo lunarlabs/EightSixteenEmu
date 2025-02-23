@@ -259,8 +259,8 @@ namespace EightSixteenEmu
             };
             if (_verbose)
             {
-                string arg = isByte ? $"${result:x2}" : $"${result:x4}";
-                Console.WriteLine(arg);
+                string arg = isByte ? $"#${result:x2}" : $"#${result:x4}";
+                Console.Write(arg);
             }
             return result;
         }
@@ -451,15 +451,15 @@ namespace EightSixteenEmu
                     if (_verbose) Console.Write("#");
                     return LongPC;
                 case W65C816.AddressingMode.Accumulator:
-                    if (_verbose) Console.WriteLine("A");
+                    if (_verbose) Console.Write("A");
                     return 0;
                 case W65C816.AddressingMode.ProgramCounterRelative:
                     offsetS8 = (sbyte)(ReadByte());
-                    if (_verbose) Console.WriteLine($"{offsetS8:+0,-#}");
+                    if (_verbose) Console.Write($"{offsetS8:+0,-#}");
                     return Address(_regPB, _regPC + offsetS8);
                 case W65C816.AddressingMode.ProgramCounterRelativeLong:
                     offsetS16 = (short)(ReadWord());
-                    if (_verbose) Console.WriteLine($"{offsetS16:+0,-#}");
+                    if (_verbose) Console.Write($"{offsetS16:+0,-#}");
                     return Address(_regPB, _regPC + offsetS16);
                 case W65C816.AddressingMode.Implied:
                     return 0;
@@ -467,11 +467,11 @@ namespace EightSixteenEmu
                     return 0;
                 case W65C816.AddressingMode.Direct:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"${offsetU8:x2}");
+                    if (_verbose) Console.Write($"${offsetU8:x2}");
                     return Address(0, _regDP + offsetU8);
                 case W65C816.AddressingMode.DirectIndexedWithX:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"${offsetU8:x2}, X");
+                    if (_verbose) Console.Write($"${offsetU8:x2}, X");
                     if (_flagE && LowByte(_regDP) == 0)
                     {
                         return Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
@@ -482,7 +482,7 @@ namespace EightSixteenEmu
                     }
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"${offsetU8:x2}, Y");
+                    if (_verbose) Console.Write($"${offsetU8:x2}, Y");
                     if (_flagE && LowByte(_regDP) == 0)
                     {
                         return Address(0, Join((byte)(offsetU8 + (byte)_regY), HighByte(_regDP)));
@@ -493,7 +493,7 @@ namespace EightSixteenEmu
                     }
                 case W65C816.AddressingMode.DirectIndirect:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"(${offsetU8:x2})");
+                    if (_verbose) Console.Write($"(${offsetU8:x2})");
                     if (_flagE && LowByte(_regDP) == 0)
                     {
                         pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
@@ -505,7 +505,7 @@ namespace EightSixteenEmu
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"(${offsetU8:x2}, X)");
+                    if (_verbose) Console.Write($"(${offsetU8:x2}, X)");
                     if (_flagE && LowByte(_regDP) == 0)
                     {
                         pointer = Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
@@ -517,7 +517,7 @@ namespace EightSixteenEmu
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"(${offsetU8:x2}), Y");
+                    if (_verbose) Console.Write($"(${offsetU8:x2}), Y");
                     if (_flagE && LowByte(_regDP) == 0)
                     {
                         pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
@@ -529,56 +529,56 @@ namespace EightSixteenEmu
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"[${offsetU8:x2}]");
+                    if (_verbose) Console.Write($"[${offsetU8:x2}]");
                     return ReadAddr(Address(0, _regDP + offsetU8), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"[${offsetU8:x2}], Y");
+                    if (_verbose) Console.Write($"[${offsetU8:x2}], Y");
                     return ReadAddr(Address(0, _regDP + offsetU8), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
                     location = ReadWord();
-                    if (_verbose) Console.WriteLine($"${location:x4}");
+                    if (_verbose) Console.Write($"${location:x4}");
                     return Address(_regDB, location);
                 case W65C816.AddressingMode.AbsoluteIndexedWithX:
                     location = ReadWord();
-                    if (_verbose) Console.WriteLine($"${location:x4}, X");
+                    if (_verbose) Console.Write($"${location:x4}, X");
                     return Address(_regDB, location + _regX);
                 case W65C816.AddressingMode.AbsoluteIndexedWithY:
                     location = ReadWord();
-                    if (_verbose) Console.WriteLine($"${location:x4}, Y");
+                    if (_verbose) Console.Write($"${location:x4}, Y");
                     return Address(_regDB, location + _regY);
                 case W65C816.AddressingMode.AbsoluteLong:
                     pointer = ReadAddr();
-                    if (_verbose) Console.WriteLine($"{pointer:x6}");
+                    if (_verbose) Console.Write($"{pointer:x6}");
                     return pointer;
                 case W65C816.AddressingMode.AbsoluteLongIndexed:
                     pointer = ReadAddr();
-                    if (_verbose) Console.WriteLine($"{pointer:x6}, X");
+                    if (_verbose) Console.Write($"{pointer:x6}, X");
                     return pointer + _regX;
                 case W65C816.AddressingMode.StackRelative:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"{offsetU8:x2}, S");
+                    if (_verbose) Console.Write($"{offsetU8:x2}, S");
                     return Address(0, offsetU8 + _regSP);
                 case W65C816.AddressingMode.StackRelativeIndirectIndexed:
                     offsetU8 = ReadByte();
-                    if (_verbose) Console.WriteLine($"({offsetU8:x2}, S), Y");
+                    if (_verbose) Console.Write($"({offsetU8:x2}, S), Y");
                     pointer = Address(0, offsetU8 + _regSP);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.AbsoluteIndirect:
                     location = ReadWord();
-                    if (_verbose) Console.WriteLine($"(${location:x4})");
+                    if (_verbose) Console.Write($"(${location:x4})");
                     pointer = Address(0, location);
                     return Address(_regPB, ReadWord(pointer));
                 case W65C816.AddressingMode.AbsoluteIndexedIndirect:
                     location = ReadWord();
-                    if (_verbose) Console.WriteLine($"(${location:x4}, X)");
+                    if (_verbose) Console.Write($"(${location:x4}, X)");
                     pointer = Address(_regPB, location);
                     return Address(_regPB, ReadWord(pointer) + _regX);
                 case W65C816.AddressingMode.BlockMove:
                     byte destination = ReadByte();
                     byte source = ReadByte();
-                    if (_verbose) Console.WriteLine($"${source:x2}, ${destination:x2}");
+                    if (_verbose) Console.Write($"${source:x2}, ${destination:x2}");
                     // WARN: Decode source and destination banks in the operation function
                     return Address(0, Join(destination, source));
                 default:
@@ -1247,6 +1247,11 @@ namespace EightSixteenEmu
             bool carry = ReadStatusFlag(StatusFlags.C);
             SetStatusFlag(StatusFlags.C, _flagE);
             SetEmulationMode(carry);
+            if (_verbose) 
+            {
+                Console.WriteLine();
+                Console.Write($"Emulation flag now {_flagE}");
+            }
         }
 
         #endregion
@@ -1448,17 +1453,7 @@ namespace EightSixteenEmu
                     };
                     #endregion
                     operation(m);
-                    if (!_stopped) _operationComplete = true;
-#if DEBUG
-                    int cyclesThisOp = _cycles - oldCycles;
-                    Console.WriteLine($"Cycles: {cyclesThisOp}");
-
-                    string flags = FormatStatusFlags();
-
-                    Console.WriteLine($"A: 0x{_regA:x4}\n X: 0x{_regX:x4}\n Y: 0x{_regY:x4}\n DP: 0x{_regDP:x4}\n SP: 0x{_regSP:x4}\n DB: 0x{_regDP:x2}");
-                    Console.WriteLine($"PB: 0x{_regPB:x2} PC: 0x{_regPC:x4}");
-                    Console.WriteLine($"Flags: {flags}");
-#endif
+                    if (_verbose) Console.WriteLine();
                 }
             }
             else if (_verbose) Console.WriteLine("STOPPED, please reset.");
