@@ -939,21 +939,131 @@ namespace EightSixteenEmu
         private async Task OpSep(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region LDA LDX LDY STA STX STY STZ
-        private async Task OpLda(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpLda(W65C816.AddressingMode addressingMode)
+        {
+            Word value;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                value = await ReadImmediate(AccumulatorIs8Bit);
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                value = await ReadValue(AccumulatorIs8Bit, address);
+            }
+            if (AccumulatorIs8Bit)
+            {
+                SetNZStatusFlagsFromValue((byte)value);
+                _regAL = (byte)value;
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(value);
+                _regA = value;
+            }
+        }
 
-        private async Task OpLdx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpLdx(W65C816.AddressingMode addressingMode)
+        {
+            Word value;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                value = await ReadImmediate(IndexesAre8Bit);
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                value = await ReadValue(IndexesAre8Bit, address);
+            }
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue((byte)value);
+                _regXL = (byte)value;
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(value);
+                _regX = value;
+            }
+        }
 
-        private async Task OpLdy(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpLdy(W65C816.AddressingMode addressingMode)
+        {
+            Word value;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                value = await ReadImmediate(IndexesAre8Bit);
+            }
+            else
+            {
+                Addr address = await GetEffectiveAddress(addressingMode);
+                value = await ReadValue(IndexesAre8Bit, address);
+            }
+            if (IndexesAre8Bit)
+            {
+                SetNZStatusFlagsFromValue((byte)value);
+                _regYL = (byte)value;
+            }
+            else
+            {
+                SetNZStatusFlagsFromValue(value);
+                _regY = value;
+            }
+        }
 
-        private async Task OpSta(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpSta(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = await GetEffectiveAddress(addressingMode);
+            if (AccumulatorIs8Bit)
+            {
+                await WriteByte(_regAL, address);
+            }
+            else
+            {
+                await WriteWord(_regA, address);
+            }
+        }
 
-        private async Task OpStx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpStx(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = await GetEffectiveAddress(addressingMode);
+            if (IndexesAre8Bit)
+            {
+                await WriteByte(_regXL, address);
+            }
+            else
+            {
+                await WriteWord(_regX, address);
+            }
+        }
 
-        private async Task OpSty(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpSty(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = await GetEffectiveAddress(addressingMode);
+            if (IndexesAre8Bit)
+            {
+                await WriteByte(_regYL, address);
+            }
+            else
+            {
+                await WriteWord(_regY, address);
+            }
+        }
 
-        private async Task OpStz(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private async Task OpStz(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = await GetEffectiveAddress(addressingMode);
+            if (AccumulatorIs8Bit)
+            {
+                await WriteByte(0, address);
+            }
+            else
+            {
+                await WriteWord(0, address);
+            }
+        }
         #endregion
-        #region MVN MVP
+            #region MVN MVP
         private async Task OpMvn(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
         private async Task OpMvp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
