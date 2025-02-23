@@ -26,9 +26,8 @@ namespace EightSixteenEmu
         private bool _aborting;
         private bool _stopped;
         private bool _waiting;
-        private bool _operationComplete;
         private bool _verbose;
-        private readonly SortedDictionary<(Addr start, Addr end), IMappableDevice> _devices;
+        private readonly EmuCore _core;
 
         public bool Verbose
         {
@@ -143,8 +142,9 @@ namespace EightSixteenEmu
         /// <exception cref="InvalidOperationException">
         /// Thrown when the address range of a device conflicts with an existing device.
         /// </exception>
-        public Microprocessor(List<IMappableDevice> deviceList)
+        public Microprocessor(EmuCore core)
         {
+            _core = core;
             _regA = 0x0000;
             _regX = 0x0000;
             _regY = 0x0000;
@@ -165,29 +165,6 @@ namespace EightSixteenEmu
 #if DEBUG
             _verbose = true;
 #endif
-
-            _devices = new SortedDictionary<(Addr start, Addr end), IMappableDevice>();
-            foreach (IMappableDevice newDevice in deviceList)
-            {
-                SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
-                Addr top = newDevice.BaseAddress;
-                Addr bottom = newDevice.BaseAddress + newDevice.Size - 1; // Corrected calculation
-                if (bottom > 0xFFFFFF)
-                {
-                    throw new ArgumentOutOfRangeException($"Addresses for {newDevice.GetType()} fall outside the 24-bit address space.");
-                }
-                else
-                {
-                    foreach ((Addr s, Addr e) in ranges)
-                    {
-                        if (Math.Max(top, s) <= Math.Min(bottom, e)) // Corrected condition
-                        {
-                            throw new InvalidOperationException($"Addresses for {newDevice.GetType()} (${top:x6} - ${bottom:x6}) conflict with existing device at ${s:x6} - ${e:x6}");
-                        }
-                    }
-                    _devices.Add((top, bottom), newDevice);
-                }
-            }
         }
 
         static byte LowByte(Word word)
@@ -228,20 +205,6 @@ namespace EightSixteenEmu
 
         #region Memory Access
 
-        private IMappableDevice? GetDevice(Addr address)
-        {
-            IMappableDevice? result = null;
-            SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
-            foreach ((Addr s, Addr e) in ranges)
-            {
-                if ((address >= s && address <= e))
-                {
-                    result = _devices[(s, e)];
-                }
-            }
-            return result;
-        }
-
         private Word ReadValue(bool isByte, Addr address)
         {
             return isByte switch
@@ -281,7 +244,7 @@ namespace EightSixteenEmu
         private byte ReadByte(Addr address)
         {
             _cycles++;
-            IMappableDevice? device = GetDevice(address);
+            IMappableDevice? device = _core.GetDevice(address);
             if (device == null)
             {
                 Console.WriteLine($"WARN: Attempted read from open bus address ${address:x6}");
@@ -342,7 +305,7 @@ namespace EightSixteenEmu
             if (_aborting == false)
             {
                 _regMD = value;
-                IMappableDevice? device = GetDevice(address);
+                IMappableDevice? device = _core.GetDevice(address);
                 if (device == null)
                 {
                     Console.WriteLine($"WARN: Attempted write to open bus address ${address:x6}");
@@ -591,7 +554,6 @@ namespace EightSixteenEmu
         {
             _regPC = ReadWord((Addr)vector);
             _regPB = 0x00;
-            _operationComplete = true;
         }
 
         #region Opcodes
@@ -1333,7 +1295,6 @@ namespace EightSixteenEmu
             else if (!_stopped)
             {
                 int oldCycles = _cycles;
-                _operationComplete = false;
                 if (_interruptingNonMaskable)
                 {
                     _waiting = false;
@@ -1458,22 +1419,6 @@ namespace EightSixteenEmu
                 }
             }
             else if (_verbose) Console.WriteLine("STOPPED, please reset.");
-        }
-        public string DeviceList()
-        {
-            string result = "";
-            Addr lastUsedAddress = 0xffffffff;
-            foreach (var device in _devices)
-            {
-                (Addr start, Addr end) = device.Key;
-                if (start != lastUsedAddress + 1)
-                {
-                    result += $"${lastUsedAddress + 1:x6} - ${start - 1:x6}: Unused\n";
-                }
-                result += $"${start:x6} - ${end:x6}: {device.Value}\n"; // Corrected line
-                lastUsedAddress = end;
-            }
-            return result;
         }
         private string FormatStatusFlags()
         {
