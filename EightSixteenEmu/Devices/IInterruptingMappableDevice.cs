@@ -1,4 +1,4 @@
-﻿namespace EightSixteenEmu
+﻿namespace EightSixteenEmu.Devices
 {
     public interface IInterruptingMappableDevice : IMappableDevice
     {

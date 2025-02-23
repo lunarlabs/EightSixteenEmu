@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using EightSixteenEmu.Devices;
+using System.Net;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Intrinsics.Arm;
 using System.Xml.Serialization;
