@@ -35,7 +35,20 @@ namespace EightSixteenEmu.Tests
             Console.WriteLine(status);
             Assert.AreEqual(status.Cycles, 2);
             Assert.AreEqual(status.SP, 0x0100);
+        }
 
+        [TestMethod()]
+        public void DeviceListTest()
+        {
+            var deviceList = new List<IMappableDevice>();
+            var ram = new DevRAM(0, 0x8000);
+            Assert.ThrowsException<IndexOutOfRangeException>(() => Console.WriteLine(ram[0x10000]));
+            deviceList.Add(ram);
+            var rom = new DevROM("LoadStoreTest.rom", 0x8000);
+            deviceList.Add(rom);
+            var mp = new Microprocessor(deviceList);
+            Console.WriteLine(mp.DeviceList());
+            Assert.IsNotNull(mp.DeviceList());
         }
     }
 }

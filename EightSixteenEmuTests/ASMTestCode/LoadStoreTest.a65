@@ -1,0 +1,21 @@
+; Load/Store Test
+; This test will test the load and store instructions
+
+.p816
+.macpack generic
+.macpack longbranch
+
+;test code goes here
+.code
+	sec
+	xce
+
+	lda #$12
+	ldx #$34
+	ldy #$56
+
+	stp
+
+; reset vector
+	.org $FFFC
+	.word $8000

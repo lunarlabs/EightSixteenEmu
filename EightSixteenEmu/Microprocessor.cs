@@ -170,7 +170,7 @@ namespace EightSixteenEmu
             {
                 SortedDictionary<(Addr start, Addr end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
                 Addr top = newDevice.BaseAddress;
-                Addr bottom = newDevice.BaseAddress + newDevice.Size;
+                Addr bottom = newDevice.BaseAddress + newDevice.Size - 1; // Corrected calculation
                 if (bottom > 0xFFFFFF)
                 {
                     throw new ArgumentOutOfRangeException($"Addresses for {newDevice.GetType()} fall outside the 24-bit address space.");
@@ -179,7 +179,7 @@ namespace EightSixteenEmu
                 {
                     foreach ((Addr s, Addr e) in ranges)
                     {
-                        if (Math.Min(top, s) - Math.Min(bottom, e) > 0)
+                        if (Math.Max(top, s) <= Math.Min(bottom, e)) // Corrected condition
                         {
                             throw new InvalidOperationException($"Addresses for {newDevice.GetType()} (${top:x6} - ${bottom:x6}) conflict with existing device at ${s:x6} - ${e:x6}");
                         }
@@ -1461,6 +1461,7 @@ namespace EightSixteenEmu
 #endif
                 }
             }
+            else if (_verbose) Console.WriteLine("STOPPED, please reset.");
         }
         public string DeviceList()
         {
@@ -1473,7 +1474,8 @@ namespace EightSixteenEmu
                 {
                     result += $"${lastUsedAddress + 1:x6} - ${start - 1:x6}: Unused\n";
                 }
-                result += $"${start:x6} - ${end:x6}: {device.Value}\n";
+                result += $"${start:x6} - ${end:x6}: {device.Value}\n"; // Corrected line
+                lastUsedAddress = end;
             }
             return result;
         }

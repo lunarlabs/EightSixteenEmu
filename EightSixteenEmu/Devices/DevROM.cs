@@ -34,5 +34,10 @@ namespace EightSixteenEmu.Devices
         {
             data = System.IO.File.ReadAllBytes(romPath);
         }
+
+        public override string ToString()
+        {
+            return $"ROM ({romPath})";
+        }
     }
 }
