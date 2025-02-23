@@ -33,7 +33,7 @@ namespace EightSixteenEmu.Tests
             mp.ExecuteOperation();
             Microprocessor.Status status = mp.GetStatus();
             Console.WriteLine(status);
-            Assert.AreEqual(status.PC, 0);
+            Assert.AreEqual(status.Cycles, 2);
             Assert.AreEqual(status.SP, 0x0100);
 
         }

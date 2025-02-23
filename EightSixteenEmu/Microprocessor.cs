@@ -883,7 +883,15 @@ namespace EightSixteenEmu
         }
         #endregion
         #region RTI
-        private void OpRti(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpRti(W65C816.AddressingMode addressingMode)
+        {
+            _regSR = (StatusFlags)PullByte();
+            _regPC = PullWord();
+            if (_flagE)
+            {
+                _regPB = PullByte();
+            }
+        }
         #endregion
         #region CLC CLD CLI CLV SEC SED SEI
         private void OpClc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -1509,7 +1517,7 @@ namespace EightSixteenEmu
                 flags += FlagC ? "C" : "-";
                 flags += " ";
                 flags += FlagE ? "E" : "-";
-                return $"Cycles: {Cycles}\nA: 0x{A:x4}\n X: 0x{X:x4}\n Y: 0x{Y:x4}\n DP: 0x{DP:x4}\n SP: 0x{SP:x4}\n DB: 0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
+                return $"Cycles: {Cycles}\nA:  0x{A:x4}\nX:  0x{X:x4}\nY:  0x{Y:x4}\nDP: 0x{DP:x4}\nSP: 0x{SP:x4}\nDB:   0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
             }
         }
     }
