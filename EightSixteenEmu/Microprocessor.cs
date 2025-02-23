@@ -894,24 +894,62 @@ namespace EightSixteenEmu
         }
         #endregion
         #region CLC CLD CLI CLV SEC SED SEI
-        private void OpClc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpClc(W65C816.AddressingMode addressingMode)
+        {
+            SetStatusFlag(StatusFlags.C, false);
+        }
 
-        private void OpCld(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpCld(W65C816.AddressingMode addressingMode) 
+        { 
+            SetStatusFlag(StatusFlags.D, false);
+        }
 
-        private void OpCli(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpCli(W65C816.AddressingMode addressingMode)
+        {
+            SetStatusFlag(StatusFlags.I, false);
+        }
 
-        private void OpClv(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpClv(W65C816.AddressingMode addressingMode)
+        {
+            SetStatusFlag(StatusFlags.V, false);
+        }
 
-        private void OpSec(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpSec(W65C816.AddressingMode addressingMode)
+        {
+            SetStatusFlag(StatusFlags.C, true);
+        }
 
-        private void OpSed(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpSed(W65C816.AddressingMode addressingMode)
+        {
+            SetStatusFlag(StatusFlags.D, true);
+        }
 
-        private void OpSei(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpSei(W65C816.AddressingMode addressingMode) 
+        {
+            SetStatusFlag(StatusFlags.I, true);
+        }
         #endregion
         #region REP SEP
-        private void OpRep(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpRep(W65C816.AddressingMode addressingMode)
+        {
+            byte flags = (byte)(ReadImmediate(true));
+            if (_flagE)
+            {
+                // M and X flags cannot be set in emulation mode
+                flags &= 0xCF;
+            }
+            _regSR &= (StatusFlags)~flags;
+        }
 
-        private void OpSep(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpSep(W65C816.AddressingMode addressingMode) { 
+            byte flags = (byte)(ReadImmediate(true));
+            if (_flagE)
+            {
+                // M and X flags cannot be set in emulation mode
+                flags &= 0xCF;
+            }
+            _regSR |= (StatusFlags)flags;
+        }
         #endregion
         #region LDA LDX LDY STA STX STY STZ
         private void OpLda(W65C816.AddressingMode addressingMode)
