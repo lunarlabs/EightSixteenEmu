@@ -912,6 +912,11 @@ namespace EightSixteenEmu
                 flags &= 0xCF;
             }
             _regSR |= (StatusFlags)flags;
+            if (IndexesAre8Bit)
+            {
+                _regXH = 0;
+                _regYH = 0;
+            }
         }
         #endregion
         #region LDA LDX LDY STA STX STY STZ
@@ -1173,30 +1178,163 @@ namespace EightSixteenEmu
         }
         #endregion
         #region TAX TAY TSX TXA TXS TXY TYA TYX
-        private void OpTax(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
-        
-        private void OpTay(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTax(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (IndexesAre8Bit)
+            {
+                _regXL = _regAL;
+                SetNZStatusFlagsFromValue(_regXL);
+            }
+            else
+            {
+                _regX = _regA;
+                SetNZStatusFlagsFromValue(_regX);
+            }
+        }
 
-        private void OpTsx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTay(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (IndexesAre8Bit)
+            {
+                _regYL = _regAL;
+                SetNZStatusFlagsFromValue(_regYL);
+            }
+            else
+            {
+                _regY = _regA;
+                SetNZStatusFlagsFromValue(_regY);
+            }
+        }
 
-        private void OpTxa(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTsx(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (_flagE || IndexesAre8Bit)
+            {
+                _regXL = _regSL;
+                SetNZStatusFlagsFromValue(_regXL);
+            }
+            else
+            {
+                _regX = _regSP;
+                SetNZStatusFlagsFromValue(_regX);
+            } 
+        }
 
-        private void OpTxs(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTxa(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (AccumulatorIs8Bit)
+            {
+                _regAL = _regXL;
+                SetNZStatusFlagsFromValue(_regAL);
+            }
+            else
+            {
+                _regA = _regX;
+                SetNZStatusFlagsFromValue(_regA);
+            }
+        }
 
-        private void OpTxy(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTxs(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (_flagE)
+            {
+                _regSL = _regXL;
+            }
+            else if (IndexesAre8Bit)
+            {
+                _regSP = (Word)(0x0000 | _regXL);
+            }
+            else
+            {
+                _regSP = _regX;
+            }
+        }
 
-        private void OpTya(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTxy(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (IndexesAre8Bit)
+            {
+                _regYL = _regXL;
+                SetNZStatusFlagsFromValue(_regYL);
+            }
+            else
+            {
+                _regY = _regX;
+                SetNZStatusFlagsFromValue(_regY);
+            }
+        }
 
-        private void OpTyx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTya(W65C816.AddressingMode addressingMode) 
+        { 
+            _cycles++;
+            if (IndexesAre8Bit)
+            {
+                _regAL = _regYL;
+                SetNZStatusFlagsFromValue(_regAL);
+            }
+            else
+            {
+                _regA = _regY;
+                SetNZStatusFlagsFromValue(_regA);
+            }
+        }
+
+        private void OpTyx(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (IndexesAre8Bit)
+            {
+                _regXL = _regYL;
+                SetNZStatusFlagsFromValue(_regXL);
+            }
+            else
+            {
+                _regX = _regY;
+                SetNZStatusFlagsFromValue(_regX);
+            }
+        }
         #endregion
-        #region TCD TCS TDC TSC
-        private void OpTcd(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+            #region TCD TCS TDC TSC
+        private void OpTcd(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            _regDP = _regA;
+            SetNZStatusFlagsFromValue(_regDP);
+        }
 
-        private void OpTcs(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTcs(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            if (_flagE)
+            {
+                _regSL = _regAL;
+                _regSH = 0x01;
+            }
+            else
+            {
+                _regSP = _regA;
+            }
+        }
 
-        private void OpTdc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTdc(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            _regA = _regDP;
+            SetNZStatusFlagsFromValue(_regA);
+        }
 
-        private void OpTsc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTsc(W65C816.AddressingMode addressingMode)
+        {
+            _cycles++;
+            _regA = _regSP;
+            SetNZStatusFlagsFromValue(_regA);
+        }
         #endregion
         private void OpXba(W65C816.AddressingMode addressingMode)
         {
@@ -1317,109 +1455,112 @@ namespace EightSixteenEmu
                     _regIR = ReadByte();
                     (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(_regIR);
                     if (_verbose) Console.Write(o.ToString() + " ");
-                    DoOperation operation = o switch
-                    #region operation switch
-                    {
-                        W65C816.OpCode.ADC => OpAdc,
-                        W65C816.OpCode.AND => OpAnd,
-                        W65C816.OpCode.ASL => OpAsl,
-                        W65C816.OpCode.BCC => OpBcc,
-                        W65C816.OpCode.BCS => OpBcs,
-                        W65C816.OpCode.BEQ => OpBeq,
-                        W65C816.OpCode.BMI => OpBmi,
-                        W65C816.OpCode.BNE => OpBne,
-                        W65C816.OpCode.BPL => OpBpl,
-                        W65C816.OpCode.BRK => OpBrk,
-                        W65C816.OpCode.BRL => OpBrl,
-                        W65C816.OpCode.BVC => OpBvc,
-                        W65C816.OpCode.BVS => OpBvs,
-                        W65C816.OpCode.CLC => OpClc,
-                        W65C816.OpCode.CLD => OpCld,
-                        W65C816.OpCode.CLI => OpCli,
-                        W65C816.OpCode.CLV => OpClv,
-                        W65C816.OpCode.CMP => OpCmp,
-                        W65C816.OpCode.CPX => OpCpx,
-                        W65C816.OpCode.CPY => OpCpy,
-                        W65C816.OpCode.DEC => OpDec,
-                        W65C816.OpCode.DEX => OpDex,
-                        W65C816.OpCode.DEY => OpDey,
-                        W65C816.OpCode.EOR => OpEor,
-                        W65C816.OpCode.INC => OpInc,
-                        W65C816.OpCode.INX => OpInx,
-                        W65C816.OpCode.INY => OpIny,
-                        W65C816.OpCode.JMP => OpJmp,
-                        W65C816.OpCode.JSL => OpJsl,
-                        W65C816.OpCode.JSR => OpJsr,
-                        W65C816.OpCode.LDA => OpLda,
-                        W65C816.OpCode.LDX => OpLdx,
-                        W65C816.OpCode.LDY => OpLdy,
-                        W65C816.OpCode.LSR => OpLsr,
-                        W65C816.OpCode.NOP => OpNop,
-                        W65C816.OpCode.ORA => OpOra,
-                        W65C816.OpCode.PEA => OpPea,
-                        W65C816.OpCode.PEI => OpPei,
-                        W65C816.OpCode.PER => OpPer,
-                        W65C816.OpCode.PHA => OpPha,
-                        W65C816.OpCode.PHB => OpPhb,
-                        W65C816.OpCode.PHD => OpPhd,
-                        W65C816.OpCode.PHK => OpPhk,
-                        W65C816.OpCode.PHP => OpPhp,
-                        W65C816.OpCode.PHX => OpPhx,
-                        W65C816.OpCode.PHY => OpPhy,
-                        W65C816.OpCode.PLA => OpPla,
-                        W65C816.OpCode.PLB => OpPlb,
-                        W65C816.OpCode.PLD => OpPld,
-                        W65C816.OpCode.PLP => OpPlp,
-                        W65C816.OpCode.PLX => OpPlx,
-                        W65C816.OpCode.PLY => OpPly,
-                        W65C816.OpCode.REP => OpRep,
-                        W65C816.OpCode.ROL => OpRol,
-                        W65C816.OpCode.ROR => OpRor,
-                        W65C816.OpCode.RTI => OpRti,
-                        W65C816.OpCode.RTL => OpRtl,
-                        W65C816.OpCode.RTS => OpRts,
-                        W65C816.OpCode.SBC => OpSbc,
-                        W65C816.OpCode.SEP => OpSep,
-                        W65C816.OpCode.SEC => OpSec,
-                        W65C816.OpCode.SED => OpSed,
-                        W65C816.OpCode.SEI => OpSei,
-                        W65C816.OpCode.STA => OpSta,
-                        W65C816.OpCode.STP => OpStp,
-                        W65C816.OpCode.STX => OpStx,
-                        W65C816.OpCode.STY => OpSty,
-                        W65C816.OpCode.STZ => OpStz,
-                        W65C816.OpCode.TAX => OpTax,
-                        W65C816.OpCode.TAY => OpTay,
-                        W65C816.OpCode.TCD => OpTcd,
-                        W65C816.OpCode.TCS => OpTcs,
-                        W65C816.OpCode.TDC => OpTdc,
-                        W65C816.OpCode.TRB => OpTrb,
-                        W65C816.OpCode.TSB => OpTsb,
-                        W65C816.OpCode.TSC => OpTsc,
-                        W65C816.OpCode.TSX => OpTsx,
-                        W65C816.OpCode.TXA => OpTxa,
-                        W65C816.OpCode.TXS => OpTxs,
-                        W65C816.OpCode.TXY => OpTxy,
-                        W65C816.OpCode.TYA => OpTya,
-                        W65C816.OpCode.TYX => OpTyx,
-                        W65C816.OpCode.WAI => OpWai,
-                        W65C816.OpCode.WDM => OpWdm,
-                        W65C816.OpCode.XBA => OpXba,
-                        W65C816.OpCode.XCE => OpXce,
-                        W65C816.OpCode.BIT => OpBit,
-                        W65C816.OpCode.BRA => OpBra,
-                        W65C816.OpCode.COP => OpCop,
-                        W65C816.OpCode.MVN => OpMvn,
-                        W65C816.OpCode.MVP => OpMvp,
-                        _ => throw new NotImplementedException(),
-                    };
-                    #endregion
+                    DoOperation operation = GetDoOperation(o);
                     operation(m);
                     if (_verbose) Console.WriteLine();
                 }
             }
             else if (_verbose) Console.WriteLine("STOPPED, please reset.");
         }
+        private DoOperation GetDoOperation(W65C816.OpCode opCode)
+        {
+            return opCode switch
+            {
+                W65C816.OpCode.ADC => OpAdc,
+                W65C816.OpCode.AND => OpAnd,
+                W65C816.OpCode.ASL => OpAsl,
+                W65C816.OpCode.BCC => OpBcc,
+                W65C816.OpCode.BCS => OpBcs,
+                W65C816.OpCode.BEQ => OpBeq,
+                W65C816.OpCode.BMI => OpBmi,
+                W65C816.OpCode.BNE => OpBne,
+                W65C816.OpCode.BPL => OpBpl,
+                W65C816.OpCode.BRK => OpBrk,
+                W65C816.OpCode.BRL => OpBrl,
+                W65C816.OpCode.BVC => OpBvc,
+                W65C816.OpCode.BVS => OpBvs,
+                W65C816.OpCode.CLC => OpClc,
+                W65C816.OpCode.CLD => OpCld,
+                W65C816.OpCode.CLI => OpCli,
+                W65C816.OpCode.CLV => OpClv,
+                W65C816.OpCode.CMP => OpCmp,
+                W65C816.OpCode.CPX => OpCpx,
+                W65C816.OpCode.CPY => OpCpy,
+                W65C816.OpCode.DEC => OpDec,
+                W65C816.OpCode.DEX => OpDex,
+                W65C816.OpCode.DEY => OpDey,
+                W65C816.OpCode.EOR => OpEor,
+                W65C816.OpCode.INC => OpInc,
+                W65C816.OpCode.INX => OpInx,
+                W65C816.OpCode.INY => OpIny,
+                W65C816.OpCode.JMP => OpJmp,
+                W65C816.OpCode.JSL => OpJsl,
+                W65C816.OpCode.JSR => OpJsr,
+                W65C816.OpCode.LDA => OpLda,
+                W65C816.OpCode.LDX => OpLdx,
+                W65C816.OpCode.LDY => OpLdy,
+                W65C816.OpCode.LSR => OpLsr,
+                W65C816.OpCode.NOP => OpNop,
+                W65C816.OpCode.ORA => OpOra,
+                W65C816.OpCode.PEA => OpPea,
+                W65C816.OpCode.PEI => OpPei,
+                W65C816.OpCode.PER => OpPer,
+                W65C816.OpCode.PHA => OpPha,
+                W65C816.OpCode.PHB => OpPhb,
+                W65C816.OpCode.PHD => OpPhd,
+                W65C816.OpCode.PHK => OpPhk,
+                W65C816.OpCode.PHP => OpPhp,
+                W65C816.OpCode.PHX => OpPhx,
+                W65C816.OpCode.PHY => OpPhy,
+                W65C816.OpCode.PLA => OpPla,
+                W65C816.OpCode.PLB => OpPlb,
+                W65C816.OpCode.PLD => OpPld,
+                W65C816.OpCode.PLP => OpPlp,
+                W65C816.OpCode.PLX => OpPlx,
+                W65C816.OpCode.PLY => OpPly,
+                W65C816.OpCode.REP => OpRep,
+                W65C816.OpCode.ROL => OpRol,
+                W65C816.OpCode.ROR => OpRor,
+                W65C816.OpCode.RTI => OpRti,
+                W65C816.OpCode.RTL => OpRtl,
+                W65C816.OpCode.RTS => OpRts,
+                W65C816.OpCode.SBC => OpSbc,
+                W65C816.OpCode.SEP => OpSep,
+                W65C816.OpCode.SEC => OpSec,
+                W65C816.OpCode.SED => OpSed,
+                W65C816.OpCode.SEI => OpSei,
+                W65C816.OpCode.STA => OpSta,
+                W65C816.OpCode.STP => OpStp,
+                W65C816.OpCode.STX => OpStx,
+                W65C816.OpCode.STY => OpSty,
+                W65C816.OpCode.STZ => OpStz,
+                W65C816.OpCode.TAX => OpTax,
+                W65C816.OpCode.TAY => OpTay,
+                W65C816.OpCode.TCD => OpTcd,
+                W65C816.OpCode.TCS => OpTcs,
+                W65C816.OpCode.TDC => OpTdc,
+                W65C816.OpCode.TRB => OpTrb,
+                W65C816.OpCode.TSB => OpTsb,
+                W65C816.OpCode.TSC => OpTsc,
+                W65C816.OpCode.TSX => OpTsx,
+                W65C816.OpCode.TXA => OpTxa,
+                W65C816.OpCode.TXS => OpTxs,
+                W65C816.OpCode.TXY => OpTxy,
+                W65C816.OpCode.TYA => OpTya,
+                W65C816.OpCode.TYX => OpTyx,
+                W65C816.OpCode.WAI => OpWai,
+                W65C816.OpCode.WDM => OpWdm,
+                W65C816.OpCode.XBA => OpXba,
+                W65C816.OpCode.XCE => OpXce,
+                W65C816.OpCode.BIT => OpBit,
+                W65C816.OpCode.BRA => OpBra,
+                W65C816.OpCode.COP => OpCop,
+                W65C816.OpCode.MVN => OpMvn,
+                W65C816.OpCode.MVP => OpMvp,
+                _ => throw new NotImplementedException(),
+            };
+        }
+
         private string FormatStatusFlags()
         {
             string flags = "";
