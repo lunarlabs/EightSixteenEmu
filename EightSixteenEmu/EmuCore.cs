@@ -40,6 +40,11 @@ namespace EightSixteenEmu
             }
         }
 
+        public void Mirror(IMappableDevice device, uint baseAddress, uint startOffset = 0, int endOffset = -1)
+        {
+            AddDevice(new MirrorDevice(device, startOffset, endOffset), baseAddress);
+        }
+
         public void RemoveDevice(IMappableDevice device)
         {
             _devices.Remove((_devices.First(x => x.Value == device).Key));
@@ -102,6 +107,36 @@ namespace EightSixteenEmu
         {
             var device = _devices.FirstOrDefault(d => address >= d.Key.start && address <= d.Key.end).Value;
             return device;
+        }
+
+        private class MirrorDevice : IMappableDevice
+        {
+            uint _size;
+            IMappableDevice _sourceDevice;
+            uint _start;
+            uint _end;
+            uint IMappableDevice.Size { get { return _size; } }
+            internal MirrorDevice(IMappableDevice device, uint start = 0, int end = -1)
+            {
+                _sourceDevice = device;
+                _start = start;
+                if (end == -1)
+                {
+                    _end = device.Size - 1;
+                }
+                _size = (uint)(end - start + 1);
+            }
+            public byte this[uint index]
+            {
+                get
+                {
+                    return _sourceDevice[index - _start];
+                }
+                set
+                {
+                    _sourceDevice[index - _start] = value;
+                }
+            }
         }
         #endregion
     }
