@@ -4,7 +4,5 @@ namespace EightSixteenEmu.Devices
     {
         private static EmuCore emuCore { get; }
         void OnClockTick();
-
-        public IClockedMappableDevice(EmuCore core) => emuCore = core;
     }
 }
