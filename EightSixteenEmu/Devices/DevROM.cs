@@ -9,18 +9,15 @@ namespace EightSixteenEmu.Devices
     public class DevROM : IMappableDevice
     {
         private int badWrites = 0;
-        private uint baseAddress;
         private uint size;
         private byte[] data;
         private string romPath;
 
-        uint IMappableDevice.BaseAddress { get { return baseAddress; } }
         uint IMappableDevice.Size { get { return size; } }
-        public byte this[uint index] { get => data[index - baseAddress]; set => badWrites++; }
+        public byte this[uint index] { get => data[index]; set => badWrites++; }
 
-        public DevROM(string path, uint ba, long length = -1)
+        public DevROM(string path, long length = -1)
         {
-            baseAddress = ba;
             romPath = path;
             if (length == -1)
             {

@@ -19,10 +19,10 @@ namespace EightSixteenEmu
         }
 
         #region Device Management
-        public void AddDevice(IMappableDevice device)
+        public void AddDevice(IMappableDevice device, uint baseAddress)
         {
-            uint start = device.BaseAddress;
-            uint end = device.BaseAddress + device.Size - 1;
+            uint start = baseAddress;
+            uint end = baseAddress + device.Size - 1;
             if (start > 0xFFFFFF)
             {
                 throw new ArgumentOutOfRangeException($"Addresses for {device.GetType()} fall outside the 24-bit address space.");
@@ -36,7 +36,7 @@ namespace EightSixteenEmu
                         throw new InvalidOperationException($"Addresses for {device.GetType()} (${start:x6} - ${end:x6}) conflict with existing device {dev.Value} at ${dev.Key.start:x6} - ${dev.Key.end:x6}");
                     }
                 }
-                _devices.Add((device.BaseAddress, device.BaseAddress + device.Size - 1), device);
+                _devices.Add((baseAddress, baseAddress + device.Size - 1), device);
             }
         }
 
@@ -66,24 +66,42 @@ namespace EightSixteenEmu
                 {
                     result += $"${lastUsedAddress + 1:x6} - ${start - 1:x6}: Unused\n";
                 }
-                result += $"${start:x6} - ${end:x6}: {device.Value}\n"; // Corrected line
+                result += $"${start:x6} - ${end:x6}: {device.Value}\n";
                 lastUsedAddress = end;
+            }
+            if (lastUsedAddress < 0xffffff)
+            {
+                result += $"${lastUsedAddress + 1:x6} - $ffffff: Unused\n";
             }
             return result;
         }
 
-        internal IMappableDevice? GetDevice(uint address)
+        internal byte? Read(uint address)
         {
-            IMappableDevice? result = null;
-            SortedDictionary<(uint start, uint end), IMappableDevice>.KeyCollection ranges = _devices.Keys;
-            foreach ((uint s, uint e) in ranges)
+            byte? result = null;
+            IMappableDevice? device = GetDevice(address);
+            if (device != null)
             {
-                if ((address >= s && address <= e))
-                {
-                    result = _devices[(s, e)];
-                }
+                result = device[address - _devices.First(x => x.Value == device).Key.start];
             }
+            else Console.WriteLine($"Open bus read at ${address:x6}");
             return result;
+        }
+
+        internal void Write(uint address, byte value)
+        {
+            IMappableDevice? device = GetDevice(address);
+            if (device != null)
+            {
+                device[address - _devices.First(x => x.Value == device).Key.start] = value;
+            }
+            else Console.WriteLine($"Open bus write at ${address:x6}");
+        }
+
+        private IMappableDevice? GetDevice(uint address)
+        {
+            var device = _devices.FirstOrDefault(d => address >= d.Key.start && address <= d.Key.end).Value;
+            return device;
         }
         #endregion
     }

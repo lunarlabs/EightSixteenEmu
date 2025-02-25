@@ -244,14 +244,10 @@ namespace EightSixteenEmu
         private byte ReadByte(Addr address)
         {
             _cycles++;
-            IMappableDevice? device = _core.GetDevice(address);
-            if (device == null)
+            byte? result = _core.Read(address);
+            if (result != null)
             {
-                Console.WriteLine($"WARN: Attempted read from open bus address ${address:x6}");
-            }
-            else
-            {
-                _regMD = device[address];
+                _regMD = (byte)result;
             }
             return _regMD;
         }
@@ -302,19 +298,9 @@ namespace EightSixteenEmu
         private void WriteByte(byte value, Addr address)
         {
             _cycles++;
-            if (_aborting == false)
-            {
+            
                 _regMD = value;
-                IMappableDevice? device = _core.GetDevice(address);
-                if (device == null)
-                {
-                    Console.WriteLine($"WARN: Attempted write to open bus address ${address:x6}");
-                }
-                else
-                {
-                    device[address] = _regMD;
-                }
-            }
+                _core.Write(address, value);
         }
 
         private void WriteWord(Word value, Addr address)

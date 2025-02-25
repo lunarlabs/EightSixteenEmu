@@ -15,8 +15,8 @@ namespace EightSixteenEmu.Tests
         public void MicroprocessorTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x10000);
-            emu.AddDevice(ram);
+            var ram = new DevRAM(0x10000);
+            emu.AddDevice(ram, 0x0000);
             Assert.IsNotNull(emu.MPU);
         }
 
@@ -24,8 +24,8 @@ namespace EightSixteenEmu.Tests
         public void InitializeTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x10000);
-            emu.AddDevice(ram);
+            var ram = new DevRAM(0x10000);
+            emu.AddDevice(ram, 0x000000);
             emu.MPU.ExecuteOperation();
             Microprocessor.Status status = emu.MPU.GetStatus();
             Console.WriteLine(status);
@@ -37,11 +37,11 @@ namespace EightSixteenEmu.Tests
         public void DeviceListTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x8000);
+            var ram = new DevRAM(0x8000);
             Assert.ThrowsException<IndexOutOfRangeException>(() => Console.WriteLine(ram[0x10000]));
-            emu.AddDevice(ram);
+            emu.AddDevice(ram, 0x000000);
             var rom = new DevROM("LoadStoreTest.rom", 0x8000);
-            emu.AddDevice(rom);
+            emu.AddDevice(rom, 0x8000);
             Console.WriteLine(emu.DeviceList());
             Assert.IsNotNull(emu.DeviceList());
         }
@@ -51,10 +51,10 @@ namespace EightSixteenEmu.Tests
         public void LoadStoreTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x8000);
-            emu.AddDevice(ram);
+            var ram = new DevRAM(0x8000);
+            emu.AddDevice(ram, 0x0000);
             var rom = new DevROM("LoadStoreTest.rom", 0x8000);
-            emu.AddDevice(rom);
+            emu.AddDevice(rom, 0x8000);
             var mp = emu.MPU;
             mp.ExecuteOperation();
             Microprocessor.Status status = mp.GetStatus();
@@ -73,20 +73,20 @@ namespace EightSixteenEmu.Tests
         public void AddNonOverlappingDevicesTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x8000); // RAM ends at 0x7FFF
-            emu.AddDevice(ram);
+            var ram = new DevRAM(0x8000); // RAM ends at 0x7FFF
+            emu.AddDevice(ram, 0x0000);
             var rom = new DevROM("LoadStoreTest.rom", 0x8000); // ROM starts at 0x8000
-            emu.AddDevice(rom);
+            emu.AddDevice(rom, 0x8000);
             Assert.IsNotNull(emu.DeviceList());
         }
         [TestMethod()]
         public void AddOverlappingDevicesTest()
         {
             var emu = new EmuCore();
-            var ram = new DevRAM(0, 0x8000); // RAM ends at 0x7FFF
-            emu.AddDevice(ram);
+            var ram = new DevRAM(0x8000); // RAM ends at 0x7FFF
+            emu.AddDevice(ram, 0x0000);
             var overlappingRom = new DevROM("LoadStoreTest.rom", 0x4000); // ROM starts at 0x4000, overlaps with RAM
-            Assert.ThrowsException<InvalidOperationException>(() => emu.AddDevice(overlappingRom));
+            Assert.ThrowsException<InvalidOperationException>(() => emu.AddDevice(overlappingRom, 0x4000));
         }
     }
 }
