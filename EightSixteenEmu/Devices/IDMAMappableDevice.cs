@@ -8,7 +8,7 @@ namespace EightSixteenEmu.Devices
 {
     public interface IDMAMappableDevice : IMappableDevice
     {
-        EmuCore EmuCore { get; }
+        private static EmuCore EmuCore { get; }
         public event EventHandler? DMAStart;
         public event EventHandler? DMAComplete;
     }

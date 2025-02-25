@@ -20,6 +20,8 @@ namespace EightSixteenEmu
     public class Microprocessor
     {
         private int _cycles;
+        private bool _threadRunning;
+        private Thread _runThread;
         private bool _resetting;
         private bool _interruptingMaskable;
         private bool _interruptingNonMaskable;
@@ -27,6 +29,7 @@ namespace EightSixteenEmu
         private bool _stopped;
         private bool _waiting;
         private bool _verbose;
+        private static AutoResetEvent clockEvent = new AutoResetEvent(false);
         private readonly EmuCore _core;
 
         public bool Verbose
@@ -158,6 +161,7 @@ namespace EightSixteenEmu
             _regMD = 0x00;
 
             _cycles = 0;
+            _threadRunning = false;
             _resetting = true;
             _interruptingMaskable = false;
             _interruptingNonMaskable = false;
@@ -165,6 +169,39 @@ namespace EightSixteenEmu
 #if DEBUG
             _verbose = true;
 #endif
+            _core.ClockTick += OnClockTick;
+            _core.Reset += OnReset;
+            _core.Interrupt += OnInterrupt;
+            _core.NMI += OnNMI;
+        }
+
+        internal void OnClockTick(object? sender, EventArgs e)
+        {
+            ExecuteOperation();
+        }
+
+        internal void OnInterrupt(object? sender, EventArgs e)
+        {
+            _interruptingMaskable = true;
+        }
+
+        internal void OnReset(object? sender, EventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void OnNMI(object? sender, EventArgs e)
+        {
+            _interruptingNonMaskable = true;
+        }
+
+        private void NextCycle()
+        {
+            if (_threadRunning)
+            {
+                clockEvent.WaitOne();
+            }
+            _cycles++;
         }
 
         static byte LowByte(Word word)
@@ -243,7 +280,7 @@ namespace EightSixteenEmu
 
         private byte ReadByte(Addr address)
         {
-            _cycles++;
+            NextCycle();
             byte? result = _core.Read(address);
             if (result != null)
             {
@@ -297,7 +334,7 @@ namespace EightSixteenEmu
 
         private void WriteByte(byte value, Addr address)
         {
-            _cycles++;
+            NextCycle();
             
                 _regMD = value;
                 _core.Write(address, value);
@@ -586,7 +623,7 @@ namespace EightSixteenEmu
                 SetNZStatusFlagsFromValue((Word)al);
                 _regA = (Word)al;
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpSbc(W65C816.AddressingMode addressingMode)
@@ -631,7 +668,7 @@ namespace EightSixteenEmu
             }
         }
         #endregion
-            #region CMP CPX CPY
+        #region CMP CPX CPY
         private void OpCmp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
         private void OpCpx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -655,14 +692,14 @@ namespace EightSixteenEmu
                     SetNZStatusFlagsFromValue(--a);
                     _regA = a;
                 }
-                _cycles++;
+                NextCycle();
             }
             else
             {
                 Addr address = GetEffectiveAddress(addressingMode);
                 Word value = ReadValue(AccumulatorIs8Bit, address);
                 value -= 1;
-                _cycles++;
+                NextCycle();
                 if (AccumulatorIs8Bit)
                 {
                     SetNZStatusFlagsFromValue((byte)value);
@@ -685,7 +722,7 @@ namespace EightSixteenEmu
             {
                 SetNZStatusFlagsFromValue(--_regX);
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpDey(W65C816.AddressingMode addressingMode)
@@ -698,7 +735,7 @@ namespace EightSixteenEmu
             {
                 SetNZStatusFlagsFromValue(--_regY);
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpInc(W65C816.AddressingMode addressingMode)
@@ -717,14 +754,14 @@ namespace EightSixteenEmu
                     SetNZStatusFlagsFromValue(++a);
                     _regA = a;
                 }
-                _cycles++;
+                NextCycle();
             }
             else
             {
                 Addr address = GetEffectiveAddress(addressingMode);
                 Word value = ReadValue(AccumulatorIs8Bit, address);
                 value += 1;
-                _cycles++;
+                NextCycle();
                 if (AccumulatorIs8Bit)
                 {
                     SetNZStatusFlagsFromValue((byte)value);
@@ -747,7 +784,7 @@ namespace EightSixteenEmu
             {
                 SetNZStatusFlagsFromValue(++_regX);
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpIny(W65C816.AddressingMode addressingMode)
@@ -760,18 +797,74 @@ namespace EightSixteenEmu
             {
                 SetNZStatusFlagsFromValue(++_regY);
             }
-            _cycles++;
+            NextCycle();
         }
         #endregion
         #region AND EOR ORA
-        private void OpAnd(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpAnd(W65C816.AddressingMode addressingMode)
+        {
+            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
+            if (AccumulatorIs8Bit)
+            {
+                _regAL = (byte)operand & _regAL;
+                SetNZStatusFlagsFromValue(_regAL);
+            }
+            else
+            {
+                _regA = operand & _regA;
+                SetNZStatusFlagsFromValue(_regA);
+            }
+            NextCycle();
+        }
 
-        private void OpEor(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpEor(W65C816.AddressingMode addressingMode)
+        {
+            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
+            if (AccumulatorIs8Bit)
+            {
+                _regAL = (byte)operand ^ _regAL;
+                SetNZStatusFlagsFromValue(_regAL);
+            }
+            else
+            {
+                _regA = operand ^ _regA;
+                SetNZStatusFlagsFromValue(_regA);
+            }
+            NextCycle();
+        }
 
-        private void OpOra(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpOra(W65C816.AddressingMode addressingMode)
+        {
+            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
+            if (AccumulatorIs8Bit)
+            {
+                _regAL = (byte)operand | _regAL;
+                SetNZStatusFlagsFromValue(_regAL);
+            }
+            else
+            {
+                _regA = operand | _regA;
+                SetNZStatusFlagsFromValue(_regA);
+            }
+            NextCycle();
+        }
         #endregion
 
-        private void OpBit(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBit(W65C816.AddressingMode addressingMode)
+        {
+            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
+            Word result;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                operand = ReadImmediate(AccumulatorIs8Bit);
+            }
+            else
+            {
+                Addr address = GetEffectiveAddress(addressingMode);
+                operand = ReadValue(AccumulatorIs8Bit, address);
+            }
+            NextCycle();
+        }
 
         #region TRB TSB
         private void OpTrb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -1038,13 +1131,13 @@ namespace EightSixteenEmu
         #region NOP WDM
         private void OpNop(W65C816.AddressingMode addressingMode) 
         {
-            _cycles++;
+            NextCycle();
         }
 
         private void OpWdm(W65C816.AddressingMode addressingMode)
         {
             _regPC++;
-            _cycles++;
+            NextCycle();
         }
         #endregion
         #region PEA PEI PER
@@ -1065,7 +1158,7 @@ namespace EightSixteenEmu
             {
                 PushWord(_regA);
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpPhx(W65C816.AddressingMode addressingMode)
@@ -1078,7 +1171,7 @@ namespace EightSixteenEmu
             {
                 PushWord(_regX);
             }
-            _cycles++;
+            NextCycle();
         }
 
         private void OpPhy(W65C816.AddressingMode addressingMode)
@@ -1153,20 +1246,20 @@ namespace EightSixteenEmu
         #region STP WAI
         private void OpStp(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _stopped = true;
         }
 
         private void OpWai(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _waiting = true;
         }
         #endregion
         #region TAX TAY TSX TXA TXS TXY TYA TYX
         private void OpTax(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (IndexesAre8Bit)
             {
                 _regXL = _regAL;
@@ -1181,7 +1274,7 @@ namespace EightSixteenEmu
 
         private void OpTay(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (IndexesAre8Bit)
             {
                 _regYL = _regAL;
@@ -1196,7 +1289,7 @@ namespace EightSixteenEmu
 
         private void OpTsx(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (_flagE || IndexesAre8Bit)
             {
                 _regXL = _regSL;
@@ -1211,7 +1304,7 @@ namespace EightSixteenEmu
 
         private void OpTxa(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (AccumulatorIs8Bit)
             {
                 _regAL = _regXL;
@@ -1226,7 +1319,7 @@ namespace EightSixteenEmu
 
         private void OpTxs(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (_flagE)
             {
                 _regSL = _regXL;
@@ -1243,7 +1336,7 @@ namespace EightSixteenEmu
 
         private void OpTxy(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (IndexesAre8Bit)
             {
                 _regYL = _regXL;
@@ -1258,7 +1351,7 @@ namespace EightSixteenEmu
 
         private void OpTya(W65C816.AddressingMode addressingMode) 
         { 
-            _cycles++;
+            NextCycle();
             if (IndexesAre8Bit)
             {
                 _regAL = _regYL;
@@ -1273,7 +1366,7 @@ namespace EightSixteenEmu
 
         private void OpTyx(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (IndexesAre8Bit)
             {
                 _regXL = _regYL;
@@ -1286,17 +1379,17 @@ namespace EightSixteenEmu
             }
         }
         #endregion
-            #region TCD TCS TDC TSC
+        #region TCD TCS TDC TSC
         private void OpTcd(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _regDP = _regA;
             SetNZStatusFlagsFromValue(_regDP);
         }
 
         private void OpTcs(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             if (_flagE)
             {
                 _regSL = _regAL;
@@ -1310,27 +1403,27 @@ namespace EightSixteenEmu
 
         private void OpTdc(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _regA = _regDP;
             SetNZStatusFlagsFromValue(_regA);
         }
 
         private void OpTsc(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _regA = _regSP;
             SetNZStatusFlagsFromValue(_regA);
         }
         #endregion
         private void OpXba(W65C816.AddressingMode addressingMode)
         {
-            _cycles++;
+            NextCycle();
             _regA = Swap(_regA);
         }
 
         private void OpXce(W65C816.AddressingMode addressingMode) 
         { 
-            _cycles++;
+            NextCycle();
             bool carry = ReadStatusFlag(StatusFlags.C);
             SetStatusFlag(StatusFlags.C, _flagE);
             SetEmulationMode(carry);
@@ -1369,8 +1462,8 @@ namespace EightSixteenEmu
             else
             {
                 Word addressToPush = (source == InterruptType.BRK || source == InterruptType.COP) ? (Word)(_regPC + 1) : _regPC;
-                _cycles++;
-                _cycles++;
+                NextCycle();
+                NextCycle();
                 if (!_flagE) PushByte(_regPB);
                 PushWord(addressToPush);
                 if (_flagE && source == InterruptType.BRK)
@@ -1411,6 +1504,11 @@ namespace EightSixteenEmu
         }
 
         public void ExecuteOperation()
+        {
+            NextOperation();
+        }
+
+        private void NextOperation()
         {
             if (_resetting)
             {
@@ -1573,26 +1671,6 @@ namespace EightSixteenEmu
             return result;
         }
 
-        internal void OnClockTick(object? sender, EventArgs e)
-        {
-            ExecuteOperation();
-        }
-
-        internal void OnInterrupt(object? sender, EventArgs e)
-        {
-            _interruptingMaskable = true;
-        }
-
-        internal void OnReset(object? sender, EventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal void OnNMI(object? sender, EventArgs e)
-        {
-            _interruptingNonMaskable = true;
-        }
-
         public class Status
         {
             public int Cycles;
@@ -1602,25 +1680,7 @@ namespace EightSixteenEmu
 
             public override string ToString()
             {
-                string flags = "";
-                flags += FlagN ? "N" : "-";
-                flags += FlagV ? "V" : "-";
-                if (FlagE)
-                {
-                    flags += ".";
-                    flags += FlagX ? "B" : "-";
-                }
-                else
-                {
-                    flags += FlagM ? "M" : "-";
-                    flags += FlagX ? "X" : "-";
-                }
-                flags += FlagD ? "D" : "-";
-                flags += FlagI ? "I" : "-";
-                flags += FlagZ ? "Z" : "-";
-                flags += FlagC ? "C" : "-";
-                flags += " ";
-                flags += FlagE ? "E" : "-";
+                string flags = $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
                 return $"Cycles: {Cycles}\nA:  0x{A:x4}\nX:  0x{X:x4}\nY:  0x{Y:x4}\nDP: 0x{DP:x4}\nSP: 0x{SP:x4}\nDB:   0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
             }
         }
