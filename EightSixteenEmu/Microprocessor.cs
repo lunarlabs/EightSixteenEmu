@@ -1547,30 +1547,6 @@ namespace EightSixteenEmu
             };
         }
 
-        private string FormatStatusFlags()
-        {
-            string flags = "";
-            flags += ReadStatusFlag(StatusFlags.N) ? "N" : "-";
-            flags += ReadStatusFlag(StatusFlags.V) ? "V" : "-";
-            if (_flagE)
-            {
-                flags += ".";
-                flags += ReadStatusFlag(StatusFlags.X) ? "B" : "-";
-            }
-            else
-            {
-                flags += ReadStatusFlag(StatusFlags.M) ? "M" : "-";
-                flags += ReadStatusFlag(StatusFlags.X) ? "X" : "-";
-            }
-            flags += ReadStatusFlag(StatusFlags.D) ? "D" : "-";
-            flags += ReadStatusFlag(StatusFlags.I) ? "I" : "-";
-            flags += ReadStatusFlag(StatusFlags.Z) ? "Z" : "-";
-            flags += ReadStatusFlag(StatusFlags.C) ? "C" : "-";
-            flags += " ";
-            flags += _flagE ? "E" : "-";
-            return flags;
-        }
-
         public Status GetStatus()
         {
             Status result = new()
@@ -1595,6 +1571,26 @@ namespace EightSixteenEmu
                 FlagE = _flagE
             };
             return result;
+        }
+
+        internal void OnClockTick(object? sender, EventArgs e)
+        {
+            ExecuteOperation();
+        }
+
+        internal void OnInterrupt(object? sender, EventArgs e)
+        {
+            _interruptingMaskable = true;
+        }
+
+        internal void OnReset(object? sender, EventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void OnNMI(object? sender, EventArgs e)
+        {
+            _interruptingNonMaskable = true;
         }
 
         public class Status

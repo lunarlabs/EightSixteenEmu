@@ -12,6 +12,11 @@ namespace EightSixteenEmu
         private readonly Microprocessor _mpu;
         public Microprocessor MPU { get { return _mpu; } }
         private SortedDictionary<(uint start, uint end), IMappableDevice> _devices = new SortedDictionary<(uint start, uint end), IMappableDevice>();
+        private List<IInterruptingMappableDevice> interruptingMappableDevices = new List<IInterruptingMappableDevice>();
+
+        public event EventHandler? ClockTick;
+        public event EventHandler? Reset;
+        public event EventHandler? NMI;
 
         public EmuCore()
         {
@@ -23,7 +28,7 @@ namespace EightSixteenEmu
         {
             uint start = baseAddress;
             uint end = baseAddress + device.Size - 1;
-            if (start > 0xFFFFFF)
+            if (end > 0xFFFFFF)
             {
                 throw new ArgumentOutOfRangeException($"Addresses for {device.GetType()} fall outside the 24-bit address space.");
             }
@@ -31,12 +36,17 @@ namespace EightSixteenEmu
             {
                 foreach (var dev in _devices)
                 {
-                    if (Math.Max(start, dev.Key.start) <= Math.Min(end, dev.Key.end)) // Corrected condition
+                    if (Math.Max(start, dev.Key.start) <= Math.Min(end, dev.Key.end))
                     {
                         throw new InvalidOperationException($"Addresses for {device.GetType()} (${start:x6} - ${end:x6}) conflict with existing device {dev.Value} at ${dev.Key.start:x6} - ${dev.Key.end:x6}");
                     }
                 }
                 _devices.Add((baseAddress, baseAddress + device.Size - 1), device);
+                if (device is IInterruptingMappableDevice interruptingDevice)
+                {
+                    interruptingDevice.Interrupt += _mpu.OnInterrupt;
+                    interruptingMappableDevices.Add(interruptingDevice);
+                }
             }
         }
 
@@ -47,12 +57,22 @@ namespace EightSixteenEmu
 
         public void RemoveDevice(IMappableDevice device)
         {
-            _devices.Remove((_devices.First(x => x.Value == device).Key));
+            _devices.Remove(_devices.First(x => x.Value == device).Key);
+            if (device is IInterruptingMappableDevice interruptingDevice)
+            {
+                interruptingDevice.Interrupt -= _mpu.OnInterrupt;
+                interruptingMappableDevices.Remove(interruptingDevice);
+            }
         }
 
         public void RemoveDevice(uint address)
         {
-            _devices.Remove((_devices.First(x => x.Key.start <= address && x.Key.end >= address).Key));
+            IMappableDevice? device = GetDevice(address);
+            if (device != null)
+            {
+                RemoveDevice(device);
+            }
+            else Console.WriteLine($"Attempt to remove device at ${address:x6} failed because there is already no device at that address.");
         }
 
         public void ClearDevices()
@@ -114,7 +134,6 @@ namespace EightSixteenEmu
             uint _size;
             IMappableDevice _sourceDevice;
             uint _start;
-            uint _end;
             uint IMappableDevice.Size { get { return _size; } }
             internal MirrorDevice(IMappableDevice device, uint start = 0, int end = -1)
             {
@@ -122,7 +141,7 @@ namespace EightSixteenEmu
                 _start = start;
                 if (end == -1)
                 {
-                    _end = device.Size - 1;
+                    end = (int)(device.Size - 1);
                 }
                 _size = (uint)(end - start + 1);
             }
@@ -137,7 +156,24 @@ namespace EightSixteenEmu
                     _sourceDevice[index - _start] = value;
                 }
             }
+
+            public override string ToString()
+            {
+                return $"Mirror of {_sourceDevice} (offsets ${_start:x6} - ${_size - 1:x6})";
+            }
         }
+        #endregion
+
+        #region Event Management
+        public void OnInterrupt(object sender, EventArgs e)
+        {
+            _mpu.OnInterrupt(sender, e);
+        }
+
+        #endregion
+
+        #region Clock Management
+
         #endregion
     }
 }
