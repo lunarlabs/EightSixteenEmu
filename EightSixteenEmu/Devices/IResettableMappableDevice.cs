@@ -8,5 +8,6 @@ namespace EightSixteenEmu.Devices
 {
     public interface IResettableMappableDevice : IMappableDevice
     {
+        void OnReset();
     }
 }

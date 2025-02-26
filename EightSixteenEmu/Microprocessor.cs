@@ -8,6 +8,8 @@
  *  Copyright (C) 2025 Matthias Lamers
  *  Released under GNUGPLv2, see LICENSE.txt for details.
  *  
+ *  Based on the W65C816S, designed by Bill Mensch,
+ *  and manufactured by Western Design Center (https://wdc65xx.com)
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
 using Addr = System.UInt32;
@@ -18,11 +20,6 @@ namespace EightSixteenEmu
     /// <summary>
     /// A class representing the W65C816 microprocessor.
     /// </summary>
-    /// <remarks>
-    /// This class is a work in progress. Most opcodes are not yet implemented.
-    /// Steps are by operation, not by cycle. This is a simplification for now.
-    /// The ABORT signal is not implemented. Since very few actual designs use it, it has been deemed unnecessary.
-    /// </remarks>
     public class Microprocessor
     {
         private int _cycles;
@@ -35,7 +32,7 @@ namespace EightSixteenEmu
         private bool _stopped;
         private bool _waiting;
         private bool _verbose;
-        private static AutoResetEvent clockEvent = new AutoResetEvent(false);
+        private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
 
         public bool Verbose
@@ -183,7 +180,10 @@ namespace EightSixteenEmu
 
         internal void OnClockTick(object? sender, EventArgs e)
         {
-            ExecuteOperation();
+            if (_threadRunning)
+            {
+                _clockEvent.Set();
+            }
         }
 
         internal void OnInterrupt(object? sender, EventArgs e)
@@ -193,7 +193,11 @@ namespace EightSixteenEmu
 
         internal void OnReset(object? sender, EventArgs e)
         {
-            throw new NotImplementedException();
+            // TODO: Right now, if the Reset event is fired, the current operation will complete
+            // which means memory and registers will be altered before the reset starts.
+            // This is probably not how the real '816 handles resets...
+            // Use a cancellation token?
+            _resetting = true;
         }
 
         internal void OnNMI(object? sender, EventArgs e)
@@ -215,7 +219,7 @@ namespace EightSixteenEmu
             if (_runThread != null && _threadRunning)
             {
                 _threadRunning = false;
-                clockEvent.Set();
+                _clockEvent.Set();
                 _runThread.Join();
             }
         }
@@ -241,7 +245,7 @@ namespace EightSixteenEmu
         {
             if (_threadRunning)
             {
-                clockEvent.WaitOne();
+                _clockEvent.WaitOne();
             }
             _cycles++;
         }
@@ -1197,7 +1201,7 @@ namespace EightSixteenEmu
             }
         }
         #endregion
-            #region MVN MVP
+        #region MVN MVP
         private void OpMvn(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
         private void OpMvp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -1322,6 +1326,7 @@ namespace EightSixteenEmu
         {
             NextCycle();
             _stopped = true;
+            StopThread();
         }
 
         private void OpWai(W65C816.AddressingMode addressingMode)

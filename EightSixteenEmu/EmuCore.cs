@@ -16,8 +16,8 @@ namespace EightSixteenEmu
     {
         private readonly Microprocessor _mpu;
         public Microprocessor MPU { get { return _mpu; } }
-        private SortedDictionary<(uint start, uint end), IMappableDevice> _devices = new SortedDictionary<(uint start, uint end), IMappableDevice>();
-        private List<IInterruptingMappableDevice> interruptingMappableDevices = new List<IInterruptingMappableDevice>();
+        private SortedDictionary<(uint start, uint end), IMappableDevice> _devices = [];
+        private List<IInterruptingMappableDevice> interruptingMappableDevices = [];
 
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
@@ -26,7 +26,7 @@ namespace EightSixteenEmu
 
         public EmuCore()
         {
-            _mpu = new Microprocessor(this);
+            _mpu = new(this);
         }
 
         #region Device Management

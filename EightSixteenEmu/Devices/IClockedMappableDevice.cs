@@ -2,7 +2,7 @@ namespace EightSixteenEmu.Devices
 {
     public interface IClockedMappableDevice : IMappableDevice
     {
-        private static EmuCore emuCore { get; }
+        private static EmuCore EmuCore { get; }
         void OnClockTick();
     }
 }
