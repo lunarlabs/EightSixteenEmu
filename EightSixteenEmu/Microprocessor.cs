@@ -1,9 +1,15 @@
-﻿using EightSixteenEmu.Devices;
-using System.Net;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.Intrinsics.Arm;
-using System.Xml.Serialization;
-using static System.Net.WebRequestMethods;
+﻿/*    _____      __   __  _____      __               ____          
+ *   / __(_)__ _/ /  / /_/ __(_)_ __/ /____ ___ ___  / __/_ _  __ __
+ *  / _// / _ `/ _ \/ __/\ \/ /\ \ / __/ -_) -_) _ \/ _//  ' \/ // /
+ * /___/_/\_, /_//_/\__/___/_//_\_\\__/\__/\__/_//_/___/_/_/_/\_,_/ 
+ *       /___/                                                      
+ * 
+ *  W65C816S microprocessor emulator
+ *  Copyright (C) 2025 Matthias Lamers
+ *  Released under GNUGPLv2, see LICENSE.txt for details.
+ *  
+ *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
+ */
 using Addr = System.UInt32;
 using Word = System.UInt16;
 
@@ -21,7 +27,7 @@ namespace EightSixteenEmu
     {
         private int _cycles;
         private bool _threadRunning;
-        private Thread _runThread;
+        private Thread? _runThread;
         private bool _resetting;
         private bool _interruptingMaskable;
         private bool _interruptingNonMaskable;
@@ -171,7 +177,7 @@ namespace EightSixteenEmu
 #endif
             _core.ClockTick += OnClockTick;
             _core.Reset += OnReset;
-            _core.Interrupt += OnInterrupt;
+            _core.IRQ += OnInterrupt;
             _core.NMI += OnNMI;
         }
 
@@ -193,6 +199,42 @@ namespace EightSixteenEmu
         internal void OnNMI(object? sender, EventArgs e)
         {
             _interruptingNonMaskable = true;
+        }
+
+        public void StartThread()
+        {
+            if (!_threadRunning)
+            {
+                _runThread = new Thread(Run);
+                _runThread.Start();
+            }
+        }
+
+        public void StopThread()
+        {
+            if (_runThread != null && _threadRunning)
+            {
+                _threadRunning = false;
+                clockEvent.Set();
+                _runThread.Join();
+            }
+        }
+
+        private void Run()
+        {
+            if (_verbose)
+            {
+                Console.WriteLine("Starting W65C816 microprocessor thread.");
+            }
+            _threadRunning = true;
+            while (_threadRunning)
+            {
+                NextOperation();
+            }
+            if (_verbose)
+            {
+                Console.WriteLine("Stopping W65C816 microprocessor thread.");
+            }
         }
 
         private void NextCycle()
@@ -416,9 +458,9 @@ namespace EightSixteenEmu
             if (value)
             {
                 SetStatusFlag(StatusFlags.M | StatusFlags.X, true);
-                _regX = (Word)LowByte(_regX);
-                _regY = (Word)LowByte(_regY);
-                _regSP = (Word)(0x0100 | LowByte(_regSP));
+                _regXH = 0;
+                _regYH = 0;
+                _regSH = 0x01;
                 _flagE = true;
             }
             else { _flagE = false; }
@@ -806,12 +848,12 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)operand & _regAL;
+                _regAL = (byte)((byte)operand & _regAL);
                 SetNZStatusFlagsFromValue(_regAL);
             }
             else
             {
-                _regA = operand & _regA;
+                _regA = (ushort)(operand & _regA);
                 SetNZStatusFlagsFromValue(_regA);
             }
             NextCycle();
@@ -822,12 +864,12 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)operand ^ _regAL;
+                _regAL = (byte)((byte)operand ^ _regAL);
                 SetNZStatusFlagsFromValue(_regAL);
             }
             else
             {
-                _regA = operand ^ _regA;
+                _regA = (ushort)(operand ^ _regA);
                 SetNZStatusFlagsFromValue(_regA);
             }
             NextCycle();
@@ -838,12 +880,12 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)operand | _regAL;
+                _regAL = (byte)((byte)operand | _regAL);
                 SetNZStatusFlagsFromValue(_regAL);
             }
             else
             {
-                _regA = operand | _regA;
+                _regA = (ushort)(operand | _regA);
                 SetNZStatusFlagsFromValue(_regA);
             }
             NextCycle();
@@ -852,24 +894,56 @@ namespace EightSixteenEmu
 
         private void OpBit(W65C816.AddressingMode addressingMode)
         {
-            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
-            Word result;
+            Word operand;
             if (addressingMode == W65C816.AddressingMode.Immediate)
             {
                 operand = ReadImmediate(AccumulatorIs8Bit);
+                if (AccumulatorIs8Bit)
+                { 
+                    SetStatusFlag(StatusFlags.Z, (operand & _regAL) == 0); 
+                }
+                else
+                {
+                    SetStatusFlag(StatusFlags.Z, (operand & _regA) == 0);
+                }
             }
             else
             {
-                Addr address = GetEffectiveAddress(addressingMode);
-                operand = ReadValue(AccumulatorIs8Bit, address);
+                operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
+                if (AccumulatorIs8Bit)
+                {
+                    SetStatusFlag(StatusFlags.Z, (operand & _regAL) == 0);
+                    SetStatusFlag(StatusFlags.N, (operand & 0x80) != 0);
+                    SetStatusFlag(StatusFlags.V, (operand & 0x40) != 0);
+                }
+                else
+                {
+                    SetStatusFlag(StatusFlags.Z, (operand & _regA) == 0);
+                    SetStatusFlag(StatusFlags.N, (operand & 0x8000) != 0);
+                    SetStatusFlag(StatusFlags.V, (operand & 0x4000) != 0);
+                }
             }
             NextCycle();
         }
 
         #region TRB TSB
-        private void OpTrb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpTrb(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = GetEffectiveAddress(addressingMode);
+            Word value = ReadValue(AccumulatorIs8Bit, address);
+            Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
 
-        private void OpTsb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+            WriteValue((ushort)(value & ~mask), AccumulatorIs8Bit, address);
+        }
+
+        private void OpTsb(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = GetEffectiveAddress(addressingMode);
+            Word value = ReadValue(AccumulatorIs8Bit, address);
+            Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
+
+            WriteValue((ushort)(value | mask), AccumulatorIs8Bit, address);
+        }
         #endregion
         #region ASL LSR ROL ROR
         private void OpAsl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -1505,7 +1579,11 @@ namespace EightSixteenEmu
 
         public void ExecuteOperation()
         {
-            NextOperation();
+            if (_runThread == null || !_threadRunning) 
+            {
+                NextOperation(); 
+            }
+            else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
         }
 
         private void NextOperation()

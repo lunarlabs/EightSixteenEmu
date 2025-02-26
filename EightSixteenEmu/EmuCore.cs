@@ -1,9 +1,14 @@
-﻿using EightSixteenEmu.Devices;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿/*    _____      __   __  _____      __               ____          
+ *   / __(_)__ _/ /  / /_/ __(_)_ __/ /____ ___ ___  / __/_ _  __ __
+ *  / _// / _ `/ _ \/ __/\ \/ /\ \ / __/ -_) -_) _ \/ _//  ' \/ // /
+ * /___/_/\_, /_//_/\__/___/_//_\_\\__/\__/\__/_//_/___/_/_/_/\_,_/ 
+ *       /___/                                                      
+ * 
+ *  Emulation Core
+ *  Copyright (C) 2025 Matthias Lamers
+ *  Released under GNUGPLv2, see LICENSE.txt for details.
+ */
+using EightSixteenEmu.Devices;
 
 namespace EightSixteenEmu
 {
@@ -17,6 +22,7 @@ namespace EightSixteenEmu
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
         public event EventHandler? NMI;
+        public event EventHandler? IRQ;
 
         public EmuCore()
         {
