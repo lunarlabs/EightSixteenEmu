@@ -12,20 +12,31 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		DebugGui|Any CPU = DebugGui|Any CPU
 		Release|Any CPU = Release|Any CPU
+		ReleaseGui|Any CPU = ReleaseGui|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.DebugGui|Any CPU.ActiveCfg = DebugGui|Any CPU
+		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.DebugGui|Any CPU.Build.0 = DebugGui|Any CPU
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.ReleaseGui|Any CPU.ActiveCfg = ReleaseGui|Any CPU
+		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.ReleaseGui|Any CPU.Build.0 = ReleaseGui|Any CPU
 		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.DebugGui|Any CPU.ActiveCfg = DebugGui|Any CPU
+		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.DebugGui|Any CPU.Build.0 = DebugGui|Any CPU
 		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.ReleaseGui|Any CPU.ActiveCfg = ReleaseGui|Any CPU
+		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.ReleaseGui|Any CPU.Build.0 = ReleaseGui|Any CPU
 		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.DebugGui|Any CPU.ActiveCfg = DebugGui|Any CPU
+		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.DebugGui|Any CPU.Build.0 = DebugGui|Any CPU
 		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D86D373D-8EE5-4D45-B825-F20E248EEE01}.ReleaseGui|Any CPU.ActiveCfg = ReleaseGui|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

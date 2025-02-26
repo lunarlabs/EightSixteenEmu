@@ -39,7 +39,7 @@ namespace EightSixteenEmu
         {
             get => _verbose;
 #if !DEBUG
-            set => verbose = value;
+            set => _verbose = value;
 #endif
         }
 
