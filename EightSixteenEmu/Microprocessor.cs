@@ -715,11 +715,80 @@ namespace EightSixteenEmu
         }
         #endregion
         #region CMP CPX CPY
-        private void OpCmp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpCmp(W65C816.AddressingMode addressingMode)
+        {
+            Word data;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                data = ReadImmediate(AccumulatorIs8Bit);
+            }
+            else 
+            { 
+                data = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode)); 
+            }
+            if (AccumulatorIs8Bit)
+            {
+                data = (byte)(_regAL - (byte)data);
+                SetNZStatusFlagsFromValue((byte)data);
+                SetStatusFlag(StatusFlags.C, _regAL >= data);
+            }
+            else
+            {
+                data = (Word)(_regA - data);
+                SetNZStatusFlagsFromValue(data);
+                SetStatusFlag(StatusFlags.C, _regA >= data);
+            }
+        }
 
-        private void OpCpx(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpCpx(W65C816.AddressingMode addressingMode)
+        {
+            Word data;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                data = ReadImmediate(IndexesAre8Bit);
+            }
+            else
+            {
+                data = ReadValue(IndexesAre8Bit, GetEffectiveAddress(addressingMode));
+            }
+            if (IndexesAre8Bit)
+            {
+                data = (byte)(_regXL - (byte)data);
+                SetNZStatusFlagsFromValue((byte)data);
+                SetStatusFlag(StatusFlags.C, _regXL >= data);
+            }
+            else
+            {
+                data = (Word)(_regX - data);
+                SetNZStatusFlagsFromValue(data);
+                SetStatusFlag(StatusFlags.C, _regX >= data);
+            }
+        }
 
-        private void OpCpy(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpCpy(W65C816.AddressingMode addressingMode)
+        {
+            Word data;
+            if (addressingMode == W65C816.AddressingMode.Immediate)
+            {
+                data = ReadImmediate(IndexesAre8Bit);
+            }
+            else
+            {
+                data = ReadValue(IndexesAre8Bit, GetEffectiveAddress(addressingMode));
+            }
+            if (IndexesAre8Bit)
+            {
+                data = (byte)(_regYL - (byte)data);
+                SetNZStatusFlagsFromValue((byte)data);
+                SetStatusFlag(StatusFlags.C, _regYL >= data);
+            }
+            else
+            {
+                data = (Word)(_regY - data);
+                SetNZStatusFlagsFromValue(data);
+                SetStatusFlag(StatusFlags.C, _regY >= data);
+            }
+        }
         #endregion
         #region DEA DEC DEX DEY INA INC INX INY
         private void OpDec(W65C816.AddressingMode addressingMode)
