@@ -1007,6 +1007,7 @@ namespace EightSixteenEmu
             Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
 
             WriteValue((ushort)(value & ~mask), AccumulatorIs8Bit, address);
+            NextCycle();
         }
 
         private void OpTsb(W65C816.AddressingMode addressingMode)
@@ -1016,6 +1017,7 @@ namespace EightSixteenEmu
             Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
 
             WriteValue((ushort)(value | mask), AccumulatorIs8Bit, address);
+            NextCycle();
         }
         #endregion
         #region ASL LSR ROL ROR
@@ -1074,6 +1076,8 @@ namespace EightSixteenEmu
         #region RTI
         private void OpRti(W65C816.AddressingMode addressingMode)
         {
+            NextCycle();
+            NextCycle();
             _regSR = (StatusFlags)PullByte();
             _regPC = PullWord();
             if (_flagE)
