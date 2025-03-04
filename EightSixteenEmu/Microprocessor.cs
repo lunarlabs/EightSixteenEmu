@@ -1021,7 +1021,46 @@ namespace EightSixteenEmu
         }
         #endregion
         #region ASL LSR ROL ROR
-        private void OpAsl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpAsl(W65C816.AddressingMode addressingMode)
+        {
+            if (addressingMode == W65C816.AddressingMode.Accumulator)
+            {
+                if (AccumulatorIs8Bit)
+                {
+                    SetStatusFlag(StatusFlags.C, (_regAL & 0x80) != 0);
+                    _regAL <<= 1;
+                    SetNZStatusFlagsFromValue(_regAL);
+                }
+                else
+                {
+                    SetStatusFlag(StatusFlags.C, (_regA & 0x8000) != 0);
+                    _regA <<= 1;
+                    SetNZStatusFlagsFromValue(_regA);
+                }
+            }
+            else
+            {
+                Addr address = GetEffectiveAddress(addressingMode);
+                Word operand;
+                if (AccumulatorIs8Bit)
+                {
+                    operand = ReadByte(address);
+                    SetStatusFlag(StatusFlags.C, (operand & 0x80) != 0);
+                    operand = (byte)(operand << 1);
+                    WriteByte((byte)(operand), address);
+                    SetNZStatusFlagsFromValue((byte)operand);
+                }
+                else
+                {
+                    operand = ReadWord(address);
+                    SetStatusFlag(StatusFlags.C, (operand & 0x8000) != 0);
+                    operand <<= 1;
+                    WriteWord(operand, address);
+                    SetNZStatusFlagsFromValue(operand);
+                }
+            }
+            NextCycle();
+        }
 
         private void OpLsr(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
