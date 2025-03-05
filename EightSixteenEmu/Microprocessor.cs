@@ -151,15 +151,6 @@ namespace EightSixteenEmu
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
         /// </summary>
-        /// <param name="deviceList">
-        /// A list of <c>IMappableDevice</c> to assign to the microprocessor's address space.
-        /// </param>
-        /// <exception cref="ArgumentOutOfRangeException">
-        /// Thrown when the base address of a device falls outside the 24-bit address space.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown when the address range of a device conflicts with an existing device.
-        /// </exception>
         public Microprocessor(EmuCore core)
         {
             _core = core;
@@ -369,7 +360,7 @@ namespace EightSixteenEmu
             {
                 byte b = BankOf(address);
                 Word a = (Word)address;
-                return Address(ReadByte(Address(b, (Word)(a + 2))), ReadWord(address, true));
+                return Address(ReadByte(Address(b, (Word)(a + 2))), ReadWord(address, wrapping));
             }
         }
 
@@ -1289,7 +1280,18 @@ namespace EightSixteenEmu
         }
 
         #region JMP JSL JSR
-        private void OpJmp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpJmp(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = GetEffectiveAddress(addressingMode);
+            if (addressingMode == W65C816.AddressingMode.AbsoluteLong ||
+                addressingMode == W65C816.AddressingMode.AbsoluteIndirectLong)
+            {
+                _regPB = BankOf(address);
+            }
+            
+            _regPC = (Word)address;
+                
+        }
 
         private void OpJsl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
 
