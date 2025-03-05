@@ -128,6 +128,18 @@ namespace EightSixteenEmu
             set => _regSP = Join(value, HighByte(_regSP));
         }
 
+        private byte _regDH //high byte of direct pointer
+        {
+            get => HighByte(_regDP);
+            set => _regDP = Join(LowByte(_regDP), value);
+        }
+
+        private byte _regDL //low byte of direct pointer
+        {
+            get => LowByte(_regDP);
+            set => _regDP = Join(value, HighByte(_regDP));
+        }
+
         public bool FlagE { get => _flagE; }
         public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
         public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
@@ -274,6 +286,10 @@ namespace EightSixteenEmu
         {
             return (Bank(bank) | address);
         }
+        static Addr Address(byte bank, byte page, byte loc)
+        {
+            return Bank(bank) | Join(loc, page);
+        }
 
         // to avoid headaches when adding offsets to Words
         static Addr Address(byte bank, int address) 
@@ -284,7 +300,7 @@ namespace EightSixteenEmu
         {
             return (Word)((w >> 8) | (w << 8));
         }
-        private Addr LongPC { get => Address(_regPB, _regPC); }
+        private Addr _longPC { get => Address(_regPB, _regPC); }
 
         #region Memory Access
 
@@ -359,21 +375,21 @@ namespace EightSixteenEmu
 
         private byte ReadByte()
         {
-            byte result = ReadByte(LongPC);
+            byte result = ReadByte(_longPC);
             _regPC += 1;
             return result;
         }
 
         private Word ReadWord()
         {
-            Word result = ReadWord(LongPC, true);
+            Word result = ReadWord(_longPC, true);
             _regPC += 2;
             return result;
         }
 
         private Addr ReadAddr()
         {
-            Addr result = ReadAddr(LongPC, true);
+            Addr result = ReadAddr(_longPC, true);
             _regPC += 3;
             return result;
         }
@@ -472,106 +488,106 @@ namespace EightSixteenEmu
 
         private Addr GetEffectiveAddress(W65C816.AddressingMode addressingMode)
         {
+            Addr OffsetBySignedValue(bool isEightBit)
+            {
+                short offset;
+                if (isEightBit)
+                {
+                    offset = (sbyte)ReadByte();
+                }
+                else
+                {
+                    offset = (short)ReadWord();
+                }
+                if (_verbose) Console.Write($"{offset:+0,-#}");
+                Addr result = (Addr)(_longPC + offset) & 0x00ffffff;
+                if (BankOf(result) != _regPB) NextCycle();
+                return result;
+            }
+
+            Addr CalculateDirectAddress(byte offset, Word register = 0)
+            {
+                if (_flagE && _regDL == 0)
+                {
+                    return Address(0, _regDH, (byte)(offset + LowByte(register)));
+                }
+                else
+                {
+                    return Address(0, _regDP + offset + register);
+                }
+            }
+
             Addr pointer;
-            byte offsetU8;
+            byte offset;
             Word location;
-            sbyte offsetS8;
-            short offsetS16;
             switch (addressingMode)
             {
                 case W65C816.AddressingMode.Immediate:
                     // WARN: Do the reads (and subsequent RegPC advances) in the operation
                     if (_verbose) Console.Write("#");
-                    return LongPC;
+                    return _longPC;
                 case W65C816.AddressingMode.Accumulator:
                     if (_verbose) Console.Write("A");
                     return 0;
                 case W65C816.AddressingMode.ProgramCounterRelative:
-                    offsetS8 = (sbyte)ReadByte();
-                    if (_verbose) Console.Write($"{offsetS8:+0,-#}");
-                    pointer = (uint)(Address(_regPB, _regPC) + offsetS8);
-                    if (BankOf(pointer) != _regPB) NextCycle();
-                    return pointer & 0x00ffffff;
+                    return OffsetBySignedValue(true);
                 case W65C816.AddressingMode.ProgramCounterRelativeLong:
-                    offsetS16 = (short)ReadWord();
-                    if (_verbose) Console.Write($"{offsetS16:+0,-#}");
-                    pointer = (uint)(Address(_regPB, _regPC) + offsetS16);
-                    if (BankOf(pointer) != _regPB) NextCycle();
-                    return pointer & 0x00ffffff;
+                    return OffsetBySignedValue(false);
                 case W65C816.AddressingMode.Implied:
                     return 0;
                 case W65C816.AddressingMode.Stack:
                     return 0;
                 case W65C816.AddressingMode.Direct:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"${offsetU8:x2}");
-                    return Address(0, _regDP + offsetU8);
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"${offset:x2}");
+                    return Address(0, _regDP + offset);
                 case W65C816.AddressingMode.DirectIndexedWithX:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"${offsetU8:x2}, X");
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"${offset:x2}, X");
+                    return CalculateDirectAddress(offset, _regX);
                     if (_flagE && LowByte(_regDP) == 0)
                     {
-                        return Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
+                        return Address(0, Join((byte)(offset + (byte)_regX), HighByte(_regDP)));
                     }
                     else
                     {
-                        return Address(0, _regDP + offsetU8 + (byte)_regX);
+                        return Address(0, _regDP + offset + (byte)_regX);
                     }
                 case W65C816.AddressingMode.DirectIndexedWithY:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"${offsetU8:x2}, Y");
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"${offset:x2}, Y");
+                    return CalculateDirectAddress(offset, _regY);
                     if (_flagE && LowByte(_regDP) == 0)
                     {
-                        return Address(0, Join((byte)(offsetU8 + (byte)_regY), HighByte(_regDP)));
+                        return Address(0, Join((byte)(offset + (byte)_regY), HighByte(_regDP)));
                     }
                     else
                     {
-                        return Address(0, _regDP + offsetU8 + (byte)_regY);
+                        return Address(0, _regDP + offset + (byte)_regY);
                     }
                 case W65C816.AddressingMode.DirectIndirect:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"(${offsetU8:x2})");
-                    if (_flagE && LowByte(_regDP) == 0)
-                    {
-                        pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
-                    }
-                    else
-                    {
-                        pointer = Address(0, _regDP + offsetU8);
-                    }
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"(${offset:x2})");
+                    pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"(${offsetU8:x2}, X)");
-                    if (_flagE && LowByte(_regDP) == 0)
-                    {
-                        pointer = Address(0, Join((byte)(offsetU8 + (byte)_regX), HighByte(_regDP)));
-                    }
-                    else
-                    {
-                        pointer = Address(0, _regDP + offsetU8 + (byte)_regX);
-                    }
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"(${offset:x2}, X)");
+                    pointer = CalculateDirectAddress(offset, _regX);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"(${offsetU8:x2}), Y");
-                    if (_flagE && LowByte(_regDP) == 0)
-                    {
-                        pointer = Address(0, Join((byte)(offsetU8), HighByte(_regDP)));
-                    }
-                    else
-                    {
-                        pointer = Address(0, _regDP + offsetU8);
-                    }
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"(${offset:x2}), Y");
+                    pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"[${offsetU8:x2}]");
-                    return ReadAddr(Address(0, _regDP + offsetU8), true);
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"[${offset:x2}]");
+                    return ReadAddr(Address(0, _regDP + offset), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"[${offsetU8:x2}], Y");
-                    return ReadAddr(Address(0, _regDP + offsetU8), true) + _regY;
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"[${offset:x2}], Y");
+                    return ReadAddr(Address(0, _regDP + offset), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
                     location = ReadWord();
@@ -594,13 +610,13 @@ namespace EightSixteenEmu
                     if (_verbose) Console.Write($"{pointer:x6}, X");
                     return pointer + _regX;
                 case W65C816.AddressingMode.StackRelative:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"{offsetU8:x2}, S");
-                    return Address(0, offsetU8 + _regSP);
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"{offset:x2}, S");
+                    return Address(0, offset + _regSP);
                 case W65C816.AddressingMode.StackRelativeIndirectIndexed:
-                    offsetU8 = ReadByte();
-                    if (_verbose) Console.Write($"({offsetU8:x2}, S), Y");
-                    pointer = Address(0, offsetU8 + _regSP);
+                    offset = ReadByte();
+                    if (_verbose) Console.Write($"({offset:x2}, S), Y");
+                    pointer = Address(0, offset + _regSP);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.AbsoluteIndirect:
                     location = ReadWord();
