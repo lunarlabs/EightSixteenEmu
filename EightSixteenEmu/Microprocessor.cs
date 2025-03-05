@@ -500,8 +500,7 @@ namespace EightSixteenEmu
                     offset = (short)ReadWord();
                 }
                 if (_verbose) Console.Write($"{offset:+0,-#}");
-                Addr result = (Addr)(_longPC + offset) & 0x00ffffff;
-                if (BankOf(result) != _regPB) NextCycle();
+                Addr result = Address(_regPB, (Word)(_regPC + offset));
                 return result;
             }
 
@@ -545,26 +544,10 @@ namespace EightSixteenEmu
                     offset = ReadByte();
                     if (_verbose) Console.Write($"${offset:x2}, X");
                     return CalculateDirectAddress(offset, _regX);
-                    if (_flagE && LowByte(_regDP) == 0)
-                    {
-                        return Address(0, Join((byte)(offset + (byte)_regX), HighByte(_regDP)));
-                    }
-                    else
-                    {
-                        return Address(0, _regDP + offset + (byte)_regX);
-                    }
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"${offset:x2}, Y");
                     return CalculateDirectAddress(offset, _regY);
-                    if (_flagE && LowByte(_regDP) == 0)
-                    {
-                        return Address(0, Join((byte)(offset + (byte)_regY), HighByte(_regDP)));
-                    }
-                    else
-                    {
-                        return Address(0, _regDP + offset + (byte)_regY);
-                    }
                 case W65C816.AddressingMode.DirectIndirect:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"(${offset:x2})");
@@ -603,19 +586,19 @@ namespace EightSixteenEmu
                     return Address(_regDB, location + _regY);
                 case W65C816.AddressingMode.AbsoluteLong:
                     pointer = ReadAddr();
-                    if (_verbose) Console.Write($"{pointer:x6}");
+                    if (_verbose) Console.Write($"${pointer:x6}");
                     return pointer;
                 case W65C816.AddressingMode.AbsoluteLongIndexed:
                     pointer = ReadAddr();
-                    if (_verbose) Console.Write($"{pointer:x6}, X");
+                    if (_verbose) Console.Write($"${pointer:x6}, X");
                     return pointer + _regX;
                 case W65C816.AddressingMode.StackRelative:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"{offset:x2}, S");
+                    if (_verbose) Console.Write($"${offset:x2}, S");
                     return Address(0, offset + _regSP);
                 case W65C816.AddressingMode.StackRelativeIndirectIndexed:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"({offset:x2}, S), Y");
+                    if (_verbose) Console.Write($"(${offset:x2}, S), Y");
                     pointer = Address(0, offset + _regSP);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.AbsoluteIndirect:
@@ -623,6 +606,11 @@ namespace EightSixteenEmu
                     if (_verbose) Console.Write($"(${location:x4})");
                     pointer = Address(0, location);
                     return Address(_regPB, ReadWord(pointer));
+                case W65C816.AddressingMode.AbsoluteIndirectLong:
+                    location = ReadWord();
+                    if (_verbose) Console.Write($"[${location:x4}]");
+                    pointer = Address(0, location);
+                    return ReadAddr(pointer);
                 case W65C816.AddressingMode.AbsoluteIndexedIndirect:
                     location = ReadWord();
                     if (_verbose) Console.Write($"(${location:x4}, X)");
@@ -1170,26 +1158,91 @@ namespace EightSixteenEmu
         private void OpRor(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
         #endregion
         #region BCC BCS BEQ BMI BNE BPL BRA BVC BVS
-        private void OpBcc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBcc(W65C816.AddressingMode addressingMode)
+        {
+            if (!ReadStatusFlag(StatusFlags.C))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBcs(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBcs(W65C816.AddressingMode addressingMode)
+        {
+            if (ReadStatusFlag(StatusFlags.C))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBeq(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBeq(W65C816.AddressingMode addressingMode)
+        {
+            if (ReadStatusFlag(StatusFlags.Z))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBmi(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBmi(W65C816.AddressingMode addressingMode)
+        {
+            if (ReadStatusFlag(StatusFlags.N))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBne(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBne(W65C816.AddressingMode addressingMode)
+        {
+            if (!ReadStatusFlag(StatusFlags.Z))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBpl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBpl(W65C816.AddressingMode addressingMode)
+        {
+            if (!ReadStatusFlag(StatusFlags.N))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBra(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBra(W65C816.AddressingMode addressingMode)
+        {
+            BranchTo(GetEffectiveAddress(addressingMode));
+            NextCycle();
+        }
 
-        private void OpBvc(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBvc(W65C816.AddressingMode addressingMode)
+        {
+            if (!ReadStatusFlag(StatusFlags.V))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
 
-        private void OpBvs(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBvs(W65C816.AddressingMode addressingMode)
+        {
+            if (ReadStatusFlag(StatusFlags.V))
+            {
+                BranchTo(GetEffectiveAddress(addressingMode));
+            }
+            NextCycle();
+        }
         #endregion
 
-        private void OpBrl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpBrl(W65C816.AddressingMode addressingMode) 
+        {
+            NextCycle();
+            NextCycle();
+            BranchTo(GetEffectiveAddress(addressingMode));  
+        }
 
         #region JMP JSL JSR
         private void OpJmp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
@@ -1724,6 +1777,17 @@ namespace EightSixteenEmu
                 Console.WriteLine();
                 Console.Write($"Emulation flag now {_flagE}");
             }
+        }
+
+        private void BranchTo(Addr destination)
+        {
+            destination &= 0xffff;
+            NextCycle();
+            if (_flagE && HighByte((Word)destination) != HighByte(_regPC))
+            {
+                NextCycle();
+            }
+            _regPC = (Word)destination;
         }
 
         #endregion
