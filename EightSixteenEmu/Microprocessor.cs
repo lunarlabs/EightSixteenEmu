@@ -1126,28 +1126,30 @@ namespace EightSixteenEmu
                 }
                 else
                 {
-                    SetStatusFlag(StatusFlags.C, (_regA & 0x8000) != 0);
+                    shiftedOut = (_regA & 0x8000) != 0;
                     _regA <<= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) _regA |= 0x01;
                     SetNZStatusFlagsFromValue(_regA);
+                    SetStatusFlag(StatusFlags.C, shiftedOut);
                 }
             }
             else
             {
                 Addr address = GetEffectiveAddress(addressingMode);
-                Word operand;
+                Word operand = ReadValue(AccumulatorIs8Bit, address);
                 if (AccumulatorIs8Bit)
                 {
-                    operand = ReadByte(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x80) != 0);
-                    operand = (byte)(operand << 1);
-                    WriteByte((byte)(operand), address);
+                    shiftedOut = (operand & 0x80) != 0;
+                    operand = operand <<= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x01;
+                    WriteByte((byte)operand, address);
                     SetNZStatusFlagsFromValue((byte)operand);
                 }
                 else
                 {
-                    operand = ReadWord(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x8000) != 0);
-                    operand <<= 1;
+                    shiftedOut = (operand & 0x8000) != 0;
+                    operand = operand <<= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x01;
                     WriteWord(operand, address);
                     SetNZStatusFlagsFromValue(operand);
                 }
@@ -1155,7 +1157,49 @@ namespace EightSixteenEmu
             NextCycle();
         }
 
-        private void OpRor(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpRor(W65C816.AddressingMode addressingMode)
+        {
+            bool shiftedOut;
+            if (addressingMode == W65C816.AddressingMode.Accumulator)
+            {
+                if (AccumulatorIs8Bit)
+                {
+                    shiftedOut = (_regAL & 0x01) != 0;
+                    _regAL >>>= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) _regAL |= 0x80;
+                    SetNZStatusFlagsFromValue(_regAL);
+                    SetStatusFlag(StatusFlags.C, shiftedOut);
+                }
+                else
+                {
+                    shiftedOut = (_regA & 0x0001) != 0;
+                    _regA >>>= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) _regA |= 0x8000;
+                    SetNZStatusFlagsFromValue(_regA);
+                    SetStatusFlag(StatusFlags.C, shiftedOut);
+                }
+            }
+            else
+            {
+                Addr address = GetEffectiveAddress(addressingMode);
+                Word operand = ReadValue(AccumulatorIs8Bit, address);
+                shiftedOut = (operand & 0x01) != 0;
+                operand >>>= 1;
+                if (AccumulatorIs8Bit)
+                {
+                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x80;
+                    WriteByte((byte)operand, address);
+                    SetNZStatusFlagsFromValue((byte)operand);
+                }
+                else
+                {
+                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x8000;
+                    WriteWord(operand, address);
+                    SetNZStatusFlagsFromValue(operand);
+                }
+            }
+            NextCycle();
+        }
         #endregion
         #region BCC BCS BEQ BMI BNE BPL BRA BVC BVS
         private void OpBcc(W65C816.AddressingMode addressingMode)
