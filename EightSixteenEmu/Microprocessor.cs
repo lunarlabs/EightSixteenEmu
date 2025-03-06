@@ -404,7 +404,7 @@ namespace EightSixteenEmu
             WriteByte(value, _regSP--);
             if (_flagE)
             {
-                _regSL = 0x01;
+                _regSH = 0x01;
             }
         }
 
@@ -419,7 +419,7 @@ namespace EightSixteenEmu
             byte result = ReadByte(++_regSP);
             if (_flagE)
             {
-                _regSP = Join(LowByte(_regSP), 0x01);
+                _regSH = 0x01;
             }
             return result;
         }
@@ -1290,17 +1290,41 @@ namespace EightSixteenEmu
             }
             
             _regPC = (Word)address;
+            NextCycle();
                 
         }
 
-        private void OpJsl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpJsl(W65C816.AddressingMode addressingMode)
+        {
+            PushByte(_regPB);
+            PushWord(_regPC);
+            Addr addr = GetEffectiveAddress(addressingMode);
+            _regPB = BankOf(addr);
+            _regPC = (Word)addr;
+            NextCycle();
+        }
 
-        private void OpJsr(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpJsr(W65C816.AddressingMode addressingMode)
+        {
+            PushWord(_regPC);
+            Addr addr = GetEffectiveAddress(addressingMode);
+            _regPC = (Word)addr;
+            NextCycle();
+        }
         #endregion
         #region RTL RTS
-        private void OpRtl(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpRtl(W65C816.AddressingMode addressingMode) 
+        {
+            _regPC = PullWord();
+            _regPC++;
+        }
 
-        private void OpRts(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpRts(W65C816.AddressingMode addressingMode)
+        {
+            _regPC = PullWord();
+            _regPC++;
+            _regPB = PullByte();
+        }
         #endregion
         #region BRK COP
         private void OpBrk(W65C816.AddressingMode addressingMode) 
