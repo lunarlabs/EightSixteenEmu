@@ -608,11 +608,7 @@ namespace EightSixteenEmu
                     pointer = Address(_regPB, location);
                     return Address(_regPB, ReadWord(pointer) + _regX);
                 case W65C816.AddressingMode.BlockMove:
-                    byte destination = ReadByte();
-                    byte source = ReadByte();
-                    if (_verbose) Console.Write($"${source:x2}, ${destination:x2}");
-                    // WARN: Decode source and destination banks in the operation function
-                    return Address(0, Join(destination, source));
+                    return 0; // handled in the operation function
                 default:
                     return 0;
             }
@@ -1538,9 +1534,35 @@ namespace EightSixteenEmu
         }
         #endregion
         #region MVN MVP
-        private void OpMvn(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpMvn(W65C816.AddressingMode addressingMode)
+        {
+            CopyMemory();
+            if (IndexesAre8Bit)
+            {
+                _regXL++;
+                _regYL++;
+            }
+            else
+            {
+                _regX++;
+                _regY++;
+            }
+        }
 
-        private void OpMvp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpMvp(W65C816.AddressingMode addressingMode)
+        {
+            CopyMemory();
+            if (IndexesAre8Bit)
+            {
+                _regXL--;
+                _regYL--;
+            }
+            else
+            {
+                _regX--;
+                _regY--;
+            }
+        }
         #endregion
         #region NOP WDM
         private void OpNop(W65C816.AddressingMode addressingMode) 
@@ -1858,6 +1880,20 @@ namespace EightSixteenEmu
                 NextCycle();
             }
             _regPC = (Word)destination;
+        }
+
+        // Yes, this is going to spam stdout, but it's easier to just treat this as
+        // an opcode being called over and over again rather than a special opcode
+        // that takes a variable number of cycles to complete!
+        private void CopyMemory()
+        {
+            byte destination = ReadByte();
+            byte source = ReadByte();
+            if (_verbose) Console.Write($"${source:x2}, ${destination:x2} (${_regA} bytes left)");
+            WriteByte(ReadByte(Address(source, _regX)), Address(destination, _regY));
+            NextCycle();
+            NextCycle();
+            if (--_regA != 0xffff) _regPC -= 3;
         }
 
         #endregion
