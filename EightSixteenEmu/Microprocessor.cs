@@ -1297,7 +1297,7 @@ namespace EightSixteenEmu
         private void OpJsl(W65C816.AddressingMode addressingMode)
         {
             PushByte(_regPB);
-            PushWord(_regPC);
+            PushWord((Word)(_regPC + 3));
             Addr addr = GetEffectiveAddress(addressingMode);
             _regPB = BankOf(addr);
             _regPC = (Word)addr;
@@ -1306,7 +1306,7 @@ namespace EightSixteenEmu
 
         private void OpJsr(W65C816.AddressingMode addressingMode)
         {
-            PushWord(_regPC);
+            PushWord((Word)(_regPC + 2));
             Addr addr = GetEffectiveAddress(addressingMode);
             _regPC = (Word)addr;
             NextCycle();
