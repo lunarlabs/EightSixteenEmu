@@ -530,37 +530,45 @@ namespace EightSixteenEmu
                 case W65C816.AddressingMode.Direct:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"${offset:x2}");
+                    if (_regDL != 0x00) NextCycle();
                     return Address(0, _regDP + offset);
                 case W65C816.AddressingMode.DirectIndexedWithX:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"${offset:x2}, X");
+                    if (_regDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regX);
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"${offset:x2}, Y");
+                    if (_regDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regY);
                 case W65C816.AddressingMode.DirectIndirect:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"(${offset:x2})");
+                    if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"(${offset:x2}, X)");
+                    if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset, _regX);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"(${offset:x2}), Y");
+                    if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"[${offset:x2}]");
+                    if (_regDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
                     offset = ReadByte();
                     if (_verbose) Console.Write($"[${offset:x2}], Y");
+                    if (_regDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
@@ -1577,11 +1585,23 @@ namespace EightSixteenEmu
         }
         #endregion
         #region PEA PEI PER
-        private void OpPea(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPea(W65C816.AddressingMode addressingMode)
+        {
+            Word value = ReadImmediate(false);
+            PushWord(value);
+        }
 
-        private void OpPei(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPei(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = GetEffectiveAddress(addressingMode);
+            PushWord(ReadWord(address));
+        }
 
-        private void OpPer(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPer(W65C816.AddressingMode addressingMode)
+        {
+            Addr address = GetEffectiveAddress(addressingMode);
+            PushWord(ReadWord(address));
+        }
         #endregion
         #region PHA PHX PHY PLA PLX PLY
         private void OpPha(W65C816.AddressingMode addressingMode)
@@ -1665,19 +1685,57 @@ namespace EightSixteenEmu
         }
         #endregion
         #region PHB PHD PHK PHP PLB PLD PLP
-        private void OpPhb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPhb(W65C816.AddressingMode addressingMode)
+        {
+            PushByte(_regDB);
+            NextCycle();
+        }
 
-        private void OpPhd(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPhd(W65C816.AddressingMode addressingMode)
+        {
+            PushWord(_regDP);
+            NextCycle();
+        }
 
-        private void OpPhk(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPhk(W65C816.AddressingMode addressingMode)
+        {
+            PushByte(_regPB);
+            NextCycle();
+        }
 
-        private void OpPhp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPhp(W65C816.AddressingMode addressingMode)
+        {
+            PushByte((byte)_regSR);
+            NextCycle();
+        }
 
-        private void OpPlb(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPlb(W65C816.AddressingMode addressingMode)
+        {
+            _regDB = PullByte();
+            SetNZStatusFlagsFromValue(_regDB);
+            NextCycle();
+            NextCycle();
+        }
 
-        private void OpPld(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPld(W65C816.AddressingMode addressingMode)
+        {
+            _regDP = PullWord();
+            SetNZStatusFlagsFromValue(_regDP);
+            NextCycle();
+            NextCycle();
+        }
 
-        private void OpPlp(W65C816.AddressingMode addressingMode) { throw new NotImplementedException(); }
+        private void OpPlp(W65C816.AddressingMode addressingMode)
+        {
+            byte flags = PullByte();
+            if(_flagE)
+            {
+                // M and X flags cannot be set in emulation mode
+                flags |= 0b00110000;
+            }
+            _regSR = (StatusFlags)flags;
+
+        }
         #endregion
         #region STP WAI
         private void OpStp(W65C816.AddressingMode addressingMode)
@@ -1888,6 +1946,7 @@ namespace EightSixteenEmu
         private void CopyMemory()
         {
             byte destination = ReadByte();
+            _regDB = destination;
             byte source = ReadByte();
             if (_verbose) Console.Write($"${source:x2}, ${destination:x2} (${_regA} bytes left)");
             WriteByte(ReadByte(Address(source, _regX)), Address(destination, _regY));
