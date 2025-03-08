@@ -20,8 +20,6 @@ namespace EightSixteenEmu
         private SortedList<(uint start, uint end), IMappableDevice> _devices = [];
         private List<IInterruptingMappableDevice> interruptingMappableDevices = [];
 
-        private SortedList<(uint start, uint end), AddressAllocation> _allocationMap { get { return GetAllocationMap(); } }
-
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
         public event EventHandler? NMI;
@@ -97,49 +95,6 @@ namespace EightSixteenEmu
             _devices.Clear();
         }
 
-        private SortedList<(uint start, uint end), AddressAllocation> GetAllocationMap()
-        {
-            SortedList<(uint start, uint end), AddressAllocation> allocationMap = new();
-            foreach (var block in _ramBlocks)
-            {
-                allocationMap.Add(block, AddressAllocation.RAM);
-            }
-            foreach (var dev in _devices)
-            {
-                allocationMap.Add(dev.Key, AddressAllocation.Device);
-            }
-            foreach (var mirror in _mirrors)
-            {
-                allocationMap.Add(mirror.Key, AddressAllocation.Mirror);
-            }
-            return allocationMap;
-        }
-
-        public AddressAllocation GetAllocation(uint address)
-        {
-            foreach (var range in _allocationMap)
-            {
-                if (address >= range.Key.start && address <= range.Key.end)
-                {
-                    return range.Value;
-                }
-            }
-            return AddressAllocation.None;
-        }
-
-        private uint GetMirroredAddress(uint address)
-        {
-            uint mirroredAddress = address;
-            foreach (var mirror in _mirrors)
-            {
-                if (address >= mirror.Key.start && address <= mirror.Key.end)
-                {
-                    mirroredAddress = address - mirror.Key.start + mirror.Value;
-                    break;
-                }
-            }
-            return mirroredAddress;
-        }
 
         public string DeviceList()
         {
