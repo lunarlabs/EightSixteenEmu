@@ -16,13 +16,26 @@ namespace EightSixteenEmu
     {
         private readonly Microprocessor _mpu;
         public Microprocessor MPU { get { return _mpu; } }
-        private SortedDictionary<(uint start, uint end), IMappableDevice> _devices = [];
+        private byte[] ram = new byte[0x01000000];
+        private SortedSet<(uint start, uint end)> _ramBlocks = [];
+        private SortedList<(uint start, uint end), IMappableDevice> _devices = [];
+        private SortedList<(uint start, uint end), uint> _mirrors = [];
         private List<IInterruptingMappableDevice> interruptingMappableDevices = [];
+
+        private SortedList<(uint start, uint end), AddressAllocation> _allocationMap { get { return GetAllocationMap(); } }
 
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
         public event EventHandler? NMI;
         public event EventHandler? IRQ;
+
+        public enum AddressAllocation
+        {
+            None,
+            Mirror,
+            Device,
+            RAM,
+        }
 
         public EmuCore()
         {
@@ -56,9 +69,43 @@ namespace EightSixteenEmu
             }
         }
 
-        public void Mirror(IMappableDevice device, uint baseAddress, uint startOffset = 0, int endOffset = -1)
+        public void AddRAMBlock(uint startAddress, uint endAddress)
         {
-            AddDevice(new MirrorDevice(device, startOffset, endOffset), baseAddress);
+            if (endAddress > 0xFFFFFF)
+            {
+                throw new ArgumentOutOfRangeException($"Addresses for RAM block fall outside the 24-bit address space.");
+            }
+            else
+            {
+                foreach (var block in _ramBlocks)
+                {
+                    if (CheckForRangeOverlap((startAddress, endAddress), block))
+                    {
+                        throw new InvalidOperationException($"RAM block (${startAddress:x6} - ${endAddress:x6}) overlaps with existing block (${block.start:x6} - ${block.end:x6})");
+                    }
+                }
+                _ramBlocks.Add((startAddress, endAddress));
+            }
+        }
+
+        public void Mirror(uint baseAddress, uint mirrorAddress, int length = -1)
+        {
+            AddressAllocation allocationType;
+            IMappableDevice? device;
+            GetAllocation(baseAddress, out allocationType, out device);
+            switch (allocationType)
+            {
+                case AddressAllocation.None:
+                    throw new InvalidOperationException($"No device at ${baseAddress:x6} to mirror.");
+                case AddressAllocation.Mirror:
+                    throw new InvalidOperationException($"Cannot mirror a mirror at ${baseAddress:x6}.");
+                case AddressAllocation.RAM:
+                    throw new NotImplementedException("Mirroring RAM is not yet implemented.");
+                case AddressAllocation.Device:
+                    throw new NotImplementedException("Mirroring devices is not yet implemented.");
+                default:
+                    throw new InvalidOperationException("Unknown address allocation type.");
+            }
         }
 
         public void RemoveDevice(IMappableDevice device)
@@ -84,6 +131,50 @@ namespace EightSixteenEmu
         public void ClearDevices()
         {
             _devices.Clear();
+        }
+
+        private SortedList<(uint start, uint end), AddressAllocation> GetAllocationMap()
+        {
+            SortedList<(uint start, uint end), AddressAllocation> allocationMap = new();
+            foreach (var block in _ramBlocks)
+            {
+                allocationMap.Add(block, AddressAllocation.RAM);
+            }
+            foreach (var dev in _devices)
+            {
+                allocationMap.Add(dev.Key, AddressAllocation.Device);
+            }
+            foreach (var mirror in _mirrors)
+            {
+                allocationMap.Add(mirror.Key, AddressAllocation.Mirror);
+            }
+            return allocationMap;
+        }
+
+        public AddressAllocation GetAllocation(uint address)
+        {
+            foreach (var range in _allocationMap)
+            {
+                if (address >= range.Key.start && address <= range.Key.end)
+                {
+                    return range.Value;
+                }
+            }
+            return AddressAllocation.None;
+        }
+
+        private uint GetMirroredAddress(uint address)
+        {
+            uint mirroredAddress = address;
+            foreach (var mirror in _mirrors)
+            {
+                if (address >= mirror.Key.start && address <= mirror.Key.end)
+                {
+                    mirroredAddress = address - mirror.Key.start + mirror.Value;
+                    break;
+                }
+            }
+            return mirroredAddress;
         }
 
         public string DeviceList()
@@ -128,45 +219,14 @@ namespace EightSixteenEmu
             }
             else Console.WriteLine($"Open bus write at ${address:x6}");
         }
-
+        private bool CheckForRangeOverlap((uint s, uint e) range1, (uint s, uint e) range2)
+        {
+            return(Math.Max(range1.s, range2.s) <= Math.Min(range1.e, range2.e));
+        }
         private IMappableDevice? GetDevice(uint address)
         {
             var device = _devices.FirstOrDefault(d => address >= d.Key.start && address <= d.Key.end).Value;
             return device;
-        }
-
-        private class MirrorDevice : IMappableDevice
-        {
-            uint _size;
-            IMappableDevice _sourceDevice;
-            uint _start;
-            uint IMappableDevice.Size { get { return _size; } }
-            internal MirrorDevice(IMappableDevice device, uint start = 0, int end = -1)
-            {
-                _sourceDevice = device;
-                _start = start;
-                if (end == -1)
-                {
-                    end = (int)(device.Size - 1);
-                }
-                _size = (uint)(end - start + 1);
-            }
-            public byte this[uint index]
-            {
-                get
-                {
-                    return _sourceDevice[index - _start];
-                }
-                set
-                {
-                    _sourceDevice[index - _start] = value;
-                }
-            }
-
-            public override string ToString()
-            {
-                return $"Mirror of {_sourceDevice} (offsets ${_start:x6} - ${_size - 1:x6})";
-            }
         }
         #endregion
 
