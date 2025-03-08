@@ -1,6 +1,6 @@
 ﻿namespace EightSixteenEmu.Devices
 {
-    public class DevRAM(uint len) : IMappableDevice
+    public class DevRAM(uint len) : IMappedReadDevice, IMappedWriteDevice
     {
         private uint size = len;
         private byte[] data = new byte[len];

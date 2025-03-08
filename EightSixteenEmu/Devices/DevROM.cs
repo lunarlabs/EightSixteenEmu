@@ -6,15 +6,14 @@ using System.Threading.Tasks;
 
 namespace EightSixteenEmu.Devices
 {
-    public class DevROM : IMappableDevice
+    public class DevROM : IMappedReadDevice
     {
-        private int badWrites = 0;
         private uint size;
         private byte[] data;
         private string romPath;
 
-        uint IMappableDevice.Size { get { return size; } }
-        public byte this[uint index] { get => data[index]; set => badWrites++; }
+        uint IMappableDevice.Size => size;
+        public byte this[uint index] { get => data[index]; }
 
         public DevROM(string path, long length = -1)
         {
@@ -32,9 +31,6 @@ namespace EightSixteenEmu.Devices
             data = System.IO.File.ReadAllBytes(romPath);
         }
 
-        public override string ToString()
-        {
-            return $"ROM ({romPath})";
-        }
+        public override string ToString() => $"ROM ({romPath})";
     }
 }

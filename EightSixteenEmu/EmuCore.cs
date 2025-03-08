@@ -16,7 +16,8 @@ namespace EightSixteenEmu
     {
         private readonly Microprocessor _mpu;
         public Microprocessor MPU { get { return _mpu; } }
-        private SortedDictionary<(uint start, uint end), IMappableDevice> _devices = [];
+        private readonly byte[] _fastRam = new byte[0x10000];
+        private SortedList<(uint start, uint end), IMappableDevice> _devices = [];
         private List<IInterruptingMappableDevice> interruptingMappableDevices = [];
 
         public event EventHandler? ClockTick;
@@ -56,11 +57,6 @@ namespace EightSixteenEmu
             }
         }
 
-        public void Mirror(IMappableDevice device, uint baseAddress, uint startOffset = 0, int endOffset = -1)
-        {
-            AddDevice(new MirrorDevice(device, startOffset, endOffset), baseAddress);
-        }
-
         public void RemoveDevice(IMappableDevice device)
         {
             _devices.Remove(_devices.First(x => x.Value == device).Key);
@@ -73,10 +69,15 @@ namespace EightSixteenEmu
 
         public void RemoveDevice(uint address)
         {
-            IMappableDevice? device = GetDevice(address);
-            if (device != null)
+            KeyValuePair<(uint start, uint end), IMappableDevice>? entry = GetDevice(address);
+            if (entry is not null)
             {
-                RemoveDevice(device);
+                _devices.Remove(entry.Value.Key);
+                if (entry.Value.Value is IInterruptingMappableDevice interruptingDevice)
+                {
+                    interruptingDevice.Interrupt -= _mpu.OnInterrupt;
+                    interruptingMappableDevices.Remove(interruptingDevice);
+                }
             }
             else Console.WriteLine($"Attempt to remove device at ${address:x6} failed because there is already no device at that address.");
         }
@@ -110,10 +111,23 @@ namespace EightSixteenEmu
         internal byte? Read(uint address)
         {
             byte? result = null;
-            IMappableDevice? device = GetDevice(address);
-            if (device != null)
+            KeyValuePair<(uint start, uint end), IMappableDevice>? entry = GetDevice(address);
+            if (entry is not null)
             {
-                result = device[address - _devices.First(x => x.Value == device).Key.start];
+                uint devAddress = address - entry.Value.Key.start;
+                if (entry.Value.Value is MirrorDevice mirror)
+                {
+                    result = Read(devAddress + mirror.BaseAddress);
+                }
+                else if (entry.Value.Value is FastRAMDevice)
+                {
+                    result = _fastRam[address];
+                }
+                else if (entry.Value.Value is IMappedReadDevice device)
+                {
+                    result = device[devAddress];
+                }
+                else Console.WriteLine($"Attempt to read from write-only device {entry.Value.Value} at ${address:x6}");
             }
             else Console.WriteLine($"Open bus read at ${address:x6}");
             return result;
@@ -121,53 +135,56 @@ namespace EightSixteenEmu
 
         internal void Write(uint address, byte value)
         {
-            IMappableDevice? device = GetDevice(address);
-            if (device != null)
+            KeyValuePair<(uint start, uint end), IMappableDevice>? entry = GetDevice(address);
+            if (entry is not null)
             {
-                device[address - _devices.First(x => x.Value == device).Key.start] = value;
+                uint devAddress = address - entry.Value.Key.start;
+                if (entry.Value.Value is MirrorDevice mirror)
+                {
+                    Write(devAddress + mirror.BaseAddress, value);
+                }
+                else if (entry.Value.Value is FastRAMDevice)
+                {
+                    _fastRam[address] = value;
+                }
+                else if (entry.Value.Value is IMappedWriteDevice device)
+                {
+                    device[devAddress] = value;
+                }
+                else Console.WriteLine($"Attempt to write to read-only device {entry.Value.Value} at ${address:x6}");
             }
             else Console.WriteLine($"Open bus write at ${address:x6}");
         }
 
-        private IMappableDevice? GetDevice(uint address)
+        private KeyValuePair<(uint start, uint end), IMappableDevice>? GetDevice(uint address)
         {
-            var device = _devices.FirstOrDefault(d => address >= d.Key.start && address <= d.Key.end).Value;
+            var device = _devices.FirstOrDefault(d => address >= d.Key.start && address <= d.Key.end);
             return device;
         }
 
-        private class MirrorDevice : IMappableDevice
+        private class MirrorDevice(uint baseAddress, uint size) : IMappableDevice
         {
-            uint _size;
-            IMappableDevice _sourceDevice;
-            uint _start;
-            uint IMappableDevice.Size { get { return _size; } }
-            internal MirrorDevice(IMappableDevice device, uint start = 0, int end = -1)
-            {
-                _sourceDevice = device;
-                _start = start;
-                if (end == -1)
-                {
-                    end = (int)(device.Size - 1);
-                }
-                _size = (uint)(end - start + 1);
-            }
-            public byte this[uint index]
-            {
-                get
-                {
-                    return _sourceDevice[index - _start];
-                }
-                set
-                {
-                    _sourceDevice[index - _start] = value;
-                }
-            }
+            readonly uint _size = size;
+            readonly uint _baseAddress = baseAddress;
+            public uint Size => _size;
+            public uint BaseAddress => _baseAddress;
 
             public override string ToString()
             {
-                return $"Mirror of {_sourceDevice} (offsets ${_start:x6} - ${_size - 1:x6})";
+                return $"Mirror of ${_baseAddress:x6} - ${_baseAddress + _size - 1:x6})";
             }
         }
+
+        private class FastRAMDevice(uint size) : IMappableDevice
+        {
+            readonly uint _size = size;
+            public uint Size => _size;
+            public override string ToString()
+            {
+                return $"Fast RAM";
+            }
+        }
+
         #endregion
 
         #region Event Management
