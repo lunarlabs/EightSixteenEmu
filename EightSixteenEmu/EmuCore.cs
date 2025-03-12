@@ -25,14 +25,6 @@ namespace EightSixteenEmu
         public event EventHandler? NMI;
         public event EventHandler? IRQ;
 
-        public enum AddressAllocation
-        {
-            None,
-            Mirror,
-            Device,
-            RAM,
-        }
-
         public EmuCore()
         {
             _mpu = new(this);
