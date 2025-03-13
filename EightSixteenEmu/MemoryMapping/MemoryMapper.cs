@@ -6,7 +6,7 @@ namespace EightSixteenEmu.MemoryMapping
     {
         private readonly EmuCore _core = core;
         private readonly List<IMappableDevice> _devices = [];
-        private readonly SortedList<(uint start, uint end), (IMappableDevice dev, uint offset)> _memmap = [];
+        private readonly SortedList<uint, (uint length, IMappableDevice dev, uint offset)> _memmap = [];
 
         public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => Math.Max(start1, start2) <= Math.Min(end1, end2);
 
@@ -49,8 +49,8 @@ namespace EightSixteenEmu.MemoryMapping
             }
 
             // Efficient overlap check using SortedList
-            List<(uint start, uint end)> locations = _memmap.Keys.ToList();
-            int index =locations.BinarySearch((mapLocation, (uint)mapEnd));
+            List<(uint start, uint end)> locations = [.. _memmap.Keys];
+            int index = locations.BinarySearch((mapLocation, (uint)mapEnd));
             if (index < 0) index = ~index; // Get insertion point if exact match not found
 
             // Check the previous entry (if any)
@@ -81,5 +81,10 @@ namespace EightSixteenEmu.MemoryMapping
             _memmap.Add((mapLocation, (uint)mapEnd), (device, offset));
         }
 
+        private KeyValuePair<(uint start, uint end), (IMappableDevice dev, uint offset)>? SeekDevice(uint address)
+        {
+            KeyValuePair<(uint start, uint end), (IMappableDevice dev, uint offset)>? result = null;
+            return result;
+        }
     }
 }
