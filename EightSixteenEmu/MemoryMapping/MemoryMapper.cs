@@ -27,9 +27,9 @@ namespace EightSixteenEmu.MemoryMapping
         // Think of it like connecting the address lines to non-corresponding pins on the device.
         // Also, ONE device address can be mapped to MULTIPLE bus addresses, but not vice versa. This means mirroring is easy to implement.
 
-        public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => Math.Max(start1, start2) <= Math.Min(end1, end2);
+        public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => (start1 < end2 && end1 < start2);
 
-        public byte this[uint index]
+        public byte? this[uint index]
         {
             get
             {
@@ -39,16 +39,42 @@ namespace EightSixteenEmu.MemoryMapping
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    var kvp = SeekDevice(index);
+                    if (kvp is not null)
+                    {
+                        if (kvp.Value.Value is IMappedReadDevice readDev)
+                        {
+                            return readDev[TranslateAddress(kvp.Value, index)];
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
             }
             set
             {
+                if (!value.HasValue)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
                 if (index > 0xffffff)
                 {
                     throw new IndexOutOfRangeException();
                 }
-                throw new NotImplementedException();
+                var kvp = SeekDevice(index);
+                if (kvp is not null)
+                {
+                    if (kvp.Value.Value is IMappedWriteDevice writeDev)
+                    {
+                        writeDev[TranslateAddress(kvp.Value, index)] = (byte)value;
+                    }
+                }
             }
         }
 
@@ -136,6 +162,11 @@ namespace EightSixteenEmu.MemoryMapping
 
             // No use checking the next entry, since the address is obviously before the entry's start
             return result;
+        }
+
+        private uint TranslateAddress(KeyValuePair<uint, IMappableDevice> entry, uint address)
+        {
+            return address - entry.Key + _memmap[entry.Key].offset;
         }
 
         public void RemoveDevice(IMappableDevice device)
