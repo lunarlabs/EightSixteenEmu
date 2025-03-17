@@ -15,7 +15,7 @@ using EightSixteenEmu.Devices;
 
 namespace EightSixteenEmu.MemoryMapping
 {
-    class MemoryMapper(EmuCore core)
+    public class MemoryMapper(EmuCore core)
     {
         private readonly EmuCore _core = core;
         private readonly List<IMappableDevice> _devices = [];
@@ -27,7 +27,7 @@ namespace EightSixteenEmu.MemoryMapping
         // Think of it like connecting the address lines to non-corresponding pins on the device.
         // Also, ONE device address can be mapped to MULTIPLE bus addresses, but not vice versa. This means mirroring is easy to implement.
 
-        public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => (start1 < end2 && end1 < start2);
+        public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => (start1 < end2 && start2 < end1);
 
         public byte? this[uint index]
         {
@@ -92,12 +92,23 @@ namespace EightSixteenEmu.MemoryMapping
             }
             else if (length == -1)
             {
-                length = device.Size - offset;
+                if (offset == device.Size)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be less than the device size.");
+                }
+                else
+                {
+                    length = device.Size - offset;
+                }
             }
 
             ulong mapEnd = (ulong)mapLocation + (ulong)length;
 
-            if (mapEnd > 0xFFFFFF)
+            if (length == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length), "Length must be greater than zero.");
+            }
+            else if (mapEnd > 0xFFFFFF)
             {
                 throw new ArgumentOutOfRangeException(nameof(mapLocation), $"Requested bus address range ${mapLocation:x8} - ${mapEnd:x8} exceeds the 24-bit address space.");
             }
@@ -107,7 +118,7 @@ namespace EightSixteenEmu.MemoryMapping
             }
             
             // Efficient overlap check using SortedList
-                List<uint> locations = [.. _memmap.Keys];
+            List<uint> locations = [.. _memmap.Keys];
             int index = locations.BinarySearch(mapLocation);
             if (index < 0) index = ~index; // Get insertion point if exact match not found
 
