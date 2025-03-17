@@ -31,7 +31,7 @@ namespace EightSixteenEmu
         public EmuCore()
         {
             _mpu = new(this);
-            _mapper = new(this);
+            _mapper = new();
         }
 
         #region Device Management

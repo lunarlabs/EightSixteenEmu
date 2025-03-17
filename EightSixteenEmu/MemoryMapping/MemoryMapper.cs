@@ -15,9 +15,8 @@ using EightSixteenEmu.Devices;
 
 namespace EightSixteenEmu.MemoryMapping
 {
-    public class MemoryMapper(EmuCore core)
+    public class MemoryMapper()
     {
-        private readonly EmuCore _core = core;
         private readonly List<IMappableDevice> _devices = [];
         private readonly SortedList<uint, (uint length, IMappableDevice dev, uint offset)> _memmap = [];
 
