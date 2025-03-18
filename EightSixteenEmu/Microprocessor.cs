@@ -334,7 +334,7 @@ namespace EightSixteenEmu
         private byte ReadByte(Addr address)
         {
             NextCycle();
-            byte? result = _core.Read(address);
+            byte? result = _core.Mapper[address];
             if (result != null)
             {
                 _regMD = (byte)result;
@@ -389,8 +389,8 @@ namespace EightSixteenEmu
         {
             NextCycle();
             
-                _regMD = value;
-                _core.Write(address, value);
+            _regMD = value;
+            _core.Mapper[address] = value;
         }
 
         private void WriteWord(Word value, Addr address)
