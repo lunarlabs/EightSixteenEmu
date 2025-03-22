@@ -149,61 +149,59 @@ namespace EightSixteenEmu
             internal set => _flagE = value;
         }
 
-
-        private byte _regAH // high byte of accumulator
+        public byte RegAH // high byte of accumulator
         {
             get => HighByte(_regA);
-            set => _regA = Join(LowByte(_regA), value);
+            internal set => _regA = Join(LowByte(_regA), value);
         }
-        private byte _regAL // low byte of accumulator
+        public byte RegAL // low byte of accumulator
         {
             get => LowByte(_regA);
-            set => _regA = Join(value, HighByte(_regA));
+            internal set => _regA = Join(value, HighByte(_regA));
         }
-        private byte _regXH // high byte of X register
+        public byte RegXH // high byte of X register
         {
             get => HighByte(_regX);
-            set => _regX = Join(LowByte(_regX), value);
+            internal set => _regX = Join(LowByte(_regX), value);
         }
-        private byte _regXL // low byte of X register
+        public byte RegXL // low byte of X register
         {
             get => LowByte(_regX);
-            set => _regX = Join(value, HighByte(_regX));
+            internal set => _regX = Join(value, HighByte(_regX));
         }
-        private byte _regYH // high byte of Y register
+        public byte RegYH // high byte of Y register
         {
             get => HighByte(_regY);
-            set => _regY = Join(LowByte(_regY), value);
+            internal set => _regY = Join(LowByte(_regY), value);
         }
-        private byte _regYL // low byte of Y register
+        public byte RegYL // low byte of Y register
         {
             get => LowByte(_regY);
-            set => _regY = Join(value, HighByte(_regY));
+            internal set => _regY = Join(value, HighByte(_regY));
         }
-        private byte _regSH // high byte of stack pointer
+        public byte RegSH // high byte of stack pointer
         {
             get => HighByte(_regSP);
-            set => _regSP = Join(LowByte(_regSP), value);
+            internal set => _regSP = Join(LowByte(_regSP), value);
         }
-        private byte _regSL // low byte of stack pointer
+        public byte RegSL // low byte of stack pointer
         {
             get => LowByte(_regSP);
-            set => _regSP = Join(value, HighByte(_regSP));
+            internal set => _regSP = Join(value, HighByte(_regSP));
         }
 
-        private byte _regDH //high byte of direct pointer
+        public byte RegDH //high byte of direct pointer
         {
             get => HighByte(_regDP);
-            set => _regDP = Join(LowByte(_regDP), value);
+            internal set => _regDP = Join(LowByte(_regDP), value);
         }
 
-        private byte _regDL //low byte of direct pointer
+        public byte RegDL //low byte of direct pointer
         {
             get => LowByte(_regDP);
-            set => _regDP = Join(value, HighByte(_regDP));
+            internal set => _regDP = Join(value, HighByte(_regDP));
         }
 
-        public bool FlagE { get => _flagE; }
         public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
         public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
 
@@ -242,6 +240,7 @@ namespace EightSixteenEmu
             _core.Reset += OnReset;
             _core.IRQ += OnInterrupt;
             _core.NMI += OnNMI;
+            _lastInstruction = new StringBuilder();
         }
 
         internal void OnClockTick(object? sender, EventArgs e)
@@ -358,7 +357,7 @@ namespace EightSixteenEmu
 
         #region Memory Access
 
-        private Word ReadValue(bool isByte, Addr address)
+        internal Word ReadValue(bool isByte, Addr address)
         {
             return isByte switch
             {
@@ -367,7 +366,7 @@ namespace EightSixteenEmu
             };
         }
 
-        private Word ReadImmediate(bool isByte)
+        internal Word ReadImmediate(bool isByte)
         {
             Word result = isByte switch
             {
@@ -379,7 +378,7 @@ namespace EightSixteenEmu
             return result;
         }
 
-        private void WriteValue(Word value, bool isByte, Addr address)
+        internal void WriteValue(Word value, bool isByte, Addr address)
         {
             if (!isByte)
             {
@@ -391,7 +390,7 @@ namespace EightSixteenEmu
             }
         }
 
-        private byte ReadByte(Addr address)
+        internal byte ReadByte(Addr address)
         {
             NextCycle();
             byte? result = _core.Mapper[address];
@@ -402,7 +401,7 @@ namespace EightSixteenEmu
             return _regMD;
         }
 
-        private Word ReadWord(Addr address, bool wrapping = false)
+        internal Word ReadWord(Addr address, bool wrapping = false)
         {
             if (!wrapping) return Join(ReadByte(address), ReadByte(address + 1));
             else
@@ -413,7 +412,7 @@ namespace EightSixteenEmu
             }
         }
 
-        private Addr ReadAddr(Addr address, bool wrapping = false)
+        internal Addr ReadAddr(Addr address, bool wrapping = false)
         {
             if (!wrapping) return Address(ReadByte(address + 2), ReadWord(address));
             else
@@ -424,28 +423,28 @@ namespace EightSixteenEmu
             }
         }
 
-        private byte ReadByte()
+        internal byte ReadByte()
         {
             byte result = ReadByte(_longPC);
             _regPC += 1;
             return result;
         }
 
-        private Word ReadWord()
+        internal Word ReadWord()
         {
             Word result = ReadWord(_longPC, true);
             _regPC += 2;
             return result;
         }
 
-        private Addr ReadAddr()
+        internal Addr ReadAddr()
         {
             Addr result = ReadAddr(_longPC, true);
             _regPC += 3;
             return result;
         }
 
-        private void WriteByte(byte value, Addr address)
+        internal void WriteByte(byte value, Addr address)
         {
             NextCycle();
             
@@ -453,38 +452,38 @@ namespace EightSixteenEmu
             _core.Mapper[address] = value;
         }
 
-        private void WriteWord(Word value, Addr address)
+        internal void WriteWord(Word value, Addr address)
         {
             WriteByte(LowByte(value), address);
             WriteByte(HighByte(value), address + 1);
         }
 
-        private void PushByte(byte value)
+        internal void PushByte(byte value)
         {
             WriteByte(value, _regSP--);
             if (_flagE)
             {
-                _regSH = 0x01;
+                RegSH = 0x01;
             }
         }
 
-        private void PushWord(Word value)
+        internal void PushWord(Word value)
         {
             PushByte(HighByte(value));
             PushByte(LowByte(value));
         }
 
-        private byte PullByte()
+        internal byte PullByte()
         {
             byte result = ReadByte(++_regSP);
             if (_flagE)
             {
-                _regSH = 0x01;
+                RegSH = 0x01;
             }
             return result;
         }
 
-        private Word PullWord()
+        internal Word PullWord()
         {
             byte l = PullByte();
             byte h = PullByte();
@@ -493,7 +492,7 @@ namespace EightSixteenEmu
 
         #endregion
 
-        private void SetStatusFlag(StatusFlags flag, bool value)
+        internal void SetStatusFlag(StatusFlags flag, bool value)
         {
                 if (value)
                 {
@@ -504,34 +503,34 @@ namespace EightSixteenEmu
                     _regSR &= ~flag;
                 }
         }
-        private bool AccumulatorIs8Bit { get { return ReadStatusFlag(StatusFlags.M); } }
-        private bool IndexesAre8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.X); } }
+        internal bool AccumulatorIs8Bit { get { return ReadStatusFlag(StatusFlags.M); } }
+        internal bool IndexesAre8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.X); } }
 
-        private bool ReadStatusFlag(StatusFlags flag)
+        internal bool ReadStatusFlag(StatusFlags flag)
         {
             return (_regSR & flag) != 0;
         }
 
-        private void SetNZStatusFlagsFromValue(byte value)
+        internal void SetNZStatusFlagsFromValue(byte value)
         {
             SetStatusFlag(StatusFlags.N, (value & 0x80) != 0);
             SetStatusFlag(StatusFlags.Z, value == 0);
         }
 
-        private void SetNZStatusFlagsFromValue(Word value)
+        internal void SetNZStatusFlagsFromValue(Word value)
         {
             SetStatusFlag(StatusFlags.N, (value & 0x8000) != 0);
             SetStatusFlag(StatusFlags.Z, value == 0);
         }
 
-        private void SetEmulationMode(bool value)
+        internal void SetEmulationMode(bool value)
         {
             if (value)
             {
                 SetStatusFlag(StatusFlags.M | StatusFlags.X, true);
-                _regXH = 0;
-                _regYH = 0;
-                _regSH = 0x01;
+                RegXH = 0;
+                RegYH = 0;
+                RegSH = 0x01;
                 _flagE = true;
             }
             else { _flagE = false; }
@@ -557,9 +556,9 @@ namespace EightSixteenEmu
 
             Addr CalculateDirectAddress(byte offset, Word register = 0)
             {
-                if (_flagE && _regDL == 0)
+                if (_flagE && RegDL == 0)
                 {
-                    return Address(0, _regDH, (byte)(offset + LowByte(register)));
+                    return Address(0, RegDH, (byte)(offset + LowByte(register)));
                 }
                 else
                 {
@@ -590,45 +589,45 @@ namespace EightSixteenEmu
                 case W65C816.AddressingMode.Direct:
                     offset = ReadByte();
                     _lastInstruction.Append($"${offset:x2}");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     return Address(0, _regDP + offset);
                 case W65C816.AddressingMode.DirectIndexedWithX:
                     offset = ReadByte();
                     _lastInstruction.Append($"${offset:x2}, X");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regX);
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offset = ReadByte();
                     _lastInstruction.Append($"${offset:x2}, Y");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regY);
                 case W65C816.AddressingMode.DirectIndirect:
                     offset = ReadByte();
                     _lastInstruction.Append($"(${offset:x2})");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
                     offset = ReadByte();
                     _lastInstruction.Append($"(${offset:x2}, X)");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset, _regX);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
                     offset = ReadByte();
                     _lastInstruction.Append($"(${offset:x2}), Y");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
                     offset = ReadByte();
                     _lastInstruction.Append($"[${offset:x2}]");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
                     offset = ReadByte();
                     _lastInstruction.Append($"[${offset:x2}], Y");
-                    if (_regDL != 0x00) NextCycle();
+                    if (RegDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
@@ -715,7 +714,7 @@ namespace EightSixteenEmu
                 SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
                 SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0));
                 SetNZStatusFlagsFromValue((byte)al);
-                _regAL = (byte)al;
+                RegAL = (byte)al;
             }
             else
             {
@@ -749,7 +748,7 @@ namespace EightSixteenEmu
             }
             if (AccumulatorIs8Bit)
             {
-                int al = _regAL + ~(byte)subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
+                int al = RegAL + ~(byte)subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
                 if (ReadStatusFlag(StatusFlags.D))
                 {
                     if (((al) & 0x0f) > 0x09) al += 0x06;
@@ -758,7 +757,7 @@ namespace EightSixteenEmu
                 SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
                 SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ subtrahend)) & (_regA ^ al) & 0x80) != 0);
                 SetNZStatusFlagsFromValue((byte)al);
-                _regAL = (byte)al;
+                RegAL = (byte)al;
             }
             else
             {
@@ -791,9 +790,9 @@ namespace EightSixteenEmu
             }
             if (AccumulatorIs8Bit)
             {
-                data = (byte)(_regAL - (byte)data);
+                data = (byte)(RegAL - (byte)data);
                 SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, _regAL >= data);
+                SetStatusFlag(StatusFlags.C, RegAL >= data);
             }
             else
             {
@@ -816,9 +815,9 @@ namespace EightSixteenEmu
             }
             if (IndexesAre8Bit)
             {
-                data = (byte)(_regXL - (byte)data);
+                data = (byte)(RegXL - (byte)data);
                 SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, _regXL >= data);
+                SetStatusFlag(StatusFlags.C, RegXL >= data);
             }
             else
             {
@@ -841,9 +840,9 @@ namespace EightSixteenEmu
             }
             if (IndexesAre8Bit)
             {
-                data = (byte)(_regYL - (byte)data);
+                data = (byte)(RegYL - (byte)data);
                 SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, _regYL >= data);
+                SetStatusFlag(StatusFlags.C, RegYL >= data);
             }
             else
             {
@@ -860,9 +859,9 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    byte al = _regAL;
+                    byte al = RegAL;
                     SetNZStatusFlagsFromValue(--al);
-                    _regAL = al;
+                    RegAL = al;
                 }
                 else
                 {
@@ -894,7 +893,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                SetNZStatusFlagsFromValue(--_regXL);
+                SetNZStatusFlagsFromValue(--RegXL);
             }
             else
             {
@@ -907,7 +906,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                SetNZStatusFlagsFromValue(--_regYL);
+                SetNZStatusFlagsFromValue(--RegYL);
             }
             else
             {
@@ -922,9 +921,9 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    byte al = _regAL;
+                    byte al = RegAL;
                     SetNZStatusFlagsFromValue(++al);
-                    _regAL = al;
+                    RegAL = al;
                 }
                 else
                 {
@@ -956,7 +955,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                SetNZStatusFlagsFromValue(++_regXL);
+                SetNZStatusFlagsFromValue(++RegXL);
             }
             else
             {
@@ -969,7 +968,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                SetNZStatusFlagsFromValue(++_regYL);
+                SetNZStatusFlagsFromValue(++RegYL);
             }
             else
             {
@@ -984,8 +983,8 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)((byte)operand & _regAL);
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = (byte)((byte)operand & RegAL);
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1000,8 +999,8 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)((byte)operand ^ _regAL);
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = (byte)((byte)operand ^ RegAL);
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1016,8 +1015,8 @@ namespace EightSixteenEmu
             Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
             if (AccumulatorIs8Bit)
             {
-                _regAL = (byte)((byte)operand | _regAL);
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = (byte)((byte)operand | RegAL);
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1036,7 +1035,7 @@ namespace EightSixteenEmu
                 operand = ReadImmediate(AccumulatorIs8Bit);
                 if (AccumulatorIs8Bit)
                 { 
-                    SetStatusFlag(StatusFlags.Z, (operand & _regAL) == 0); 
+                    SetStatusFlag(StatusFlags.Z, (operand & RegAL) == 0); 
                 }
                 else
                 {
@@ -1048,7 +1047,7 @@ namespace EightSixteenEmu
                 operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
                 if (AccumulatorIs8Bit)
                 {
-                    SetStatusFlag(StatusFlags.Z, (operand & _regAL) == 0);
+                    SetStatusFlag(StatusFlags.Z, (operand & RegAL) == 0);
                     SetStatusFlag(StatusFlags.N, (operand & 0x80) != 0);
                     SetStatusFlag(StatusFlags.V, (operand & 0x40) != 0);
                 }
@@ -1067,7 +1066,7 @@ namespace EightSixteenEmu
         {
             Addr address = GetEffectiveAddress(addressingMode);
             Word value = ReadValue(AccumulatorIs8Bit, address);
-            Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
+            Word mask = (ushort)((AccumulatorIs8Bit ? RegAL : _regA) & value);
 
             WriteValue((ushort)(value & ~mask), AccumulatorIs8Bit, address);
             NextCycle();
@@ -1077,7 +1076,7 @@ namespace EightSixteenEmu
         {
             Addr address = GetEffectiveAddress(addressingMode);
             Word value = ReadValue(AccumulatorIs8Bit, address);
-            Word mask = (ushort)((AccumulatorIs8Bit ? _regAL : _regA) & value);
+            Word mask = (ushort)((AccumulatorIs8Bit ? RegAL : _regA) & value);
 
             WriteValue((ushort)(value | mask), AccumulatorIs8Bit, address);
             NextCycle();
@@ -1090,9 +1089,9 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    SetStatusFlag(StatusFlags.C, (_regAL & 0x80) != 0);
-                    _regAL <<= 1;
-                    SetNZStatusFlagsFromValue(_regAL);
+                    SetStatusFlag(StatusFlags.C, (RegAL & 0x80) != 0);
+                    RegAL <<= 1;
+                    SetNZStatusFlagsFromValue(RegAL);
                 }
                 else
                 {
@@ -1131,9 +1130,9 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    SetStatusFlag(StatusFlags.C, (_regAL & 0x01) != 0);
-                    _regAL >>>= 1;
-                    SetNZStatusFlagsFromValue(_regAL);
+                    SetStatusFlag(StatusFlags.C, (RegAL & 0x01) != 0);
+                    RegAL >>>= 1;
+                    SetNZStatusFlagsFromValue(RegAL);
                 }
                 else
                 {
@@ -1173,10 +1172,10 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    shiftedOut = (_regAL & 0x80) != 0;
-                    _regAL <<= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) _regAL |= 0x01;
-                    SetNZStatusFlagsFromValue(_regAL);
+                    shiftedOut = (RegAL & 0x80) != 0;
+                    RegAL <<= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) RegAL |= 0x01;
+                    SetNZStatusFlagsFromValue(RegAL);
                     SetStatusFlag(StatusFlags.C, shiftedOut);
                 }
                 else
@@ -1219,10 +1218,10 @@ namespace EightSixteenEmu
             {
                 if (AccumulatorIs8Bit)
                 {
-                    shiftedOut = (_regAL & 0x01) != 0;
-                    _regAL >>>= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) _regAL |= 0x80;
-                    SetNZStatusFlagsFromValue(_regAL);
+                    shiftedOut = (RegAL & 0x01) != 0;
+                    RegAL >>>= 1;
+                    if (ReadStatusFlag(StatusFlags.C)) RegAL |= 0x80;
+                    SetNZStatusFlagsFromValue(RegAL);
                     SetStatusFlag(StatusFlags.C, shiftedOut);
                 }
                 else
@@ -1471,8 +1470,8 @@ namespace EightSixteenEmu
             _regSR |= (StatusFlags)flags;
             if (IndexesAre8Bit)
             {
-                _regXH = 0;
-                _regYH = 0;
+                RegXH = 0;
+                RegYH = 0;
             }
         }
         #endregion
@@ -1492,7 +1491,7 @@ namespace EightSixteenEmu
             if (AccumulatorIs8Bit)
             {
                 SetNZStatusFlagsFromValue((byte)value);
-                _regAL = (byte)value;
+                RegAL = (byte)value;
             }
             else
             {
@@ -1516,7 +1515,7 @@ namespace EightSixteenEmu
             if (IndexesAre8Bit)
             {
                 SetNZStatusFlagsFromValue((byte)value);
-                _regXL = (byte)value;
+                RegXL = (byte)value;
             }
             else
             {
@@ -1540,7 +1539,7 @@ namespace EightSixteenEmu
             if (IndexesAre8Bit)
             {
                 SetNZStatusFlagsFromValue((byte)value);
-                _regYL = (byte)value;
+                RegYL = (byte)value;
             }
             else
             {
@@ -1554,7 +1553,7 @@ namespace EightSixteenEmu
             Addr address = GetEffectiveAddress(addressingMode);
             if (AccumulatorIs8Bit)
             {
-                WriteByte(_regAL, address);
+                WriteByte(RegAL, address);
             }
             else
             {
@@ -1567,7 +1566,7 @@ namespace EightSixteenEmu
             Addr address = GetEffectiveAddress(addressingMode);
             if (IndexesAre8Bit)
             {
-                WriteByte(_regXL, address);
+                WriteByte(RegXL, address);
             }
             else
             {
@@ -1580,7 +1579,7 @@ namespace EightSixteenEmu
             Addr address = GetEffectiveAddress(addressingMode);
             if (IndexesAre8Bit)
             {
-                WriteByte(_regYL, address);
+                WriteByte(RegYL, address);
             }
             else
             {
@@ -1607,8 +1606,8 @@ namespace EightSixteenEmu
             CopyMemory();
             if (IndexesAre8Bit)
             {
-                _regXL++;
-                _regYL++;
+                RegXL++;
+                RegYL++;
             }
             else
             {
@@ -1622,8 +1621,8 @@ namespace EightSixteenEmu
             CopyMemory();
             if (IndexesAre8Bit)
             {
-                _regXL--;
-                _regYL--;
+                RegXL--;
+                RegYL--;
             }
             else
             {
@@ -1668,7 +1667,7 @@ namespace EightSixteenEmu
         {
             if (AccumulatorIs8Bit)
             {
-                PushByte(_regAL);
+                PushByte(RegAL);
             }
             else
             {
@@ -1681,7 +1680,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                PushByte(_regXL);
+                PushByte(RegXL);
             }
             else
             {
@@ -1694,7 +1693,7 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                PushByte(_regYL);
+                PushByte(RegYL);
             }
             else
             {
@@ -1706,8 +1705,8 @@ namespace EightSixteenEmu
         {
             if (AccumulatorIs8Bit)
             {
-                _regAL = PullByte();
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = PullByte();
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1720,8 +1719,8 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                _regXL = PullByte();
-                SetNZStatusFlagsFromValue(_regXL);
+                RegXL = PullByte();
+                SetNZStatusFlagsFromValue(RegXL);
             }
             else
             {
@@ -1734,8 +1733,8 @@ namespace EightSixteenEmu
         {
             if (IndexesAre8Bit)
             {
-                _regYL = PullByte();
-                SetNZStatusFlagsFromValue(_regYL);
+                RegYL = PullByte();
+                SetNZStatusFlagsFromValue(RegYL);
             }
             else
             {
@@ -1817,8 +1816,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (IndexesAre8Bit)
             {
-                _regXL = _regAL;
-                SetNZStatusFlagsFromValue(_regXL);
+                RegXL = RegAL;
+                SetNZStatusFlagsFromValue(RegXL);
             }
             else
             {
@@ -1832,8 +1831,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (IndexesAre8Bit)
             {
-                _regYL = _regAL;
-                SetNZStatusFlagsFromValue(_regYL);
+                RegYL = RegAL;
+                SetNZStatusFlagsFromValue(RegYL);
             }
             else
             {
@@ -1847,8 +1846,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (_flagE || IndexesAre8Bit)
             {
-                _regXL = _regSL;
-                SetNZStatusFlagsFromValue(_regXL);
+                RegXL = RegSL;
+                SetNZStatusFlagsFromValue(RegXL);
             }
             else
             {
@@ -1862,8 +1861,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (AccumulatorIs8Bit)
             {
-                _regAL = _regXL;
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = RegXL;
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1877,11 +1876,11 @@ namespace EightSixteenEmu
             NextCycle();
             if (_flagE)
             {
-                _regSL = _regXL;
+                RegSL = RegXL;
             }
             else if (IndexesAre8Bit)
             {
-                _regSP = (Word)(0x0000 | _regXL);
+                _regSP = (Word)(0x0000 | RegXL);
             }
             else
             {
@@ -1894,8 +1893,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (IndexesAre8Bit)
             {
-                _regYL = _regXL;
-                SetNZStatusFlagsFromValue(_regYL);
+                RegYL = RegXL;
+                SetNZStatusFlagsFromValue(RegYL);
             }
             else
             {
@@ -1909,8 +1908,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (IndexesAre8Bit)
             {
-                _regAL = _regYL;
-                SetNZStatusFlagsFromValue(_regAL);
+                RegAL = RegYL;
+                SetNZStatusFlagsFromValue(RegAL);
             }
             else
             {
@@ -1924,8 +1923,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (IndexesAre8Bit)
             {
-                _regXL = _regYL;
-                SetNZStatusFlagsFromValue(_regXL);
+                RegXL = RegYL;
+                SetNZStatusFlagsFromValue(RegXL);
             }
             else
             {
@@ -1947,8 +1946,8 @@ namespace EightSixteenEmu
             NextCycle();
             if (_flagE)
             {
-                _regSL = _regAL;
-                _regSH = 0x01;
+                RegSL = RegAL;
+                RegSH = 0x01;
             }
             else
             {
