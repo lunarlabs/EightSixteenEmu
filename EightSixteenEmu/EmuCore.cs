@@ -34,6 +34,12 @@ namespace EightSixteenEmu
             _mapper = new();
         }
 
+        public EmuCore(MemoryMapper mapper)
+        {
+            _mpu = new(this);
+            _mapper = mapper;
+        }
+
         #region Device Management
         //public void AddDevice(IMappableDevice device, uint baseAddress)
         //{

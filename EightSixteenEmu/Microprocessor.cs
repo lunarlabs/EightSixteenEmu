@@ -12,6 +12,7 @@
  *  and manufactured by Western Design Center (https://wdc65xx.com)
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
+using System.Text;
 using Addr = System.UInt32;
 using Word = System.UInt16;
 
@@ -34,6 +35,7 @@ namespace EightSixteenEmu
         private bool _verbose;
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
+        private readonly StringBuilder _lastInstruction;
 
         public bool Verbose
         {
@@ -53,7 +55,7 @@ namespace EightSixteenEmu
         private delegate void DoOperation(W65C816.AddressingMode mode);
 
         [Flags]
-        internal enum StatusFlags : byte
+        public enum StatusFlags : byte
         {
             None = 0,
             C = 0x01,   // carry
@@ -86,6 +88,67 @@ namespace EightSixteenEmu
         private Word _regPC; // program counter
         private StatusFlags _regSR;  // status flags register
         private bool _flagE; // emulation flag
+
+        public Word RegA
+        {
+            get => _regA;
+            internal set => _regA = value;
+        }
+
+        public Word RegX
+        {
+            get => _regX;
+            internal set => _regX = value;
+        }
+
+        public Word RegY
+        {
+            get => _regY;
+            internal set => _regY = value;
+        }
+
+        public Word RegDP
+        {
+            get => _regDP;
+            internal set => _regDP = value;
+        }
+
+        public Word RegSP
+        {
+            get => _regSP;
+            internal set => _regSP = value;
+        }
+
+        public byte RegDB
+        {
+            get => _regDB;
+            internal set => _regDB = value;
+        }
+
+        public byte RegPB
+        {
+            get => _regPB;
+            internal set => _regPB = value;
+        }
+
+        public Word RegPC
+        {
+            get => _regPC;
+            internal set => _regPC = value;
+        }
+
+        public StatusFlags RegSR
+        {
+            get => _regSR;
+            internal set => _regSR = value;
+        }
+
+        public bool FlagE
+        {
+            get => _flagE;
+            internal set => _flagE = value;
+        }
+
 
         private byte _regAH // high byte of accumulator
         {
@@ -311,11 +374,8 @@ namespace EightSixteenEmu
                 false => ReadWord(),
                 true => ReadByte(),
             };
-            if (_verbose)
-            {
-                string arg = isByte ? $"#${result:x2}" : $"#${result:x4}";
-                Console.Write(arg);
-            }
+            string arg = isByte ? $"#${result:x2}" : $"#${result:x4}";
+            _lastInstruction.Append(arg);
             return result;
         }
 
@@ -514,10 +574,10 @@ namespace EightSixteenEmu
             {
                 case W65C816.AddressingMode.Immediate:
                     // WARN: Do the reads (and subsequent RegPC advances) in the operation
-                    if (_verbose) Console.Write("#");
+                    _lastInstruction.Append("#");
                     return _longPC;
                 case W65C816.AddressingMode.Accumulator:
-                    if (_verbose) Console.Write("A");
+                    _lastInstruction.Append("A");
                     return 0;
                 case W65C816.AddressingMode.ProgramCounterRelative:
                     return OffsetBySignedValue(true);
@@ -529,90 +589,90 @@ namespace EightSixteenEmu
                     return 0;
                 case W65C816.AddressingMode.Direct:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"${offset:x2}");
+                    _lastInstruction.Append($"${offset:x2}");
                     if (_regDL != 0x00) NextCycle();
                     return Address(0, _regDP + offset);
                 case W65C816.AddressingMode.DirectIndexedWithX:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"${offset:x2}, X");
+                    _lastInstruction.Append($"${offset:x2}, X");
                     if (_regDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regX);
                 case W65C816.AddressingMode.DirectIndexedWithY:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"${offset:x2}, Y");
+                    _lastInstruction.Append($"${offset:x2}, Y");
                     if (_regDL != 0x00) NextCycle();
                     return CalculateDirectAddress(offset, _regY);
                 case W65C816.AddressingMode.DirectIndirect:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"(${offset:x2})");
+                    _lastInstruction.Append($"(${offset:x2})");
                     if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndexedIndirect:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"(${offset:x2}, X)");
+                    _lastInstruction.Append($"(${offset:x2}, X)");
                     if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset, _regX);
                     return Address(_regDB, ReadWord(pointer));
                 case W65C816.AddressingMode.DirectIndirectIndexed:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"(${offset:x2}), Y");
+                    _lastInstruction.Append($"(${offset:x2}), Y");
                     if (_regDL != 0x00) NextCycle();
                     pointer = CalculateDirectAddress(offset);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.DirectIndirectLong:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"[${offset:x2}]");
+                    _lastInstruction.Append($"[${offset:x2}]");
                     if (_regDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true);
                 case W65C816.AddressingMode.DirectIndirectLongIndexed:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"[${offset:x2}], Y");
+                    _lastInstruction.Append($"[${offset:x2}], Y");
                     if (_regDL != 0x00) NextCycle();
                     return ReadAddr(Address(0, _regDP + offset), true) + _regY;
                 case W65C816.AddressingMode.Absolute:
                     // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
                     location = ReadWord();
-                    if (_verbose) Console.Write($"${location:x4}");
+                    _lastInstruction.Append($"${location:x4}");
                     return Address(_regDB, location);
                 case W65C816.AddressingMode.AbsoluteIndexedWithX:
                     location = ReadWord();
-                    if (_verbose) Console.Write($"${location:x4}, X");
+                    _lastInstruction.Append($"${location:x4}, X");
                     return Address(_regDB, location + _regX);
                 case W65C816.AddressingMode.AbsoluteIndexedWithY:
                     location = ReadWord();
-                    if (_verbose) Console.Write($"${location:x4}, Y");
+                    _lastInstruction.Append($"${location:x4}, Y");
                     return Address(_regDB, location + _regY);
                 case W65C816.AddressingMode.AbsoluteLong:
                     pointer = ReadAddr();
-                    if (_verbose) Console.Write($"${pointer:x6}");
+                    _lastInstruction.Append($"${pointer:x6}");
                     return pointer;
                 case W65C816.AddressingMode.AbsoluteLongIndexed:
                     pointer = ReadAddr();
-                    if (_verbose) Console.Write($"${pointer:x6}, X");
+                    _lastInstruction.Append($"${pointer:x6}, X");
                     return pointer + _regX;
                 case W65C816.AddressingMode.StackRelative:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"${offset:x2}, S");
+                    _lastInstruction.Append($"${offset:x2}, S");
                     return Address(0, offset + _regSP);
                 case W65C816.AddressingMode.StackRelativeIndirectIndexed:
                     offset = ReadByte();
-                    if (_verbose) Console.Write($"(${offset:x2}, S), Y");
+                    _lastInstruction.Append($"(${offset:x2}, S), Y");
                     pointer = Address(0, offset + _regSP);
                     return Address(_regDB, ReadWord(pointer + _regY));
                 case W65C816.AddressingMode.AbsoluteIndirect:
                     location = ReadWord();
-                    if (_verbose) Console.Write($"(${location:x4})");
+                    _lastInstruction.Append($"(${location:x4})");
                     pointer = Address(0, location);
                     return Address(_regPB, ReadWord(pointer));
                 case W65C816.AddressingMode.AbsoluteIndirectLong:
                     location = ReadWord();
-                    if (_verbose) Console.Write($"[${location:x4}]");
+                    _lastInstruction.Append($"[${location:x4}]");
                     pointer = Address(0, location);
                     return ReadAddr(pointer);
                 case W65C816.AddressingMode.AbsoluteIndexedIndirect:
                     location = ReadWord();
-                    if (_verbose) Console.Write($"(${location:x4}, X)");
+                    _lastInstruction.Append($"(${location:x4}, X)");
                     pointer = Address(_regPB, location);
                     return Address(_regPB, ReadWord(pointer) + _regX);
                 case W65C816.AddressingMode.BlockMove:
@@ -2063,7 +2123,8 @@ namespace EightSixteenEmu
                 {
                     _regIR = ReadByte();
                     (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(_regIR);
-                    if (_verbose) Console.Write(o.ToString() + " ");
+                    _lastInstruction.Clear();
+                    _lastInstruction.Append(o.ToString() + " ");
                     DoOperation operation = GetDoOperation(o);
                     operation(m);
                     if (_verbose) Console.WriteLine();
