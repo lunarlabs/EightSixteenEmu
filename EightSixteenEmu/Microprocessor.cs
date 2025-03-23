@@ -306,7 +306,7 @@ namespace EightSixteenEmu
             }
         }
 
-        private void NextCycle()
+        internal void NextCycle()
         {
             if (_threadRunning)
             {
