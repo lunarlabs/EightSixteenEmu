@@ -17,6 +17,6 @@ namespace EightSixteenEmu.MPU
 {
     internal interface IOpcodeCommand
     {
-        internal abstract void Execute(Microprocessor mpu, IAddressingModeStrategy addressingMode);
+        internal abstract void Execute(Microprocessor mpu);
     }
 }

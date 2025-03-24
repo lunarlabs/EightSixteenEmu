@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,9 +21,24 @@ namespace EightSixteenEmu.MPU
 
         internal static sealed uint FullAddress(byte bank, int address) => (uint)((bank << 16) | (ushort)address);
 
+        internal static sealed uint FullAddress(byte bank, byte page, byte address) => (uint)((bank << 16) | (page << 8) | address);
+
         internal static sealed uint GetFullPC(Microprocessor mpu)
         {
             return (uint)((mpu.RegPB << 16) | mpu.RegPC);
+        }
+
+        internal static sealed uint CalculateDirectAddress(Microprocessor mpu, byte offset, ushort register)
+        {
+            if (mpu.FlagE && mpu.RegDL == 0x00)
+            {
+                return FullAddress(0, mpu.RegDH, (byte)(offset + (byte)register));
+            }
+            else
+            {
+                mpu.NextCycle();
+                return FullAddress(0, mpu.RegDP + offset);
+            }
         }
     }
 

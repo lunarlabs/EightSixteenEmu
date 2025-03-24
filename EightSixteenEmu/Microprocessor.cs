@@ -12,6 +12,7 @@
  *  and manufactured by Western Design Center (https://wdc65xx.com)
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
+using EightSixteenEmu.MPU;
 using System.Text;
 using Addr = System.UInt32;
 using Word = System.UInt16;
@@ -208,6 +209,8 @@ namespace EightSixteenEmu
         // non-accessible registers
         private byte _regIR; // instruction register
         private byte _regMD; // memory data register
+
+        private IAddressingModeStrategy? _currentAddressingMode;
 
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
