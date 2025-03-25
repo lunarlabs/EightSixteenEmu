@@ -37,6 +37,10 @@ namespace EightSixteenEmu
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
+        private readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
+
+        internal W65C816.AddressingMode _currentAddressingMode { get; private set; }
+        internal IAddressingModeStrategy AddressingMode { get => _addressingModes[_currentAddressingMode]; }
 
         public bool Verbose
         {
@@ -64,7 +68,7 @@ namespace EightSixteenEmu
             I = 0x04,   // interrupt disable
             D = 0x08,   // decimal mode
             X = 0x10,   // index register width (native), break (emulation)
-            M = 0x20,   // accumulator/memory width
+            M = 0x20,   // accumulator/memory width (native only)
             V = 0x40,   // overflow
             N = 0x80,   // negative
         }
@@ -210,27 +214,13 @@ namespace EightSixteenEmu
         private byte _regIR; // instruction register
         private byte _regMD; // memory data register
 
-        private IAddressingModeStrategy? _currentAddressingMode;
-
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
         /// </summary>
         public Microprocessor(EmuCore core)
         {
             _core = core;
-            _regA = 0x0000;
-            _regX = 0x0000;
-            _regY = 0x0000;
-            _regDP = 0x0000;
-            _regSP = 0x0100;
-            _regDB = 0x00;
-            _regPB = 0x00;
-            _regPC = 0x0000;
-            _regSR = (StatusFlags)0x34;
-            _flagE = false;
-            _regMD = 0x00;
-
-            _cycles = 0;
+            ColdReset();
             _threadRunning = false;
             _resetting = true;
             _interruptingMaskable = false;
@@ -244,6 +234,51 @@ namespace EightSixteenEmu
             _core.IRQ += OnInterrupt;
             _core.NMI += OnNMI;
             _lastInstruction = new StringBuilder();
+            var implied = new AM_Implied(); // this one pulls double duty
+            _addressingModes = new Dictionary<W65C816.AddressingMode, IAddressingModeStrategy>
+            {
+                { W65C816.AddressingMode.Immediate, new AM_Immediate() },
+                { W65C816.AddressingMode.Accumulator, new AM_Accumulator() },
+                { W65C816.AddressingMode.ProgramCounterRelative, new AM_ProgramCounterRelative() },
+                { W65C816.AddressingMode.ProgramCounterRelativeLong, new AM_ProgramCounterRelativeLong() },
+                { W65C816.AddressingMode.Implied, implied },
+                { W65C816.AddressingMode.Stack, implied },
+                { W65C816.AddressingMode.Direct, new AM_Direct() },
+                { W65C816.AddressingMode.DirectIndexedWithX, new AM_DirectIndexedX() },
+                { W65C816.AddressingMode.DirectIndexedWithY, new AM_DirectIndexedY() },
+                { W65C816.AddressingMode.DirectIndirect, new AM_DirectIndirect() },
+                { W65C816.AddressingMode.DirectIndexedIndirect, new AM_DirectIndexedIndirect() },
+                { W65C816.AddressingMode.DirectIndirectIndexed, new AM_DirectIndirectIndexed() },
+                { W65C816.AddressingMode.DirectIndirectLong, new AM_DirectIndirectLong() },
+                { W65C816.AddressingMode.DirectIndirectLongIndexed, new AM_DirectIndirectLongIndexedY() },
+                { W65C816.AddressingMode.Absolute, new AM_Absolute() },
+                { W65C816.AddressingMode.AbsoluteIndexedWithX, new AM_AbsoluteIndexedX() },
+                { W65C816.AddressingMode.AbsoluteIndexedWithY, new AM_AbsoluteIndexedY() },
+                { W65C816.AddressingMode.AbsoluteLong, new AM_AbsoluteLong() },
+                { W65C816.AddressingMode.AbsoluteLongIndexed, new AM_AbsoluteLongIndexedX() },
+                { W65C816.AddressingMode.StackRelative, new AM_StackRelative() },
+                { W65C816.AddressingMode.StackRelativeIndirectIndexed, new AM_StackRelativeIndirectIndexedY() },
+                { W65C816.AddressingMode.AbsoluteIndirect, new AM_AbsoluteIndirect() },
+                { W65C816.AddressingMode.AbsoluteIndirectLong, new AM_AbsoluteIndirectLong() },
+                { W65C816.AddressingMode.AbsoluteIndexedIndirect, new AM_AbsoluteIndexedIndirect() },
+                { W65C816.AddressingMode.BlockMove, new AM_BlockMove() },
+            };
+        }
+
+        private void ColdReset()
+        {
+            _regA = 0x0000;
+            _regX = 0x0000;
+            _regY = 0x0000;
+            _regDP = 0x0000;
+            _regSP = 0x0100;
+            _regDB = 0x00;
+            _regPB = 0x00;
+            _regPC = 0x0000;
+            _regSR = (StatusFlags)0x34;
+            _flagE = false;
+            _regMD = 0x00;
+            _cycles = 0;
         }
 
         internal void OnClockTick(object? sender, EventArgs e)
@@ -506,8 +541,10 @@ namespace EightSixteenEmu
                     _regSR &= ~flag;
                 }
         }
-        internal bool AccumulatorIs8Bit { get { return ReadStatusFlag(StatusFlags.M); } }
+        internal bool AccumulatorIs8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.M); } }
+        // in emulation, flag M should always be set, but we'll check both just in case
         internal bool IndexesAre8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.X); } }
+        // in emulation, flag X becomes flag B, for determining BRK vs IRQ behavior, while the indexes remain bytes.
 
         internal bool ReadStatusFlag(StatusFlags flag)
         {
