@@ -23,6 +23,11 @@ namespace EightSixteenEmu.MPU
     {
         internal uint GetAddress(Microprocessor mpu) => throw new InvalidOperationException("This addressing mode does not support GetAddress.");
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => isByte ? mpu.ReadByte(GetAddress(mpu)) : mpu.ReadWord(GetAddress(mpu));
+        internal ushort GetOperand(Microprocessor mpu, out uint fetchedAddress, bool isByte = true)
+        {
+            fetchedAddress = GetAddress(mpu);
+            return isByte ? mpu.ReadByte(fetchedAddress) : mpu.ReadWord(fetchedAddress);
+        }
         public string Notation
         {
             get;
@@ -51,7 +56,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_Immediate : IAddressingModeStrategy
+    internal class AM_Immediate : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "#${0:x2}";
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true)
@@ -62,13 +67,13 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_Accumulator : IAddressingModeStrategy
+    internal class AM_Accumulator : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "A";
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => isByte ? mpu.RegAL : mpu.RegA;
     }
 
-    class AM_ProgramCounterRelative : IAddressingModeStrategy
+    internal class AM_ProgramCounterRelative : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x4}";
         internal uint GetAddress(Microprocessor mpu) 
@@ -80,7 +85,7 @@ namespace EightSixteenEmu.MPU
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
-    class AM_ProgramCounterRelativeLong : IAddressingModeStrategy
+    internal class AM_ProgramCounterRelativeLong : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x6}";
         internal uint GetAddress(Microprocessor mpu)
@@ -92,14 +97,14 @@ namespace EightSixteenEmu.MPU
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
-    class AM_Implied : IAddressingModeStrategy
+    internal class AM_Implied : IAddressingModeStrategy
     {
         // this also covers the "stack" addressing mode used by PLA, PLP, etc.
         public string Notation { get; private set; } = "";
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
-    class AM_Direct : IAddressingModeStrategy
+    internal class AM_Direct : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x2}";
         internal uint GetAddress(Microprocessor mpu)
@@ -111,7 +116,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_DirectIndexedX : IAddressingModeStrategy
+    internal class AM_DirectIndexedX : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x2},X";
         internal uint GetAddress(Microprocessor mpu)
@@ -123,7 +128,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_DirectIndexedY : IAddressingModeStrategy
+    internal class AM_DirectIndexedY : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x2},Y";
         internal uint GetAddress(Microprocessor mpu)
@@ -135,7 +140,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_DirectIndirect : IAddressingModeStrategy
+    internal class AM_DirectIndirect : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x2})";
         internal uint GetAddress(Microprocessor mpu)
@@ -147,7 +152,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_DirectIndexedIndirect : IAddressingModeStrategy
+    internal class AM_DirectIndexedIndirect : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x2},X)";
         internal uint GetAddress(Microprocessor mpu)
@@ -159,7 +164,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_DirectIndirectIndexed : IAddressingModeStrategy
+    internal class AM_DirectIndirectIndexed : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x2}),Y";
         internal uint GetAddress(Microprocessor mpu)
@@ -170,7 +175,7 @@ namespace EightSixteenEmu.MPU
             return IAddressingModeStrategy.FullAddress(mpu.RegDB, mpu.ReadWord(pointer) + mpu.RegY);
         }
     }
-    class AM_DirectIndirectLong : IAddressingModeStrategy
+    internal class AM_DirectIndirectLong : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "[${0:x2}]";
         internal uint GetAddress(Microprocessor mpu)
@@ -180,7 +185,7 @@ namespace EightSixteenEmu.MPU
             return mpu.ReadAddr(IAddressingModeStrategy.FullAddress(0, mpu.RegDP + offset), true);
         }
     }
-    class AM_DirectIndirectLongIndexedY : IAddressingModeStrategy
+    internal class AM_DirectIndirectLongIndexedY : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "[${0:x2}],Y";
         internal uint GetAddress(Microprocessor mpu)
@@ -190,7 +195,7 @@ namespace EightSixteenEmu.MPU
             return mpu.ReadAddr(IAddressingModeStrategy.FullAddress(0, mpu.RegDP + offset), true) + mpu.RegY;
         }
     }
-    class AM_Absolute : IAddressingModeStrategy
+    internal class AM_Absolute : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x4}";
         internal uint GetAddress(Microprocessor mpu)
@@ -200,7 +205,7 @@ namespace EightSixteenEmu.MPU
             return IAddressingModeStrategy.FullAddress(mpu.RegDB, address);
         }
     }
-    class AM_AbsoluteIndexedX : IAddressingModeStrategy
+    internal class AM_AbsoluteIndexedX : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x4}, X";
         internal uint GetAddress(Microprocessor mpu)
@@ -211,7 +216,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_AbsoluteIndexedY : IAddressingModeStrategy
+    internal class AM_AbsoluteIndexedY : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x4}, Y";
         internal uint GetAddress(Microprocessor mpu)
@@ -222,7 +227,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    class AM_AbsoluteLong : IAddressingModeStrategy
+    internal class AM_AbsoluteLong : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x6}";
         internal uint GetAddress(Microprocessor mpu)
@@ -232,7 +237,7 @@ namespace EightSixteenEmu.MPU
             return address;
         }
     }
-    class AM_AbsoluteLongIndexedX : IAddressingModeStrategy
+    internal class AM_AbsoluteLongIndexedX : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x6}, X";
         internal uint GetAddress(Microprocessor mpu)
@@ -242,7 +247,7 @@ namespace EightSixteenEmu.MPU
             return address + mpu.RegX;
         }
     }
-    class AM_StackRelative : IAddressingModeStrategy
+    internal class AM_StackRelative : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x2}, S";
         internal uint GetAddress(Microprocessor mpu)
@@ -252,7 +257,7 @@ namespace EightSixteenEmu.MPU
             return IAddressingModeStrategy.FullAddress(0, mpu.RegSP + offset);
         }
     }
-    class AM_StackRelativeIndirectIndexedY : IAddressingModeStrategy
+    internal class AM_StackRelativeIndirectIndexedY : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x2}, S), Y";
         internal uint GetAddress(Microprocessor mpu)
@@ -263,7 +268,7 @@ namespace EightSixteenEmu.MPU
             return IAddressingModeStrategy.FullAddress(mpu.RegDB, mpu.ReadWord(pointer) + mpu.RegY);
         }
     }
-    class AM_AbsoluteIndirect : IAddressingModeStrategy
+    internal class AM_AbsoluteIndirect : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x4})";
         internal uint GetAddress(Microprocessor mpu)
@@ -274,7 +279,7 @@ namespace EightSixteenEmu.MPU
         }
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
-    class AM_AbsoluteIndirectLong : IAddressingModeStrategy
+    internal class AM_AbsoluteIndirectLong : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "[${0:x4}]";
         internal uint GetAddress(Microprocessor mpu)
@@ -285,7 +290,7 @@ namespace EightSixteenEmu.MPU
         }
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
-    class AM_AbsoluteIndexedIndirect : IAddressingModeStrategy
+    internal class AM_AbsoluteIndexedIndirect : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "(${0:x4}, X)";
         internal uint GetAddress(Microprocessor mpu)
@@ -296,7 +301,7 @@ namespace EightSixteenEmu.MPU
         }
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
-    class AM_BlockMove : IAddressingModeStrategy
+    internal class AM_BlockMove : IAddressingModeStrategy
     {
         public string Notation { get; private set; } = "${0:x4},${1:x4}";
         internal ushort GetOperand(Microprocessor mpu, bool isByte = true)

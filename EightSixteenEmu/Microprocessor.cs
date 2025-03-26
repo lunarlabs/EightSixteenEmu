@@ -39,8 +39,8 @@ namespace EightSixteenEmu
         private readonly StringBuilder _lastInstruction;
         private readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
 
-        internal W65C816.AddressingMode _currentAddressingMode { get; private set; }
-        internal IAddressingModeStrategy AddressingMode { get => _addressingModes[_currentAddressingMode]; }
+        internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
+        internal IAddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
 
         public bool Verbose
         {
@@ -752,7 +752,7 @@ namespace EightSixteenEmu
                     if (((al) & 0xf0) > 0x90) al += 0x60;
                 }
                 SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
-                SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0));
+                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0);
                 SetNZStatusFlagsFromValue((byte)al);
                 RegAL = (byte)al;
             }

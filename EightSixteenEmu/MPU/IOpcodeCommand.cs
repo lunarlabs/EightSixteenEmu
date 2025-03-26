@@ -39,6 +39,187 @@ namespace EightSixteenEmu.MPU
             mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX),(uint)(destination <<16)| mpu.RegY);
             mpu.NextCycle();
             mpu.NextCycle();
+            if (--mpu.RegA != 0xffff) mpu.RegPC -= 3; // jump back to the move instruction
+        }
+    }
+
+    internal class OP_ADC
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            ushort addend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            byte carry = mpu.ReadStatusFlag(Microprocessor.StatusFlags.C) ? (byte)1 : (byte)0;
+            if (mpu.AccumulatorIs8Bit)
+            {
+                int result = mpu.RegAL + addend + carry;
+                if (mpu.ReadStatusFlag(Microprocessor.StatusFlags.D))
+                {
+                    {
+                        if (((result) & 0x0f) > 0x09) result += 0x06;
+                        if (((result) & 0xf0) > 0x90) result += 0x60;
+                    }
+                }
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (result & 0x100) != 0);
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
+                mpu.SetNZStatusFlagsFromValue((byte)result);
+                mpu.RegAL = (byte)result;
+                mpu.NextCycle();
+            }
+            else
+            {
+                int result = mpu.RegA + addend + carry;
+                if (mpu.ReadStatusFlag(Microprocessor.StatusFlags.D))
+                {
+                    {
+                        if (((result) & 0x000f) > 0x0009) result += 0x0006;
+                        if (((result) & 0x00f0) > 0x0090) result += 0x0060;
+                        if (((result) & 0x0f00) > 0x0900) result += 0x0600;
+                        if (((result) & 0xf000) > 0x9000) result += 0x6000;
+                    }
+                }
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (result & 0x10000) != 0);
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.V, ((~(mpu.RegA ^ addend)) & (mpu.RegA ^ result) & 0x8000) != 0);
+                mpu.SetNZStatusFlagsFromValue((ushort)result);
+                mpu.RegA = (ushort)result;
+                mpu.NextCycle();
+            }
+        }
+    }
+
+    internal class OP_SBC
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            ushort subtrahend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            byte carry = mpu.ReadStatusFlag(Microprocessor.StatusFlags.C) ? (byte)1 : (byte)0;
+            if (mpu.AccumulatorIs8Bit)
+            {
+                int result = mpu.RegAL + ~(byte)subtrahend - (1 - carry);
+                if (mpu.ReadStatusFlag(Microprocessor.StatusFlags.D))
+                {
+                    {
+                        if (((result) & 0x0f) > 0x09) result += 0x06;
+                        if (((result) & 0xf0) > 0x90) result += 0x60;
+                    }
+                }
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (byte)result >= (byte)subtrahend);
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
+                mpu.SetNZStatusFlagsFromValue((byte)result);
+                mpu.RegAL = (byte)result;
+                mpu.NextCycle();
+            }
+            else
+            {
+                int result = mpu.RegA - subtrahend - (1 - carry);
+                if (mpu.ReadStatusFlag(Microprocessor.StatusFlags.D))
+                {
+                    {
+                        if (((result) & 0x000f) > 0x0009) result += 0x0006;
+                        if (((result) & 0x00f0) > 0x0090) result += 0x0060;
+                        if (((result) & 0x0f00) > 0x0900) result += 0x0600;
+                        if (((result) & 0xf000) > 0x9000) result += 0x6000;
+                    }
+                }
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (ushort)result >= subtrahend);
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
+                mpu.SetNZStatusFlagsFromValue((ushort)result);
+                mpu.RegA = (ushort)result;
+                mpu.NextCycle();
+
+            }
+        }
+    }
+
+    internal class OP_CMP
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            if (mpu.AccumulatorIs8Bit)
+            {
+                int result = mpu.RegAL - (byte)operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (byte)result <= mpu.RegAL);
+                mpu.SetNZStatusFlagsFromValue((byte)result);
+                mpu.NextCycle();
+            }
+            else
+            {
+                int result = mpu.RegA - operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (ushort)result <= mpu.RegA);
+                mpu.SetNZStatusFlagsFromValue((ushort)result);
+                mpu.NextCycle();
+            }
+        }
+    }
+
+    internal class OP_CPX
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
+            if (mpu.IndexesAre8Bit)
+            {
+                int result = mpu.RegXL - (byte)operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (byte)result <= mpu.RegXL);
+                mpu.SetNZStatusFlagsFromValue((byte)result);
+                mpu.NextCycle();
+            }
+            else
+            {
+                int result = mpu.RegX - operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (ushort)result <= mpu.RegX);
+                mpu.SetNZStatusFlagsFromValue((ushort)result);
+                mpu.NextCycle();
+            }
+        }
+    }
+
+    internal class OP_CPY
+    {
+        internal void Execute(Microprocessor mpu) {
+            ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
+            if (mpu.IndexesAre8Bit)
+            {
+                int result = mpu.RegXL - (byte)operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (byte)result <= mpu.RegYL);
+                mpu.SetNZStatusFlagsFromValue((byte)result);
+                mpu.NextCycle();
+            }
+            else
+            {
+                int result = mpu.RegX - operand;
+                mpu.SetStatusFlag(Microprocessor.StatusFlags.C, (ushort)result <= mpu.RegY);
+                mpu.SetNZStatusFlagsFromValue((ushort)result);
+                mpu.NextCycle();
+            }
+        }
+    }
+
+    internal class OP_DEC
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator) 
+            {
+                if (mpu.AccumulatorIs8Bit)
+                {
+                    mpu.SetNZStatusFlagsFromValue(--mpu.RegAL);
+                }
+                else
+                {
+                    mpu.SetNZStatusFlagsFromValue(--mpu.RegA);
+                }
+            }
+            ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            operand--;
+            if (mpu.AccumulatorIs8Bit)
+            {
+                mpu.SetNZStatusFlagsFromValue((byte)operand);
+            }
+            else
+            {
+                mpu.SetNZStatusFlagsFromValue((ushort)operand);
+            }
         }
     }
 }
