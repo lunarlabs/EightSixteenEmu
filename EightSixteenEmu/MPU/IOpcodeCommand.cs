@@ -673,4 +673,42 @@ namespace EightSixteenEmu.MPU
             IOpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
         }
     }
+
+    internal class OP_JMP
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
+            if (mpu.CurrentAddressingMode == W65C816.AddressingMode.AbsoluteLong || mpu.CurrentAddressingMode == W65C816.AddressingMode.AbsoluteIndirectLong)
+            {
+                mpu.RegPB = (byte)(destination >> 16);
+            }
+            mpu.RegPC = (ushort)destination;
+            mpu.NextCycle();
+        }
+    }
+
+    internal class OP_JSL
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
+            mpu.PushWord(mpu.RegPB);
+            mpu.RegPB = (byte)(destination >> 16);
+            mpu.PushWord(mpu.RegPC);
+            mpu.RegPC = (ushort)destination;
+            mpu.NextCycle();
+        }
+    }
+
+    internal class OP_JSR 
+    {
+        internal void Execute(Microprocessor mpu)
+        {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
+            mpu.PushWord(mpu.RegPC);
+            mpu.RegPC = (ushort)destination;
+            mpu.NextCycle();
+        }
+    }
 }
