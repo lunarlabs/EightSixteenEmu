@@ -227,6 +227,7 @@ namespace EightSixteenEmu
             _regSR = (StatusFlags)0x34;
             _flagE = false;
             _regMD = 0x00;
+            _lastInstruction = new StringBuilder();
 
             _cycles = 0;
             _threadRunning = false;
