@@ -203,7 +203,6 @@ namespace EightSixteenEmu
             set => _regDP = Join(value, HighByte(_regDP));
         }
 
-        public bool FlagE { get => _flagE; }
         public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
         public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
 
