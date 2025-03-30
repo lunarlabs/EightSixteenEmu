@@ -24,7 +24,7 @@ namespace EightSixteenEmuTests
             emu.Mapper.AddDevice(rom, 0x8000);
             var mp = emu.MPU;
             mp.ExecuteOperation();
-            Microprocessor.Status status = mp.GetStatus();
+            Microprocessor.MicroprocessorState status = mp.GetStatus();
             Assert.AreEqual(0x8000, status.PC);
             while (!mp.Stopped)
             {

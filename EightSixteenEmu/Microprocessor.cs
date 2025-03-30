@@ -2270,9 +2270,9 @@ namespace EightSixteenEmu
             };
         }
 
-        public Status GetStatus()
+        public MicroprocessorState GetStatus()
         {
-            Status result = new()
+            MicroprocessorState result = new()
             {
                 Cycles = _cycles,
                 A = _regA,
@@ -2296,7 +2296,7 @@ namespace EightSixteenEmu
             return result;
         }
 
-        public class Status
+        public class MicroprocessorState
         {
             public int Cycles;
             public UInt16 A, X, Y, DP, SP, PC;
