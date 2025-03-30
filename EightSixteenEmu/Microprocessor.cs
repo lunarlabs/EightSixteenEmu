@@ -221,6 +221,7 @@ namespace EightSixteenEmu
         {
             _core = core;
             ColdReset();
+
             _threadRunning = false;
             _resetting = true;
             _interruptingMaskable = false;

@@ -26,6 +26,8 @@ namespace EightSixteenEmu.Devices
             data = System.IO.File.ReadAllBytes(path);
         }
 
+        void IMappableDevice.Init() { }
+
         public void Reload()
         {
             data = System.IO.File.ReadAllBytes(romPath);

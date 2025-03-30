@@ -13,5 +13,9 @@
         {
             return "RAM";
         }
+        void IMappableDevice.Init()
+        {
+            data.Initialize();
+        }
     }
 }
