@@ -1830,7 +1830,7 @@ namespace EightSixteenEmu
             if(_flagE)
             {
                 // M and X flags cannot be set in emulation mode
-                flags |= 0b00110000;
+                flags |= 0x30;
             }
             _regSR = (StatusFlags)flags;
 
@@ -2073,7 +2073,7 @@ namespace EightSixteenEmu
             LoadInterruptVector(W65C816.Vector.Reset);
         }
 
-        private void Interrupt(InterruptType source)
+        internal void Interrupt(InterruptType source)
         {
             if (source == InterruptType.Reset)
             {
