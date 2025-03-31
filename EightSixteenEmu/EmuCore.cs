@@ -40,7 +40,7 @@ namespace EightSixteenEmu
         }
 
         #region Device Management
-        
+
         internal void RegisterInterruptingDevice(IInterruptingMappableDevice device)
         {
             interruptingMappableDevices.Add(device);

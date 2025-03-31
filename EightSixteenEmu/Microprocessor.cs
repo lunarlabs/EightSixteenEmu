@@ -53,6 +53,7 @@ namespace EightSixteenEmu
         public int Cycles
         {
             get => _cycles;
+            internal set => _cycles = value;
         }
         public bool Stopped { get => _stopped; }
         public bool Waiting { get => _waiting; }
@@ -722,7 +723,7 @@ namespace EightSixteenEmu
             }
         }
 
-        private void LoadInterruptVector(W65C816.Vector vector)
+        internal void LoadInterruptVector(W65C816.Vector vector)
         {
             _regPC = ReadWord((Addr)vector);
             _regPB = 0x00;
