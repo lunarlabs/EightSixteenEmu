@@ -38,9 +38,9 @@ namespace EightSixteenEmu.MPU
         internal abstract void Stop(); // this emulates the processor being halted by STP
         internal abstract void Wait(); // this emulates the processor being halted by WAI
         internal abstract void BusRequest(); // this emulates pulling the RDY and BE pins low
-        internal abstract void BusRelease();
-        internal abstract void Disable(); // this emulates power being removed from the processor
-        internal abstract void Enable();
+        internal virtual void BusRelease() => throw new InvalidOperationException("Processor already controls the bus");
+        internal virtual void Disable() => _context?.TransitionTo(new ProcessorStateDisabled()); // this emulates power being removed from the processor
+        internal virtual void Enable() => throw new InvalidOperationException("Processor is already enabled");
     }
 
     internal class ProcessorContext
@@ -113,6 +113,23 @@ namespace EightSixteenEmu.MPU
 
     internal class ProcessorStateStopped : ProcessorState
     {
+        private static ProcessorStateStopped? _instance;
+        private static readonly object _lock = new object();
+
+        internal static ProcessorStateStopped Instance
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    if (_instance == null)
+                    {
+                        _instance = new ProcessorStateStopped();
+                    }
+                    return _instance;
+                }
+            }
+        }
         internal override void Reset()
         {
             base.Reset();
@@ -145,14 +162,6 @@ namespace EightSixteenEmu.MPU
         internal override void BusRelease()
         {
             throw new InvalidOperationException("Processor is stopped");
-        }
-        internal override void Disable()
-        {
-           _context?.TransitionTo(new ProcessorStateDisabled());
-        }
-        internal override void Enable()
-        {
-            throw new InvalidOperationException("Processor is already enabled");
         }
     }
 
