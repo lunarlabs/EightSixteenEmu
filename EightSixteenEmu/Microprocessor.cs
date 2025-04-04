@@ -38,6 +38,8 @@ namespace EightSixteenEmu
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
         private readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
+        private readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
+        private readonly ProcessorContext context;
 
         internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
         internal IAddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
@@ -55,10 +57,6 @@ namespace EightSixteenEmu
             get => _cycles;
             internal set => _cycles = value;
         }
-        public bool Stopped { get => _stopped; }
-        public bool Waiting { get => _waiting; }
-
-        private delegate void DoOperation(W65C816.AddressingMode mode);
 
         [Flags]
         public enum StatusFlags : byte
@@ -215,6 +213,12 @@ namespace EightSixteenEmu
         private byte _regIR; // instruction register
         private byte _regMD; // memory data register
 
+        internal byte RegMD
+        {
+            get => _regMD;
+            set => _regMD = value;
+        }
+
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
         /// </summary>
@@ -237,6 +241,9 @@ namespace EightSixteenEmu
             _core.NMI += OnNMI;
             _lastInstruction = new StringBuilder();
             var implied = new AM_Implied(); // this one pulls double duty
+
+            // the house of pain
+            #region Dictionary Initialization
             _addressingModes = new Dictionary<W65C816.AddressingMode, IAddressingModeStrategy>
             {
                 { W65C816.AddressingMode.Immediate, new AM_Immediate() },
@@ -265,6 +272,78 @@ namespace EightSixteenEmu
                 { W65C816.AddressingMode.AbsoluteIndexedIndirect, new AM_AbsoluteIndexedIndirect() },
                 { W65C816.AddressingMode.BlockMove, new AM_BlockMove() },
             };
+            _operations = new Dictionary<W65C816.OpCode, OpcodeCommand>
+            {
+                { W65C816.OpCode.ADC, new OP_ADC() },
+                { W65C816.OpCode.AND, new OP_AND() },
+                { W65C816.OpCode.ASL, new OP_ASL() },
+                { W65C816.OpCode.BCC, new OP_BCC() },
+                { W65C816.OpCode.BCS, new OP_BCS() },
+                { W65C816.OpCode.BEQ, new OP_BEQ() },
+                { W65C816.OpCode.BIT, new OP_BIT() },
+                { W65C816.OpCode.BMI, new OP_BMI() },
+                { W65C816.OpCode.BNE, new OP_BNE() },
+                { W65C816.OpCode.BPL, new OP_BPL() },
+                { W65C816.OpCode.BRK, new OP_BRK() },
+                { W65C816.OpCode.CLC, new OP_CLC() },
+                { W65C816.OpCode.CLD, new OP_CLD() },
+                { W65C816.OpCode.CLI, new OP_CLI() },
+                { W65C816.OpCode.CLV, new OP_CLV() },
+                { W65C816.OpCode.CPX, new OP_CPX() },
+                { W65C816.OpCode.CPY, new OP_CPY() },
+                { W65C816.OpCode.CMP, new OP_CMP() },
+                { W65C816.OpCode.COP, new OP_COP() },
+                { W65C816.OpCode.DEC, new OP_DEC() },
+                { W65C816.OpCode.DEX, new OP_DEX() },
+                { W65C816.OpCode.DEY, new OP_DEY() },
+                { W65C816.OpCode.DEX, new OP_DEX() },
+                { W65C816.OpCode.EOR, new OP_EOR() },
+                { W65C816.OpCode.INC, new OP_INC() },
+                { W65C816.OpCode.INX, new OP_INX() },
+                { W65C816.OpCode.INY, new OP_INY() },
+                { W65C816.OpCode.JMP, new OP_JMP() },
+                { W65C816.OpCode.JSR, new OP_JSR() },
+                { W65C816.OpCode.LDA, new OP_LDA() },
+                { W65C816.OpCode.LDX, new OP_LDX() },
+                { W65C816.OpCode.LDY, new OP_LDY() },
+                { W65C816.OpCode.LSR, new OP_LSR() },
+                { W65C816.OpCode.NOP, new OP_NOP() },
+                { W65C816.OpCode.ORA, new OP_ORA() },
+                { W65C816.OpCode.PHA, new OP_PHA() },
+                { W65C816.OpCode.PHP, new OP_PHP() },
+                { W65C816.OpCode.PLA, new OP_PLA() },
+                { W65C816.OpCode.PLP, new OP_PLP() },
+                { W65C816.OpCode.PHX, new OP_PHX() },
+                { W65C816.OpCode.PHY, new OP_PHY() },
+                { W65C816.OpCode.PLA, new OP_PLA() },
+                { W65C816.OpCode.PLP, new OP_PLP() },
+                { W65C816.OpCode.REP, new OP_REP() },
+                { W65C816.OpCode.ROL, new OP_ROL() },
+                { W65C816.OpCode.ROR, new OP_ROR() },
+                { W65C816.OpCode.RTI, new OP_RTI() },
+                { W65C816.OpCode.RTS, new OP_RTS() },
+                { W65C816.OpCode.SBC, new OP_SBC() },
+                { W65C816.OpCode.SEC, new OP_SEC() },
+                { W65C816.OpCode.SED, new OP_SED() },
+                { W65C816.OpCode.SEI, new OP_SEI() },
+                { W65C816.OpCode.STA, new OP_STA() },
+                { W65C816.OpCode.STX, new OP_STX() },
+                { W65C816.OpCode.STY, new OP_STY() },
+                { W65C816.OpCode.STP, new OP_STP() },
+                { W65C816.OpCode.TAX, new OP_TAX() },
+                { W65C816.OpCode.TAY, new OP_TAY() },
+                { W65C816.OpCode.TSX, new OP_TSX() },
+                { W65C816.OpCode.TXA, new OP_TXA() },
+                { W65C816.OpCode.TXS, new OP_TXS() },
+                { W65C816.OpCode.TYA, new OP_TYA() },
+                { W65C816.OpCode.TYX, new OP_TYX() },
+                { W65C816.OpCode.WAI, new OP_WAI() },
+                { W65C816.OpCode.WDM, new OP_WDM() },
+                { W65C816.OpCode.XBA, new OP_XBA() },
+                { W65C816.OpCode.XCE, new OP_XCE() },
+            };
+            #endregion
+            context = new ProcessorContext(this);
         }
 
         private void ColdReset()
@@ -278,10 +357,22 @@ namespace EightSixteenEmu
             _regPB = 0x00;
             _regPC = 0x0000;
             _regSR = (StatusFlags)0x34;
-            _flagE = false;
+            _flagE = true;
             _regMD = 0x00;
             _cycles = 0;
         }
+
+        public void Reset() => context.Reset();
+        private void NextInstruction() => context.NextInstruction();
+        internal void Interrupt(InterruptType source) => context.Interrupt(source);
+        internal void Stop() => context.Stop();
+        internal void Wait() => context.Wait();
+        public void BusRequest() => context.BusRequest();
+        public void BusRelease() => context.BusRelease();
+        internal void Disable() => context.Disable();
+        internal void Enable() => context.Enable();
+        internal void SetProcessorState(MicroprocessorState state) => context.SetProcessorState(state);
+
 
         internal void OnClockTick(object? sender, EventArgs e)
         {
@@ -293,7 +384,7 @@ namespace EightSixteenEmu
 
         internal void OnInterrupt(object? sender, EventArgs e)
         {
-            _interruptingMaskable = true;
+            Interrupt(InterruptType.IRQ);
         }
 
         internal void OnReset(object? sender, EventArgs e)
@@ -302,12 +393,12 @@ namespace EightSixteenEmu
             // which means memory and registers will be altered before the reset starts.
             // This is probably not how the real '816 handles resets...
             // Use a cancellation token?
-            _resetting = true;
+            Reset();
         }
 
         internal void OnNMI(object? sender, EventArgs e)
         {
-            _interruptingNonMaskable = true;
+            Interrupt(InterruptType.NMI);
         }
 
         public void StartThread()
@@ -338,7 +429,7 @@ namespace EightSixteenEmu
             _threadRunning = true;
             while (_threadRunning)
             {
-                NextOperation();
+                NextInstruction();
             }
             if (_verbose)
             {
@@ -355,6 +446,7 @@ namespace EightSixteenEmu
             _cycles++;
         }
 
+        #region Data Manipulation
         static byte LowByte(Word word)
         {
             return (byte)(word);
@@ -394,6 +486,7 @@ namespace EightSixteenEmu
             return (Word)((w >> 8) | (w << 8));
         }
         private Addr _longPC { get => Address(_regPB, _regPC); }
+        #endregion
 
         #region Memory Access
 
@@ -532,6 +625,7 @@ namespace EightSixteenEmu
 
         #endregion
 
+        #region Status Register Manipulation
         internal void SetStatusFlag(StatusFlags flag, bool value)
         {
                 if (value)
@@ -577,151 +671,7 @@ namespace EightSixteenEmu
             }
             else { _flagE = false; }
         }
-
-        private Addr GetEffectiveAddress(W65C816.AddressingMode addressingMode)
-        {
-            Addr OffsetBySignedValue(bool isEightBit)
-            {
-                short offset;
-                if (isEightBit)
-                {
-                    offset = (sbyte)ReadByte();
-                }
-                else
-                {
-                    offset = (short)ReadWord();
-                }
-                if (_verbose) Console.Write($"{offset:+0,-#}");
-                Addr result = Address(_regPB, (Word)(_regPC + offset));
-                return result;
-            }
-
-            Addr CalculateDirectAddress(byte offset, Word register = 0)
-            {
-                if (_flagE && RegDL == 0)
-                {
-                    return Address(0, RegDH, (byte)(offset + LowByte(register)));
-                }
-                else
-                {
-                    return Address(0, _regDP + offset + register);
-                }
-            }
-
-            Addr pointer;
-            byte offset;
-            Word location;
-            switch (addressingMode)
-            {
-                case W65C816.AddressingMode.Immediate:
-                    // WARN: Do the reads (and subsequent RegPC advances) in the operation
-                    _lastInstruction.Append("#");
-                    return _longPC;
-                case W65C816.AddressingMode.Accumulator:
-                    _lastInstruction.Append("A");
-                    return 0;
-                case W65C816.AddressingMode.ProgramCounterRelative:
-                    return OffsetBySignedValue(true);
-                case W65C816.AddressingMode.ProgramCounterRelativeLong:
-                    return OffsetBySignedValue(false);
-                case W65C816.AddressingMode.Implied:
-                    return 0;
-                case W65C816.AddressingMode.Stack:
-                    return 0;
-                case W65C816.AddressingMode.Direct:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"${offset:x2}");
-                    if (RegDL != 0x00) NextCycle();
-                    return Address(0, _regDP + offset);
-                case W65C816.AddressingMode.DirectIndexedWithX:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"${offset:x2}, X");
-                    if (RegDL != 0x00) NextCycle();
-                    return CalculateDirectAddress(offset, _regX);
-                case W65C816.AddressingMode.DirectIndexedWithY:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"${offset:x2}, Y");
-                    if (RegDL != 0x00) NextCycle();
-                    return CalculateDirectAddress(offset, _regY);
-                case W65C816.AddressingMode.DirectIndirect:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"(${offset:x2})");
-                    if (RegDL != 0x00) NextCycle();
-                    pointer = CalculateDirectAddress(offset);
-                    return Address(_regDB, ReadWord(pointer));
-                case W65C816.AddressingMode.DirectIndexedIndirect:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"(${offset:x2}, X)");
-                    if (RegDL != 0x00) NextCycle();
-                    pointer = CalculateDirectAddress(offset, _regX);
-                    return Address(_regDB, ReadWord(pointer));
-                case W65C816.AddressingMode.DirectIndirectIndexed:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"(${offset:x2}), Y");
-                    if (RegDL != 0x00) NextCycle();
-                    pointer = CalculateDirectAddress(offset);
-                    return Address(_regDB, ReadWord(pointer + _regY));
-                case W65C816.AddressingMode.DirectIndirectLong:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"[${offset:x2}]");
-                    if (RegDL != 0x00) NextCycle();
-                    return ReadAddr(Address(0, _regDP + offset), true);
-                case W65C816.AddressingMode.DirectIndirectLongIndexed:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"[${offset:x2}], Y");
-                    if (RegDL != 0x00) NextCycle();
-                    return ReadAddr(Address(0, _regDP + offset), true) + _regY;
-                case W65C816.AddressingMode.Absolute:
-                    // WARN: Special case for JMP and JSR -- replace RegDB with RegPB
-                    location = ReadWord();
-                    _lastInstruction.Append($"${location:x4}");
-                    return Address(_regDB, location);
-                case W65C816.AddressingMode.AbsoluteIndexedWithX:
-                    location = ReadWord();
-                    _lastInstruction.Append($"${location:x4}, X");
-                    return Address(_regDB, location + _regX);
-                case W65C816.AddressingMode.AbsoluteIndexedWithY:
-                    location = ReadWord();
-                    _lastInstruction.Append($"${location:x4}, Y");
-                    return Address(_regDB, location + _regY);
-                case W65C816.AddressingMode.AbsoluteLong:
-                    pointer = ReadAddr();
-                    _lastInstruction.Append($"${pointer:x6}");
-                    return pointer;
-                case W65C816.AddressingMode.AbsoluteLongIndexed:
-                    pointer = ReadAddr();
-                    _lastInstruction.Append($"${pointer:x6}, X");
-                    return pointer + _regX;
-                case W65C816.AddressingMode.StackRelative:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"${offset:x2}, S");
-                    return Address(0, offset + _regSP);
-                case W65C816.AddressingMode.StackRelativeIndirectIndexed:
-                    offset = ReadByte();
-                    _lastInstruction.Append($"(${offset:x2}, S), Y");
-                    pointer = Address(0, offset + _regSP);
-                    return Address(_regDB, ReadWord(pointer + _regY));
-                case W65C816.AddressingMode.AbsoluteIndirect:
-                    location = ReadWord();
-                    _lastInstruction.Append($"(${location:x4})");
-                    pointer = Address(0, location);
-                    return Address(_regPB, ReadWord(pointer));
-                case W65C816.AddressingMode.AbsoluteIndirectLong:
-                    location = ReadWord();
-                    _lastInstruction.Append($"[${location:x4}]");
-                    pointer = Address(0, location);
-                    return ReadAddr(pointer);
-                case W65C816.AddressingMode.AbsoluteIndexedIndirect:
-                    location = ReadWord();
-                    _lastInstruction.Append($"(${location:x4}, X)");
-                    pointer = Address(_regPB, location);
-                    return Address(_regPB, ReadWord(pointer) + _regX);
-                case W65C816.AddressingMode.BlockMove:
-                    return 0; // handled in the operation function
-                default:
-                    return 0;
-            }
-        }
+        #endregion
 
         internal void LoadInterruptVector(W65C816.Vector vector)
         {
@@ -729,1548 +679,65 @@ namespace EightSixteenEmu
             _regPB = 0x00;
         }
 
-        #region Opcodes
-
-        #region ADC SBC
-        private void OpAdc(W65C816.AddressingMode addressingMode)
-        {
-            Word addend;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                addend = ReadImmediate(AccumulatorIs8Bit);
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                addend = ReadValue(AccumulatorIs8Bit, address);
-            }
-            byte carry = (byte)(ReadStatusFlag(StatusFlags.C) ? 1 : 0);
-            if (AccumulatorIs8Bit)
-            {
-                int al = LowByte(_regA) + addend + carry;
-                if (ReadStatusFlag(StatusFlags.D))
-                {
-                    if (((al) & 0x0f) > 0x09) al += 0x06;
-                    if (((al) & 0xf0) > 0x90) al += 0x60;
-                }
-                SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
-                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x80) != 0);
-                SetNZStatusFlagsFromValue((byte)al);
-                RegAL = (byte)al;
-            }
-            else
-            {
-                int al = _regA + addend + carry;
-                if (ReadStatusFlag(StatusFlags.D))
-                {
-                    if (((al) & 0x000f) > 0x0009) al += 0x0006;
-                    if (((al) & 0x00f0) > 0x0090) al += 0x0060;
-                    if (((al) & 0x0f00) > 0x0900) al += 0x0600;
-                    if (((al) & 0xf000) > 0x9000) al += 0x6000;
-                }
-                SetStatusFlag(StatusFlags.C, (al & 0x10000u) != 0);
-                SetStatusFlag(StatusFlags.V, ((Word)((~(_regA ^ addend)) & (_regA ^ al) & 0x8000) != 0));
-                SetNZStatusFlagsFromValue((Word)al);
-                _regA = (Word)al;
-            }
-            NextCycle();
-        }
-
-        private void OpSbc(W65C816.AddressingMode addressingMode)
-        {
-            Word subtrahend;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                subtrahend = ReadImmediate(AccumulatorIs8Bit);
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                subtrahend = ReadValue(AccumulatorIs8Bit, address);
-            }
-            if (AccumulatorIs8Bit)
-            {
-                int al = RegAL + ~(byte)subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
-                if (ReadStatusFlag(StatusFlags.D))
-                {
-                    if (((al) & 0x0f) > 0x09) al += 0x06;
-                    if (((al) & 0xf0) > 0x90) al += 0x60;
-                }
-                SetStatusFlag(StatusFlags.C, (al & 0x100u) != 0);
-                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ subtrahend)) & (_regA ^ al) & 0x80) != 0);
-                SetNZStatusFlagsFromValue((byte)al);
-                RegAL = (byte)al;
-            }
-            else
-            {
-                int al = _regA + ~subtrahend + (byte)(ReadStatusFlag(StatusFlags.C) ? 0 : 1);
-                if (ReadStatusFlag(StatusFlags.D))
-                {
-                    if (((al) & 0x000f) > 0x0009) al += 0x0006;
-                    if (((al) & 0x00f0) > 0x0090) al += 0x0060;
-                    if (((al) & 0x0f00) > 0x0900) al += 0x0600;
-                    if (((al) & 0xf000) > 0x9000) al += 0x6000;
-                }
-                SetStatusFlag(StatusFlags.C, (al & 0x10000u) != 0);
-                SetStatusFlag(StatusFlags.V, (Word)((~(_regA ^ subtrahend)) & (_regA ^ al) & 0x8000) != 0);
-                SetNZStatusFlagsFromValue((Word)al);
-                _regA = (Word)al;
-            }
-        }
-        #endregion
-        #region CMP CPX CPY
-        private void OpCmp(W65C816.AddressingMode addressingMode)
-        {
-            Word data;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                data = ReadImmediate(AccumulatorIs8Bit);
-            }
-            else 
-            { 
-                data = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode)); 
-            }
-            if (AccumulatorIs8Bit)
-            {
-                data = (byte)(RegAL - (byte)data);
-                SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, RegAL >= data);
-            }
-            else
-            {
-                data = (Word)(_regA - data);
-                SetNZStatusFlagsFromValue(data);
-                SetStatusFlag(StatusFlags.C, _regA >= data);
-            }
-        }
-
-        private void OpCpx(W65C816.AddressingMode addressingMode)
-        {
-            Word data;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                data = ReadImmediate(IndexesAre8Bit);
-            }
-            else
-            {
-                data = ReadValue(IndexesAre8Bit, GetEffectiveAddress(addressingMode));
-            }
-            if (IndexesAre8Bit)
-            {
-                data = (byte)(RegXL - (byte)data);
-                SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, RegXL >= data);
-            }
-            else
-            {
-                data = (Word)(_regX - data);
-                SetNZStatusFlagsFromValue(data);
-                SetStatusFlag(StatusFlags.C, _regX >= data);
-            }
-        }
-
-        private void OpCpy(W65C816.AddressingMode addressingMode)
-        {
-            Word data;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                data = ReadImmediate(IndexesAre8Bit);
-            }
-            else
-            {
-                data = ReadValue(IndexesAre8Bit, GetEffectiveAddress(addressingMode));
-            }
-            if (IndexesAre8Bit)
-            {
-                data = (byte)(RegYL - (byte)data);
-                SetNZStatusFlagsFromValue((byte)data);
-                SetStatusFlag(StatusFlags.C, RegYL >= data);
-            }
-            else
-            {
-                data = (Word)(_regY - data);
-                SetNZStatusFlagsFromValue(data);
-                SetStatusFlag(StatusFlags.C, _regY >= data);
-            }
-        }
-        #endregion
-        #region DEA DEC DEX DEY INA INC INX INY
-        private void OpDec(W65C816.AddressingMode addressingMode)
-        {
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    byte al = RegAL;
-                    SetNZStatusFlagsFromValue(--al);
-                    RegAL = al;
-                }
-                else
-                {
-                    Word a = _regA;
-                    SetNZStatusFlagsFromValue(--a);
-                    _regA = a;
-                }
-                NextCycle();
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word value = ReadValue(AccumulatorIs8Bit, address);
-                value -= 1;
-                NextCycle();
-                if (AccumulatorIs8Bit)
-                {
-                    SetNZStatusFlagsFromValue((byte)value);
-                }
-                else
-                {
-                    SetNZStatusFlagsFromValue(value);
-                }
-                WriteValue(value, AccumulatorIs8Bit, address);
-            }
-        }
-
-        private void OpDex(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue(--RegXL);
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(--_regX);
-            }
-            NextCycle();
-        }
-
-        private void OpDey(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue(--RegYL);
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(--_regY);
-            }
-            NextCycle();
-        }
-
-        private void OpInc(W65C816.AddressingMode addressingMode)
-        {
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    byte al = RegAL;
-                    SetNZStatusFlagsFromValue(++al);
-                    RegAL = al;
-                }
-                else
-                {
-                    Word a = _regA;
-                    SetNZStatusFlagsFromValue(++a);
-                    _regA = a;
-                }
-                NextCycle();
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word value = ReadValue(AccumulatorIs8Bit, address);
-                value += 1;
-                NextCycle();
-                if (AccumulatorIs8Bit)
-                {
-                    SetNZStatusFlagsFromValue((byte)value);
-                }
-                else
-                {
-                    SetNZStatusFlagsFromValue(value);
-                }
-                WriteValue(value, AccumulatorIs8Bit, address);
-            }
-        }
-
-        private void OpInx(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue(++RegXL);
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(++_regX);
-            }
-            NextCycle();
-        }
-
-        private void OpIny(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue(++RegYL);
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(++_regY);
-            }
-            NextCycle();
-        }
-        #endregion
-        #region AND EOR ORA
-        private void OpAnd(W65C816.AddressingMode addressingMode)
-        {
-            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
-            if (AccumulatorIs8Bit)
-            {
-                RegAL = (byte)((byte)operand & RegAL);
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = (ushort)(operand & _regA);
-                SetNZStatusFlagsFromValue(_regA);
-            }
-            NextCycle();
-        }
-
-        private void OpEor(W65C816.AddressingMode addressingMode)
-        {
-            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
-            if (AccumulatorIs8Bit)
-            {
-                RegAL = (byte)((byte)operand ^ RegAL);
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = (ushort)(operand ^ _regA);
-                SetNZStatusFlagsFromValue(_regA);
-            }
-            NextCycle();
-        }
-
-        private void OpOra(W65C816.AddressingMode addressingMode)
-        {
-            Word operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
-            if (AccumulatorIs8Bit)
-            {
-                RegAL = (byte)((byte)operand | RegAL);
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = (ushort)(operand | _regA);
-                SetNZStatusFlagsFromValue(_regA);
-            }
-            NextCycle();
-        }
-        #endregion
-
-        private void OpBit(W65C816.AddressingMode addressingMode)
-        {
-            Word operand;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                operand = ReadImmediate(AccumulatorIs8Bit);
-                if (AccumulatorIs8Bit)
-                { 
-                    SetStatusFlag(StatusFlags.Z, (operand & RegAL) == 0); 
-                }
-                else
-                {
-                    SetStatusFlag(StatusFlags.Z, (operand & _regA) == 0);
-                }
-            }
-            else
-            {
-                operand = ReadValue(AccumulatorIs8Bit, GetEffectiveAddress(addressingMode));
-                if (AccumulatorIs8Bit)
-                {
-                    SetStatusFlag(StatusFlags.Z, (operand & RegAL) == 0);
-                    SetStatusFlag(StatusFlags.N, (operand & 0x80) != 0);
-                    SetStatusFlag(StatusFlags.V, (operand & 0x40) != 0);
-                }
-                else
-                {
-                    SetStatusFlag(StatusFlags.Z, (operand & _regA) == 0);
-                    SetStatusFlag(StatusFlags.N, (operand & 0x8000) != 0);
-                    SetStatusFlag(StatusFlags.V, (operand & 0x4000) != 0);
-                }
-            }
-            NextCycle();
-        }
-
-        #region TRB TSB
-        private void OpTrb(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            Word value = ReadValue(AccumulatorIs8Bit, address);
-            Word mask = (ushort)((AccumulatorIs8Bit ? RegAL : _regA) & value);
-
-            WriteValue((ushort)(value & ~mask), AccumulatorIs8Bit, address);
-            NextCycle();
-        }
-
-        private void OpTsb(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            Word value = ReadValue(AccumulatorIs8Bit, address);
-            Word mask = (ushort)((AccumulatorIs8Bit ? RegAL : _regA) & value);
-
-            WriteValue((ushort)(value | mask), AccumulatorIs8Bit, address);
-            NextCycle();
-        }
-        #endregion
-        #region ASL LSR ROL ROR
-        private void OpAsl(W65C816.AddressingMode addressingMode)
-        {
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    SetStatusFlag(StatusFlags.C, (RegAL & 0x80) != 0);
-                    RegAL <<= 1;
-                    SetNZStatusFlagsFromValue(RegAL);
-                }
-                else
-                {
-                    SetStatusFlag(StatusFlags.C, (_regA & 0x8000) != 0);
-                    _regA <<= 1;
-                    SetNZStatusFlagsFromValue(_regA);
-                }
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word operand;
-                if (AccumulatorIs8Bit)
-                {
-                    operand = ReadByte(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x80) != 0);
-                    operand = (byte)(operand << 1);
-                    WriteByte((byte)(operand), address);
-                    SetNZStatusFlagsFromValue((byte)operand);
-                }
-                else
-                {
-                    operand = ReadWord(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x8000) != 0);
-                    operand <<= 1;
-                    WriteWord(operand, address);
-                    SetNZStatusFlagsFromValue(operand);
-                }
-            }
-            NextCycle();
-        }
-
-        private void OpLsr(W65C816.AddressingMode addressingMode)
-        {
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    SetStatusFlag(StatusFlags.C, (RegAL & 0x01) != 0);
-                    RegAL >>>= 1;
-                    SetNZStatusFlagsFromValue(RegAL);
-                }
-                else
-                {
-                    SetStatusFlag(StatusFlags.C, (_regA & 0x01) != 0);
-                    _regA >>>= 1;
-                    SetNZStatusFlagsFromValue(_regA);
-                }
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word operand;
-                if (AccumulatorIs8Bit)
-                {
-                    operand = ReadByte(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x01) != 0);
-                    operand = (byte)(operand >>> 1);
-                    WriteByte((byte)(operand), address);
-                    SetNZStatusFlagsFromValue((byte)operand);
-                }
-                else
-                {
-                    operand = ReadWord(address);
-                    SetStatusFlag(StatusFlags.C, (operand & 0x01) != 0);
-                    operand >>>= 1;
-                    WriteWord(operand, address);
-                    SetNZStatusFlagsFromValue(operand);
-                }
-            }
-            NextCycle();
-        }
-
-        private void OpRol(W65C816.AddressingMode addressingMode)
-        {
-            bool shiftedOut;
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    shiftedOut = (RegAL & 0x80) != 0;
-                    RegAL <<= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) RegAL |= 0x01;
-                    SetNZStatusFlagsFromValue(RegAL);
-                    SetStatusFlag(StatusFlags.C, shiftedOut);
-                }
-                else
-                {
-                    shiftedOut = (_regA & 0x8000) != 0;
-                    _regA <<= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) _regA |= 0x01;
-                    SetNZStatusFlagsFromValue(_regA);
-                    SetStatusFlag(StatusFlags.C, shiftedOut);
-                }
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word operand = ReadValue(AccumulatorIs8Bit, address);
-                if (AccumulatorIs8Bit)
-                {
-                    shiftedOut = (operand & 0x80) != 0;
-                    operand = operand <<= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x01;
-                    WriteByte((byte)operand, address);
-                    SetNZStatusFlagsFromValue((byte)operand);
-                }
-                else
-                {
-                    shiftedOut = (operand & 0x8000) != 0;
-                    operand = operand <<= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x01;
-                    WriteWord(operand, address);
-                    SetNZStatusFlagsFromValue(operand);
-                }
-            }
-            NextCycle();
-        }
-
-        private void OpRor(W65C816.AddressingMode addressingMode)
-        {
-            bool shiftedOut;
-            if (addressingMode == W65C816.AddressingMode.Accumulator)
-            {
-                if (AccumulatorIs8Bit)
-                {
-                    shiftedOut = (RegAL & 0x01) != 0;
-                    RegAL >>>= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) RegAL |= 0x80;
-                    SetNZStatusFlagsFromValue(RegAL);
-                    SetStatusFlag(StatusFlags.C, shiftedOut);
-                }
-                else
-                {
-                    shiftedOut = (_regA & 0x0001) != 0;
-                    _regA >>>= 1;
-                    if (ReadStatusFlag(StatusFlags.C)) _regA |= 0x8000;
-                    SetNZStatusFlagsFromValue(_regA);
-                    SetStatusFlag(StatusFlags.C, shiftedOut);
-                }
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                Word operand = ReadValue(AccumulatorIs8Bit, address);
-                shiftedOut = (operand & 0x01) != 0;
-                operand >>>= 1;
-                if (AccumulatorIs8Bit)
-                {
-                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x80;
-                    WriteByte((byte)operand, address);
-                    SetNZStatusFlagsFromValue((byte)operand);
-                }
-                else
-                {
-                    if (ReadStatusFlag(StatusFlags.C)) operand |= 0x8000;
-                    WriteWord(operand, address);
-                    SetNZStatusFlagsFromValue(operand);
-                }
-            }
-            NextCycle();
-        }
-        #endregion
-        #region BCC BCS BEQ BMI BNE BPL BRA BVC BVS
-        private void OpBcc(W65C816.AddressingMode addressingMode)
-        {
-            if (!ReadStatusFlag(StatusFlags.C))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBcs(W65C816.AddressingMode addressingMode)
-        {
-            if (ReadStatusFlag(StatusFlags.C))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBeq(W65C816.AddressingMode addressingMode)
-        {
-            if (ReadStatusFlag(StatusFlags.Z))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBmi(W65C816.AddressingMode addressingMode)
-        {
-            if (ReadStatusFlag(StatusFlags.N))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBne(W65C816.AddressingMode addressingMode)
-        {
-            if (!ReadStatusFlag(StatusFlags.Z))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBpl(W65C816.AddressingMode addressingMode)
-        {
-            if (!ReadStatusFlag(StatusFlags.N))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBra(W65C816.AddressingMode addressingMode)
-        {
-            BranchTo(GetEffectiveAddress(addressingMode));
-            NextCycle();
-        }
-
-        private void OpBvc(W65C816.AddressingMode addressingMode)
-        {
-            if (!ReadStatusFlag(StatusFlags.V))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-
-        private void OpBvs(W65C816.AddressingMode addressingMode)
-        {
-            if (ReadStatusFlag(StatusFlags.V))
-            {
-                BranchTo(GetEffectiveAddress(addressingMode));
-            }
-            NextCycle();
-        }
-        #endregion
-
-        private void OpBrl(W65C816.AddressingMode addressingMode) 
-        {
-            NextCycle();
-            NextCycle();
-            BranchTo(GetEffectiveAddress(addressingMode));  
-        }
-
-        #region JMP JSL JSR
-        private void OpJmp(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            if (addressingMode == W65C816.AddressingMode.AbsoluteLong ||
-                addressingMode == W65C816.AddressingMode.AbsoluteIndirectLong)
-            {
-                _regPB = BankOf(address);
-            }
-            
-            _regPC = (Word)address;
-            NextCycle();
-                
-        }
-
-        private void OpJsl(W65C816.AddressingMode addressingMode)
-        {
-            PushByte(_regPB);
-            PushWord((Word)(_regPC + 3));
-            Addr addr = GetEffectiveAddress(addressingMode);
-            _regPB = BankOf(addr);
-            _regPC = (Word)addr;
-            NextCycle();
-        }
-
-        private void OpJsr(W65C816.AddressingMode addressingMode)
-        {
-            PushWord((Word)(_regPC + 2));
-            Addr addr = GetEffectiveAddress(addressingMode);
-            _regPC = (Word)addr;
-            NextCycle();
-        }
-        #endregion
-        #region RTL RTS
-        private void OpRtl(W65C816.AddressingMode addressingMode) 
-        {
-            _regPC = PullWord();
-            _regPC++;
-        }
-
-        private void OpRts(W65C816.AddressingMode addressingMode)
-        {
-            _regPC = PullWord();
-            _regPC++;
-            _regPB = PullByte();
-        }
-        #endregion
-        #region BRK COP
-        private void OpBrk(W65C816.AddressingMode addressingMode) 
-        { 
-            Interrupt(InterruptType.BRK);
-        }
-
-        private void OpCop(W65C816.AddressingMode addressingMode) {
-            Interrupt(InterruptType.COP);
-        }
-        #endregion
-        #region RTI
-        private void OpRti(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            NextCycle();
-            _regSR = (StatusFlags)PullByte();
-            _regPC = PullWord();
-            if (_flagE)
-            {
-                _regPB = PullByte();
-            }
-        }
-        #endregion
-        #region CLC CLD CLI CLV SEC SED SEI
-        private void OpClc(W65C816.AddressingMode addressingMode)
-        {
-            SetStatusFlag(StatusFlags.C, false);
-        }
-
-        private void OpCld(W65C816.AddressingMode addressingMode) 
-        { 
-            SetStatusFlag(StatusFlags.D, false);
-        }
-
-        private void OpCli(W65C816.AddressingMode addressingMode)
-        {
-            SetStatusFlag(StatusFlags.I, false);
-        }
-
-        private void OpClv(W65C816.AddressingMode addressingMode)
-        {
-            SetStatusFlag(StatusFlags.V, false);
-        }
-
-        private void OpSec(W65C816.AddressingMode addressingMode)
-        {
-            SetStatusFlag(StatusFlags.C, true);
-        }
-
-        private void OpSed(W65C816.AddressingMode addressingMode)
-        {
-            SetStatusFlag(StatusFlags.D, true);
-        }
-
-        private void OpSei(W65C816.AddressingMode addressingMode) 
-        {
-            SetStatusFlag(StatusFlags.I, true);
-        }
-        #endregion
-        #region REP SEP
-        private void OpRep(W65C816.AddressingMode addressingMode)
-        {
-            byte flags = (byte)(ReadImmediate(true));
-            if (_flagE)
-            {
-                // M and X flags cannot be set in emulation mode
-                flags &= 0xCF;
-            }
-            _regSR &= (StatusFlags)~flags;
-        }
-
-        private void OpSep(W65C816.AddressingMode addressingMode) { 
-            byte flags = (byte)(ReadImmediate(true));
-            if (_flagE)
-            {
-                // M and X flags cannot be set in emulation mode
-                flags &= 0xCF;
-            }
-            _regSR |= (StatusFlags)flags;
-            if (IndexesAre8Bit)
-            {
-                RegXH = 0;
-                RegYH = 0;
-            }
-        }
-        #endregion
-        #region LDA LDX LDY STA STX STY STZ
-        private void OpLda(W65C816.AddressingMode addressingMode)
-        {
-            Word value;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                value = ReadImmediate(AccumulatorIs8Bit);
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                value = ReadValue(AccumulatorIs8Bit, address);
-            }
-            if (AccumulatorIs8Bit)
-            {
-                SetNZStatusFlagsFromValue((byte)value);
-                RegAL = (byte)value;
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(value);
-                _regA = value;
-            }
-        }
-
-        private void OpLdx(W65C816.AddressingMode addressingMode)
-        {
-            Word value;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                value = ReadImmediate(IndexesAre8Bit);
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                value = ReadValue(IndexesAre8Bit, address);
-            }
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue((byte)value);
-                RegXL = (byte)value;
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(value);
-                _regX = value;
-            }
-        }
-
-        private void OpLdy(W65C816.AddressingMode addressingMode)
-        {
-            Word value;
-            if (addressingMode == W65C816.AddressingMode.Immediate)
-            {
-                value = ReadImmediate(IndexesAre8Bit);
-            }
-            else
-            {
-                Addr address = GetEffectiveAddress(addressingMode);
-                value = ReadValue(IndexesAre8Bit, address);
-            }
-            if (IndexesAre8Bit)
-            {
-                SetNZStatusFlagsFromValue((byte)value);
-                RegYL = (byte)value;
-            }
-            else
-            {
-                SetNZStatusFlagsFromValue(value);
-                _regY = value;
-            }
-        }
-
-        private void OpSta(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            if (AccumulatorIs8Bit)
-            {
-                WriteByte(RegAL, address);
-            }
-            else
-            {
-                WriteWord(_regA, address);
-            }
-        }
-
-        private void OpStx(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            if (IndexesAre8Bit)
-            {
-                WriteByte(RegXL, address);
-            }
-            else
-            {
-                WriteWord(_regX, address);
-            }
-        }
-
-        private void OpSty(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            if (IndexesAre8Bit)
-            {
-                WriteByte(RegYL, address);
-            }
-            else
-            {
-                WriteWord(_regY, address);
-            }
-        }
-
-        private void OpStz(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            if (AccumulatorIs8Bit)
-            {
-                WriteByte(0, address);
-            }
-            else
-            {
-                WriteWord(0, address);
-            }
-        }
-        #endregion
-        #region MVN MVP
-        private void OpMvn(W65C816.AddressingMode addressingMode)
-        {
-            CopyMemory();
-            if (IndexesAre8Bit)
-            {
-                RegXL++;
-                RegYL++;
-            }
-            else
-            {
-                _regX++;
-                _regY++;
-            }
-        }
-
-        private void OpMvp(W65C816.AddressingMode addressingMode)
-        {
-            CopyMemory();
-            if (IndexesAre8Bit)
-            {
-                RegXL--;
-                RegYL--;
-            }
-            else
-            {
-                _regX--;
-                _regY--;
-            }
-        }
-        #endregion
-        #region NOP WDM
-        private void OpNop(W65C816.AddressingMode addressingMode) 
-        {
-            NextCycle();
-        }
-
-        private void OpWdm(W65C816.AddressingMode addressingMode)
-        {
-            _regPC++;
-            NextCycle();
-        }
-        #endregion
-        #region PEA PEI PER
-        private void OpPea(W65C816.AddressingMode addressingMode)
-        {
-            Word value = ReadImmediate(false);
-            PushWord(value);
-        }
-
-        private void OpPei(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            PushWord(ReadWord(address));
-        }
-
-        private void OpPer(W65C816.AddressingMode addressingMode)
-        {
-            Addr address = GetEffectiveAddress(addressingMode);
-            PushWord(ReadWord(address));
-        }
-        #endregion
-        #region PHA PHX PHY PLA PLX PLY
-        private void OpPha(W65C816.AddressingMode addressingMode)
-        {
-            if (AccumulatorIs8Bit)
-            {
-                PushByte(RegAL);
-            }
-            else
-            {
-                PushWord(_regA);
-            }
-            NextCycle();
-        }
-
-        private void OpPhx(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                PushByte(RegXL);
-            }
-            else
-            {
-                PushWord(_regX);
-            }
-            NextCycle();
-        }
-
-        private void OpPhy(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                PushByte(RegYL);
-            }
-            else
-            {
-                PushWord(_regY);
-            }
-        }
-
-        private void OpPla(W65C816.AddressingMode addressingMode)
-        {
-            if (AccumulatorIs8Bit)
-            {
-                RegAL = PullByte();
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = PullWord();
-                SetNZStatusFlagsFromValue(_regA);
-            }
-        }
-
-        private void OpPlx(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                RegXL = PullByte();
-                SetNZStatusFlagsFromValue(RegXL);
-            }
-            else
-            {
-                _regX = PullWord();
-                SetNZStatusFlagsFromValue(_regX);
-            }
-        }
-
-        private void OpPly(W65C816.AddressingMode addressingMode)
-        {
-            if (IndexesAre8Bit)
-            {
-                RegYL = PullByte();
-                SetNZStatusFlagsFromValue(RegYL);
-            }
-            else
-            {
-                _regY = PullWord();
-                SetNZStatusFlagsFromValue(_regY);
-            }
-        }
-        #endregion
-        #region PHB PHD PHK PHP PLB PLD PLP
-        private void OpPhb(W65C816.AddressingMode addressingMode)
-        {
-            PushByte(_regDB);
-            NextCycle();
-        }
-
-        private void OpPhd(W65C816.AddressingMode addressingMode)
-        {
-            PushWord(_regDP);
-            NextCycle();
-        }
-
-        private void OpPhk(W65C816.AddressingMode addressingMode)
-        {
-            PushByte(_regPB);
-            NextCycle();
-        }
-
-        private void OpPhp(W65C816.AddressingMode addressingMode)
-        {
-            PushByte((byte)_regSR);
-            NextCycle();
-        }
-
-        private void OpPlb(W65C816.AddressingMode addressingMode)
-        {
-            _regDB = PullByte();
-            SetNZStatusFlagsFromValue(_regDB);
-            NextCycle();
-            NextCycle();
-        }
-
-        private void OpPld(W65C816.AddressingMode addressingMode)
-        {
-            _regDP = PullWord();
-            SetNZStatusFlagsFromValue(_regDP);
-            NextCycle();
-            NextCycle();
-        }
-
-        private void OpPlp(W65C816.AddressingMode addressingMode)
-        {
-            byte flags = PullByte();
-            if(_flagE)
-            {
-                // M and X flags cannot be set in emulation mode
-                flags |= 0x30;
-            }
-            _regSR = (StatusFlags)flags;
-
-        }
-        #endregion
-        #region STP WAI
-        private void OpStp(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _stopped = true;
-            StopThread();
-        }
-
-        private void OpWai(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _waiting = true;
-        }
-        #endregion
-        #region TAX TAY TSX TXA TXS TXY TYA TYX
-        private void OpTax(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (IndexesAre8Bit)
-            {
-                RegXL = RegAL;
-                SetNZStatusFlagsFromValue(RegXL);
-            }
-            else
-            {
-                _regX = _regA;
-                SetNZStatusFlagsFromValue(_regX);
-            }
-        }
-
-        private void OpTay(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (IndexesAre8Bit)
-            {
-                RegYL = RegAL;
-                SetNZStatusFlagsFromValue(RegYL);
-            }
-            else
-            {
-                _regY = _regA;
-                SetNZStatusFlagsFromValue(_regY);
-            }
-        }
-
-        private void OpTsx(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (_flagE || IndexesAre8Bit)
-            {
-                RegXL = RegSL;
-                SetNZStatusFlagsFromValue(RegXL);
-            }
-            else
-            {
-                _regX = _regSP;
-                SetNZStatusFlagsFromValue(_regX);
-            } 
-        }
-
-        private void OpTxa(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (AccumulatorIs8Bit)
-            {
-                RegAL = RegXL;
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = _regX;
-                SetNZStatusFlagsFromValue(_regA);
-            }
-        }
-
-        private void OpTxs(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (_flagE)
-            {
-                RegSL = RegXL;
-            }
-            else if (IndexesAre8Bit)
-            {
-                _regSP = (Word)(0x0000 | RegXL);
-            }
-            else
-            {
-                _regSP = _regX;
-            }
-        }
-
-        private void OpTxy(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (IndexesAre8Bit)
-            {
-                RegYL = RegXL;
-                SetNZStatusFlagsFromValue(RegYL);
-            }
-            else
-            {
-                _regY = _regX;
-                SetNZStatusFlagsFromValue(_regY);
-            }
-        }
-
-        private void OpTya(W65C816.AddressingMode addressingMode) 
-        { 
-            NextCycle();
-            if (IndexesAre8Bit)
-            {
-                RegAL = RegYL;
-                SetNZStatusFlagsFromValue(RegAL);
-            }
-            else
-            {
-                _regA = _regY;
-                SetNZStatusFlagsFromValue(_regA);
-            }
-        }
-
-        private void OpTyx(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (IndexesAre8Bit)
-            {
-                RegXL = RegYL;
-                SetNZStatusFlagsFromValue(RegXL);
-            }
-            else
-            {
-                _regX = _regY;
-                SetNZStatusFlagsFromValue(_regX);
-            }
-        }
-        #endregion
-        #region TCD TCS TDC TSC
-        private void OpTcd(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _regDP = _regA;
-            SetNZStatusFlagsFromValue(_regDP);
-        }
-
-        private void OpTcs(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            if (_flagE)
-            {
-                RegSL = RegAL;
-                RegSH = 0x01;
-            }
-            else
-            {
-                _regSP = _regA;
-            }
-        }
-
-        private void OpTdc(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _regA = _regDP;
-            SetNZStatusFlagsFromValue(_regA);
-        }
-
-        private void OpTsc(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _regA = _regSP;
-            SetNZStatusFlagsFromValue(_regA);
-        }
-        #endregion
-        private void OpXba(W65C816.AddressingMode addressingMode)
-        {
-            NextCycle();
-            _regA = Swap(_regA);
-        }
-
-        private void OpXce(W65C816.AddressingMode addressingMode) 
-        { 
-            NextCycle();
-            bool carry = ReadStatusFlag(StatusFlags.C);
-            SetStatusFlag(StatusFlags.C, _flagE);
-            SetEmulationMode(carry);
-            if (_verbose) 
-            {
-                Console.WriteLine();
-                Console.Write($"Emulation flag now {_flagE}");
-            }
-        }
-
-        private void BranchTo(Addr destination)
-        {
-            destination &= 0xffff;
-            NextCycle();
-            if (_flagE && HighByte((Word)destination) != HighByte(_regPC))
-            {
-                NextCycle();
-            }
-            _regPC = (Word)destination;
-        }
-
-        // Yes, this is going to spam stdout, but it's easier to just treat this as
-        // an opcode being called over and over again rather than a special opcode
-        // that takes a variable number of cycles to complete!
-        private void CopyMemory()
-        {
-            byte destination = ReadByte();
-            _regDB = destination;
-            byte source = ReadByte();
-            if (_verbose) Console.Write($"${source:x2}, ${destination:x2} (${_regA} bytes left)");
-            WriteByte(ReadByte(Address(source, _regX)), Address(destination, _regY));
-            NextCycle();
-            NextCycle();
-            if (--_regA != 0xffff) _regPC -= 3;
-        }
-
-        #endregion
-        private void Reset()
-        {
-            _cycles = 0;
-            _flagE = true;
-            _regPB = 0x00;
-            _regDB = 0x00;
-            _regDP = 0x0000;
-            _regSP = 0x0100;
-            _regSR = (StatusFlags)0x34;
-            _stopped = false;
-            _waiting = false;
-            _interruptingMaskable = false;
-            _resetting = false;
-            
-            if (_verbose) Console.WriteLine("RESET");
-            LoadInterruptVector(W65C816.Vector.Reset);
-        }
-
-        internal void Interrupt(InterruptType source)
-        {
-            if (source == InterruptType.Reset)
-            {
-                Reset();
-            }
-            else
-            {
-                Word addressToPush = (source == InterruptType.BRK || source == InterruptType.COP) ? (Word)(_regPC + 1) : _regPC;
-                NextCycle();
-                NextCycle();
-                if (!_flagE) PushByte(_regPB);
-                PushWord(addressToPush);
-                if (_flagE && source == InterruptType.BRK)
-                {
-                    PushByte((byte)(_regSR | StatusFlags.X));
-                }
-                else
-                {
-                    PushByte((byte)(_regSR));
-                }
-                SetStatusFlag(StatusFlags.I, true);
-                SetStatusFlag(StatusFlags.D, false);
-                W65C816.Vector vector;
-                if (_flagE)
-                {
-                    vector = source switch
-                    {
-                        InterruptType.BRK => W65C816.Vector.EmulationIRQ,
-                        InterruptType.COP => W65C816.Vector.EmulationCOP,
-                        InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
-                        InterruptType.NMI => W65C816.Vector.EmulationNMI,
-                        _ => throw new NotImplementedException(),
-                    };
-                }
-                else
-                {
-                    vector = source switch
-                    {
-                        InterruptType.BRK => W65C816.Vector.NativeBRK,
-                        InterruptType.COP => W65C816.Vector.NativeCOP,
-                        InterruptType.IRQ => W65C816.Vector.NativeIRQ,
-                        InterruptType.NMI => W65C816.Vector.NativeNMI,
-                        _ => throw new NotImplementedException(),
-                    };
-                }
-                LoadInterruptVector(vector);
-            }
-        }
+        //internal void Interrupt(InterruptType source)
+        //{
+        //    if (source == InterruptType.Reset)
+        //    {
+        //        Reset();
+        //    }
+        //    else
+        //    {
+        //        Word addressToPush = (source == InterruptType.BRK || source == InterruptType.COP) ? (Word)(_regPC + 1) : _regPC;
+        //        NextCycle();
+        //        NextCycle();
+        //        if (!_flagE) PushByte(_regPB);
+        //        PushWord(addressToPush);
+        //        if (_flagE && source == InterruptType.BRK)
+        //        {
+        //            PushByte((byte)(_regSR | StatusFlags.X));
+        //        }
+        //        else
+        //        {
+        //            PushByte((byte)(_regSR));
+        //        }
+        //        SetStatusFlag(StatusFlags.I, true);
+        //        SetStatusFlag(StatusFlags.D, false);
+        //        W65C816.Vector vector;
+        //        if (_flagE)
+        //        {
+        //            vector = source switch
+        //            {
+        //                InterruptType.BRK => W65C816.Vector.EmulationIRQ,
+        //                InterruptType.COP => W65C816.Vector.EmulationCOP,
+        //                InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
+        //                InterruptType.NMI => W65C816.Vector.EmulationNMI,
+        //                _ => throw new NotImplementedException(),
+        //            };
+        //        }
+        //        else
+        //        {
+        //            vector = source switch
+        //            {
+        //                InterruptType.BRK => W65C816.Vector.NativeBRK,
+        //                InterruptType.COP => W65C816.Vector.NativeCOP,
+        //                InterruptType.IRQ => W65C816.Vector.NativeIRQ,
+        //                InterruptType.NMI => W65C816.Vector.NativeNMI,
+        //                _ => throw new NotImplementedException(),
+        //            };
+        //        }
+        //        LoadInterruptVector(vector);
+        //    }
+        //}
 
         public void ExecuteOperation()
         {
             if (_runThread == null || !_threadRunning) 
             {
-                NextOperation(); 
+                NextInstruction(); 
             }
             else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
         }
-
-        private void NextOperation()
-        {
-            if (_resetting)
-            {
-                Reset();
-            }
-            else if (!_stopped)
-            {
-                int oldCycles = _cycles;
-                if (_interruptingNonMaskable)
-                {
-                    _waiting = false;
-                    Interrupt(InterruptType.NMI);
-                }
-                else if (_interruptingMaskable)
-                {
-                    if (!ReadStatusFlag(StatusFlags.I))
-                    {
-                        _waiting = false;
-                        Interrupt(InterruptType.IRQ);
-                    }
-                    else if (_waiting)
-                    {
-                        _waiting = false;
-                    }
-                }
-                else if (!_waiting)
-                {
-                    _regIR = ReadByte();
-                    (W65C816.OpCode o, W65C816.AddressingMode m) = W65C816.OpCodeLookup(_regIR);
-                    _lastInstruction.Clear();
-                    _lastInstruction.Append(o.ToString() + " ");
-                    DoOperation operation = GetDoOperation(o);
-                    operation(m);
-                    if (_verbose) Console.WriteLine();
-                }
-            }
-            else if (_verbose) Console.WriteLine("STOPPED, please reset.");
-        }
-        private DoOperation GetDoOperation(W65C816.OpCode opCode)
-        {
-            return opCode switch
-            {
-                W65C816.OpCode.ADC => OpAdc,
-                W65C816.OpCode.AND => OpAnd,
-                W65C816.OpCode.ASL => OpAsl,
-                W65C816.OpCode.BCC => OpBcc,
-                W65C816.OpCode.BCS => OpBcs,
-                W65C816.OpCode.BEQ => OpBeq,
-                W65C816.OpCode.BMI => OpBmi,
-                W65C816.OpCode.BNE => OpBne,
-                W65C816.OpCode.BPL => OpBpl,
-                W65C816.OpCode.BRK => OpBrk,
-                W65C816.OpCode.BRL => OpBrl,
-                W65C816.OpCode.BVC => OpBvc,
-                W65C816.OpCode.BVS => OpBvs,
-                W65C816.OpCode.CLC => OpClc,
-                W65C816.OpCode.CLD => OpCld,
-                W65C816.OpCode.CLI => OpCli,
-                W65C816.OpCode.CLV => OpClv,
-                W65C816.OpCode.CMP => OpCmp,
-                W65C816.OpCode.CPX => OpCpx,
-                W65C816.OpCode.CPY => OpCpy,
-                W65C816.OpCode.DEC => OpDec,
-                W65C816.OpCode.DEX => OpDex,
-                W65C816.OpCode.DEY => OpDey,
-                W65C816.OpCode.EOR => OpEor,
-                W65C816.OpCode.INC => OpInc,
-                W65C816.OpCode.INX => OpInx,
-                W65C816.OpCode.INY => OpIny,
-                W65C816.OpCode.JMP => OpJmp,
-                W65C816.OpCode.JSL => OpJsl,
-                W65C816.OpCode.JSR => OpJsr,
-                W65C816.OpCode.LDA => OpLda,
-                W65C816.OpCode.LDX => OpLdx,
-                W65C816.OpCode.LDY => OpLdy,
-                W65C816.OpCode.LSR => OpLsr,
-                W65C816.OpCode.NOP => OpNop,
-                W65C816.OpCode.ORA => OpOra,
-                W65C816.OpCode.PEA => OpPea,
-                W65C816.OpCode.PEI => OpPei,
-                W65C816.OpCode.PER => OpPer,
-                W65C816.OpCode.PHA => OpPha,
-                W65C816.OpCode.PHB => OpPhb,
-                W65C816.OpCode.PHD => OpPhd,
-                W65C816.OpCode.PHK => OpPhk,
-                W65C816.OpCode.PHP => OpPhp,
-                W65C816.OpCode.PHX => OpPhx,
-                W65C816.OpCode.PHY => OpPhy,
-                W65C816.OpCode.PLA => OpPla,
-                W65C816.OpCode.PLB => OpPlb,
-                W65C816.OpCode.PLD => OpPld,
-                W65C816.OpCode.PLP => OpPlp,
-                W65C816.OpCode.PLX => OpPlx,
-                W65C816.OpCode.PLY => OpPly,
-                W65C816.OpCode.REP => OpRep,
-                W65C816.OpCode.ROL => OpRol,
-                W65C816.OpCode.ROR => OpRor,
-                W65C816.OpCode.RTI => OpRti,
-                W65C816.OpCode.RTL => OpRtl,
-                W65C816.OpCode.RTS => OpRts,
-                W65C816.OpCode.SBC => OpSbc,
-                W65C816.OpCode.SEP => OpSep,
-                W65C816.OpCode.SEC => OpSec,
-                W65C816.OpCode.SED => OpSed,
-                W65C816.OpCode.SEI => OpSei,
-                W65C816.OpCode.STA => OpSta,
-                W65C816.OpCode.STP => OpStp,
-                W65C816.OpCode.STX => OpStx,
-                W65C816.OpCode.STY => OpSty,
-                W65C816.OpCode.STZ => OpStz,
-                W65C816.OpCode.TAX => OpTax,
-                W65C816.OpCode.TAY => OpTay,
-                W65C816.OpCode.TCD => OpTcd,
-                W65C816.OpCode.TCS => OpTcs,
-                W65C816.OpCode.TDC => OpTdc,
-                W65C816.OpCode.TRB => OpTrb,
-                W65C816.OpCode.TSB => OpTsb,
-                W65C816.OpCode.TSC => OpTsc,
-                W65C816.OpCode.TSX => OpTsx,
-                W65C816.OpCode.TXA => OpTxa,
-                W65C816.OpCode.TXS => OpTxs,
-                W65C816.OpCode.TXY => OpTxy,
-                W65C816.OpCode.TYA => OpTya,
-                W65C816.OpCode.TYX => OpTyx,
-                W65C816.OpCode.WAI => OpWai,
-                W65C816.OpCode.WDM => OpWdm,
-                W65C816.OpCode.XBA => OpXba,
-                W65C816.OpCode.XCE => OpXce,
-                W65C816.OpCode.BIT => OpBit,
-                W65C816.OpCode.BRA => OpBra,
-                W65C816.OpCode.COP => OpCop,
-                W65C816.OpCode.MVN => OpMvn,
-                W65C816.OpCode.MVP => OpMvp,
-                _ => throw new NotImplementedException(),
-            };
-        }
+        
 
         public MicroprocessorState GetStatus()
         {
@@ -2298,12 +765,35 @@ namespace EightSixteenEmu
             return result;
         }
 
+        public void SetStatus(MicroprocessorState state)
+        {
+            _cycles = state.Cycles;
+            _regA = state.A;
+            _regX = state.X;
+            _regY = state.Y;
+            _regDP = state.DP;
+            _regSP = state.SP;
+            _regPC = state.PC;
+            _regDB = state.DB;
+            _regPB = state.PB;
+            SetStatusFlag(StatusFlags.N, state.FlagN);
+            SetStatusFlag(StatusFlags.V, state.FlagV);
+            SetStatusFlag(StatusFlags.M, state.FlagM);
+            SetStatusFlag(StatusFlags.X, state.FlagX);
+            SetStatusFlag(StatusFlags.D, state.FlagD);
+            SetStatusFlag(StatusFlags.I, state.FlagI);
+            SetStatusFlag(StatusFlags.Z, state.FlagZ);
+            SetStatusFlag(StatusFlags.C, state.FlagC);
+            _flagE = state.FlagE;
+        }
+
         public class MicroprocessorState
         {
             public int Cycles;
             public UInt16 A, X, Y, DP, SP, PC;
             public Byte DB, PB;
             public bool FlagN, FlagV, FlagM, FlagX, FlagD, FlagI, FlagZ, FlagC, FlagE;
+
 
             public override string ToString()
             {

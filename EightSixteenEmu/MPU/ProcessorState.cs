@@ -1,9 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿/*    _____      __   __  _____      __               ____          
+ *   / __(_)__ _/ /  / /_/ __(_)_ __/ /____ ___ ___  / __/_ _  __ __
+ *  / _// / _ `/ _ \/ __/\ \/ /\ \ / __/ -_) -_) _ \/ _//  ' \/ // /
+ * /___/_/\_, /_//_/\__/___/_//_\_\\__/\__/\__/_//_/___/_/_/_/\_,_/ 
+ *       /___/                                                      
+ * 
+ *  W65C816S microprocessor emulator
+ *  Copyright (C) 2025 Matthias Lamers
+ *  Released under GNUGPLv2, see LICENSE.txt for details.
+ *  
+ *  Microprocessor state handling
+ */
 using static EightSixteenEmu.Microprocessor;
 
 namespace EightSixteenEmu.MPU
@@ -31,6 +37,7 @@ namespace EightSixteenEmu.MPU
                 _context.mpu.RegSP = 0x0100;
                 _context.mpu.RegSR = (StatusFlags)0x34;
                 _context.mpu.LoadInterruptVector(W65C816.Vector.Reset);
+                _context?.TransitionTo(ProcessorStateRunning.Instance);
             }
         }
         internal virtual void NextInstruction() => throw new InvalidOperationException($"Processor must be in running state to execute instructions. Current state: {GetType().Name}");
@@ -39,7 +46,28 @@ namespace EightSixteenEmu.MPU
         internal virtual void Wait() => throw new InvalidOperationException("Waiting state can only be entered via WAI opcode"); // this emulates the processor being halted by WAI
         internal abstract void BusRequest(); // this emulates pulling the RDY and BE pins low
         internal virtual void BusRelease() => throw new InvalidOperationException("Processor already controls the bus");
-        internal virtual void Disable() => _context?.TransitionTo(ProcessorStateDisabled.Instance); // this emulates power being removed from the processor
+        internal virtual void Disable() 
+        {
+            if(_context == null)
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
+            else
+            {
+                // flush it all away
+                _context.mpu.RegA = 0x0000;
+                _context.mpu.RegX = 0x0000;
+                _context.mpu.RegY = 0x0000;
+                _context.mpu.Cycles = 0;
+                _context.mpu.FlagE = true;
+                _context.mpu.RegPB = 0;
+                _context.mpu.RegDB = 0;
+                _context.mpu.RegDP = 0;
+                _context.mpu.RegSP = 0x0100;
+                _context.mpu.RegSR = (StatusFlags)0x34;
+                _context?.TransitionTo(ProcessorStateDisabled.Instance);
+            }
+        } // this emulates power being removed from the processor
         internal virtual void Enable() => throw new InvalidOperationException("Processor is already enabled");
         internal virtual void SetProcessorState(MicroprocessorState state) => throw new InvalidOperationException("Processor must be disabled before setting its state");
     }
@@ -49,9 +77,15 @@ namespace EightSixteenEmu.MPU
         private ProcessorState _state;
         internal Microprocessor mpu;
 
-        public ProcessorContext(ProcessorState state, Microprocessor mpu)
+        public ProcessorContext(Microprocessor mpu, ProcessorState? state = null)
         {
-            _state = state;
+            // I have no idea what state to go with "out of the box" as it were.
+            // The way I see it, we can get everything set up before the first instruction is read?
+            // In my head, the only reason you'd want the processor in the disabled state
+            // is to mess with the registers programatically -- like when loading a save state?
+            // Whatever. If null's passed, assume we're starting completely fresh.
+            _state = state ?? ProcessorStateRunning.Instance;
+            _state.SetContext(this);
             this.mpu = mpu;
         }
 
@@ -105,12 +139,17 @@ namespace EightSixteenEmu.MPU
         {
             _state.Enable();
         }
+
+        internal void SetProcessorState(MicroprocessorState state)
+        {
+            _state.SetProcessorState(state);
+        }
     }
 
     internal class ProcessorStateStopped : ProcessorState
     {
         private static ProcessorStateStopped? _instance;
-        private static readonly object _lock = new object();
+        private static readonly Lock _lock = new();
 
         internal static ProcessorStateStopped Instance
         {
@@ -126,32 +165,7 @@ namespace EightSixteenEmu.MPU
 
         private ProcessorStateStopped() { }
 
-        internal override void Reset()
-        {
-            base.Reset();
-            _context?.TransitionTo(new ProcessorStateRunning());
-        }
-        internal override void NextInstruction()
-        {
-            throw new InvalidOperationException("Processor is stopped");
-        }
-        internal override void Interrupt(InterruptType type)
-        {
-            throw new InvalidOperationException("Processor is stopped");
-        }
-        internal override void Stop()
-        {
-            throw new InvalidOperationException("Processor is already stopped");
-        }
-        internal override void Wait()
-        {
-            throw new InvalidOperationException("Processor is stopped");
-        }
         internal override void BusRequest()
-        {
-            throw new InvalidOperationException("Processor is stopped");
-        }
-        internal override void BusRelease()
         {
             throw new InvalidOperationException("Processor is stopped");
         }
@@ -159,6 +173,20 @@ namespace EightSixteenEmu.MPU
 
     internal class ProcessorStateRunning : ProcessorState
     {
+        private static ProcessorStateRunning? _instance;
+        private static readonly Lock _lock = new();
+        internal static ProcessorStateRunning Instance
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    _instance ??= new ProcessorStateRunning();
+                    return _instance;
+                }
+            }
+        }
+        private ProcessorStateRunning() { }
         internal override void NextInstruction()
         {
             throw new NotImplementedException();
@@ -173,30 +201,19 @@ namespace EightSixteenEmu.MPU
         }
         internal override void Wait()
         {
-            _context?.TransitionTo(new ProcessorStateWaiting());
+            _context?.TransitionTo(ProcessorStateWaiting.Instance);
         }
         internal override void BusRequest()
         {
-            _context?.TransitionTo(new ProcessorStateBusBusy());
-        }
-        internal override void BusRelease()
-        {
-            throw new InvalidOperationException("Processor is already bus director");
-        }
-        internal override void Disable()
-        {
-            throw new NotImplementedException();
-        }
-        internal override void Enable()
-        {
-            throw new InvalidOperationException("Processor is already enabled");
+            _context?.TransitionTo(ProcessorStateBusBusy.Instance);
         }
     }
+
 
     internal class ProcessorStateDisabled : ProcessorState
     {
         private static ProcessorStateDisabled? _instance;
-        private static readonly object _lock = new object();
+        private static readonly Lock _lock = new();
 
         internal static ProcessorStateDisabled Instance
         {
@@ -212,7 +229,11 @@ namespace EightSixteenEmu.MPU
         private ProcessorStateDisabled() { }
         internal override void Reset()
         {
-            throw new InvalidOperationException("Processor is disabled");
+            // acts as a cold reset
+            _context.mpu.RegA = 0x0000;
+            _context.mpu.RegX = 0x0000;
+            _context.mpu.RegY = 0x0000;
+            base.Reset();
         }
         internal override void NextInstruction()
         {
@@ -244,12 +265,37 @@ namespace EightSixteenEmu.MPU
         }
         internal override void Enable()
         {
-            _context?.TransitionTo(ProcessorStateStopped.Instance);
+            _context?.TransitionTo(ProcessorStateRunning.Instance);
+        }
+        internal override void SetProcessorState(MicroprocessorState state)
+        {
+            if (_context != null)
+            {
+                _context.mpu.SetStatus(state);
+            }
+            else
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
         }
     }
-
     internal class ProcessorStateWaiting : ProcessorState
     {
+        private static ProcessorStateWaiting? _instance;
+        private static readonly Lock _lock = new();
+
+        internal static ProcessorStateWaiting Instance
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    _instance ??= new ProcessorStateWaiting();
+                    return _instance;
+                }
+            }
+        }
+        private ProcessorStateWaiting() { }
         internal override void NextInstruction()
         {
             throw new InvalidOperationException("Processor is waiting");
@@ -274,18 +320,28 @@ namespace EightSixteenEmu.MPU
         {
             throw new InvalidOperationException("Processor is waiting");
         }
-        internal override void Disable()
-        {
-            throw new NotImplementedException();
-        }
         internal override void Enable()
         {
-           throw new InvalidOperationException("Processor is already enabled");
+            throw new InvalidOperationException("Processor is already enabled");
         }
     }
 
     internal class ProcessorStateBusBusy : ProcessorState
     {
+        private static ProcessorStateBusBusy? _instance;
+        private static readonly Lock _lock = new();
+        internal static ProcessorStateBusBusy Instance
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    _instance ??= new ProcessorStateBusBusy();
+                    return _instance;
+                }
+            }
+        }
+        private ProcessorStateBusBusy() { }
         internal override void NextInstruction()
         {
             throw new InvalidOperationException("Processor is waiting for the bus");
@@ -308,15 +364,13 @@ namespace EightSixteenEmu.MPU
         }
         internal override void BusRelease()
         {
-            _context?.TransitionTo(new ProcessorStateRunning());
+            _context?.TransitionTo(ProcessorStateRunning.Instance);
         }
         internal override void Disable()
         {
-            throw new InvalidOperationException("Processor is waiting for the bus");
-        }
-        internal override void Enable()
-        {
-            throw new InvalidOperationException("Processor is already enabled");
+            // todo: whatever disables the processor is more likely than not going to shut down any DMA device as well?
+            // this is a guess. If so, just use the base method and use Init() on the device.
+            throw new NotImplementedException();
         }
     }
 }
