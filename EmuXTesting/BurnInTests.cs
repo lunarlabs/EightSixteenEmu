@@ -13,7 +13,7 @@ namespace EmuXTesting
             EmuCore.Instance.Deactivate();
             EmuCore.Instance.Mapper.Clear();
             var ram = new DevRAM(0x1000000);
-            EmuCore.Instance.Mapper.AddDevice(ram, 0);
+            EmuCore.Instance.Mapper.AddDevice(ram, 0, 0, 0x1000000);
             EmuCore.Instance.MPU.SetProcessorState(start.State);
             foreach (var kvp in start.RamValues)
             {

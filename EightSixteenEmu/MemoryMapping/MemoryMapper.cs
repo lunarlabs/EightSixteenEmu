@@ -101,7 +101,7 @@ namespace EightSixteenEmu.MemoryMapping
                 }
             }
 
-            ulong mapEnd = (ulong)mapLocation + (ulong)length;
+            ulong mapEnd = (ulong)mapLocation + (ulong)length - 1;
 
             if (length == 0)
             {
