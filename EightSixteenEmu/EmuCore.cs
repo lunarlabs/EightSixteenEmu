@@ -68,6 +68,26 @@ namespace EightSixteenEmu
             _mpu.OnInterrupt(sender, e);
         }
 
+        public void Deactivate(bool resetDevices = true)
+        {
+            _mpu.Disable();
+            if (resetDevices)
+            { 
+                _mapper.InitAll(); 
+            }
+        }
+
+        public void Activate(bool usingReset = true)
+        {
+            if (usingReset)
+            {
+                _mpu.Reset();
+            }
+            else
+            {
+                _mpu.Enable();
+            }
+        }
         #endregion
 
         #region Clock Management

@@ -89,10 +89,13 @@ namespace EightSixteenEmu.MPU
             this.mpu = mpu;
         }
 
-        public void TransitionTo(ProcessorState state)
+        public string StateName => _state.GetType().Name;
+
+        internal void TransitionTo(ProcessorState state)
         {
             _state = state;
             _state.SetContext(this);
+            Console.WriteLine($"Transitioning to state: {state.GetType().Name}");
         }
 
         internal void Reset()

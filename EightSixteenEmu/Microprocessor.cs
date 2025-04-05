@@ -58,6 +58,8 @@ namespace EightSixteenEmu
             internal set => _cycles = value;
         }
 
+        public string ExecutionState => context.StateName;
+
         [Flags]
         public enum StatusFlags : byte
         {
@@ -371,7 +373,7 @@ namespace EightSixteenEmu
         public void BusRelease() => context.BusRelease();
         internal void Disable() => context.Disable();
         internal void Enable() => context.Enable();
-        internal void SetProcessorState(MicroprocessorState state) => context.SetProcessorState(state);
+        public void SetProcessorState(MicroprocessorState state) => context.SetProcessorState(state);
 
 
         internal void OnClockTick(object? sender, EventArgs e)
@@ -793,7 +795,6 @@ namespace EightSixteenEmu
             public UInt16 A, X, Y, DP, SP, PC;
             public Byte DB, PB;
             public bool FlagN, FlagV, FlagM, FlagX, FlagD, FlagI, FlagZ, FlagC, FlagE;
-
 
             public override string ToString()
             {

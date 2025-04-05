@@ -203,5 +203,19 @@ namespace EightSixteenEmu.MemoryMapping
                 _memmap.Remove(entry.Value.Key);
             }
         }
+
+        public void Clear()
+        {
+            _devices.Clear();
+            _memmap.Clear();
+        }
+
+        internal void InitAll()
+        {
+            foreach (var device in _devices)
+            {
+                device.Init();
+            }
+        }
     }
 }
