@@ -12,12 +12,14 @@ namespace EmuXTesting
 
         }
 
+        /*
         [Theory]
         public void FullBurnIn()
         {
             // this is going to execute 5,120,000 instructions. God help me.
             // should I have the classdata be by file?
         }
+        */
 
 
     }
