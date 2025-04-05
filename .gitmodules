@@ -1,0 +1,3 @@
+[submodule "EmuXTesting/testData"]
+	path = EmuXTesting/testData
+	url = https://github.com/SingleStepTests/65816
