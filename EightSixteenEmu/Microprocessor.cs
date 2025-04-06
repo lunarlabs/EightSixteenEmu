@@ -316,6 +316,7 @@ namespace EightSixteenEmu
                 { W65C816.OpCode.PHP, new OP_PHP() },
                 { W65C816.OpCode.PLA, new OP_PLA() },
                 { W65C816.OpCode.PLP, new OP_PLP() },
+                { W65C816.OpCode.PHD, new OP_PHD() },
                 { W65C816.OpCode.PHX, new OP_PHX() },
                 { W65C816.OpCode.PHY, new OP_PHY() },
                 { W65C816.OpCode.REP, new OP_REP() },
@@ -333,6 +334,7 @@ namespace EightSixteenEmu
                 { W65C816.OpCode.STP, new OP_STP() },
                 { W65C816.OpCode.TAX, new OP_TAX() },
                 { W65C816.OpCode.TAY, new OP_TAY() },
+                { W65C816.OpCode.TRB, new OP_TRB() },
                 { W65C816.OpCode.TSB, new OP_TSB() },
                 { W65C816.OpCode.TSX, new OP_TSX() },
                 { W65C816.OpCode.TXA, new OP_TXA() },
@@ -806,7 +808,7 @@ namespace EightSixteenEmu
             public override string ToString()
             {
                 string flags = $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
-                return $"Cycles: {Cycles}\nA:  0x{A:x4}\nX:  0x{X:x4}\nY:  0x{Y:x4}\nDP: 0x{DP:x4}\nSP: 0x{SP:x4}\nDB:   0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
+                return $"Cycles: {Cycles}, A: 0x{A:x4}, X: 0x{X:x4}, Y: 0x{Y:x4}, DP: 0x{DP:x4}, SP: 0x{SP:x4}, DB: 0x{DB:x2}, PB: 0x{PB:x2} PC: 0x{PC:x4}, Flags: {flags}";
             }
 
             public string Flags()

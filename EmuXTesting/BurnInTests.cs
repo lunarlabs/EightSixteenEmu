@@ -23,8 +23,10 @@ namespace EmuXTesting
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
             emu.Deactivate();
             emu.MPU.SetProcessorState(start.State);
+            _output.WriteLine("Memory values:");
             foreach (var kvp in start.RamValues)
             {
+                _output.WriteLine($"${kvp.Key:X6}: ${kvp.Value:X2}");
                 ram[kvp.Key] = (byte)kvp.Value;
             }
             byte instruction = ram[(uint)((start.State.PB << 16) + start.State.PC)];
@@ -35,6 +37,22 @@ namespace EmuXTesting
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
             var mpuState = emu.MPU.GetStatus();
+            bool registersEqual = goal.State.A == mpuState.A 
+                && goal.State.X == mpuState.X 
+                && goal.State.Y == mpuState.Y 
+                && goal.State.DP == mpuState.DP 
+                && goal.State.SP == mpuState.SP 
+                && goal.State.DB == mpuState.DB 
+                && goal.State.PB == mpuState.PB 
+                && goal.State.FlagN == mpuState.FlagN 
+                && goal.State.FlagV == mpuState.FlagV 
+                && goal.State.FlagM == mpuState.FlagM 
+                && goal.State.FlagX == mpuState.FlagX 
+                && goal.State.FlagD == mpuState.FlagD 
+                && goal.State.FlagI == mpuState.FlagI 
+                && goal.State.FlagZ == mpuState.FlagZ 
+                && goal.State.FlagC == mpuState.FlagC
+                && goal.State.FlagE == mpuState.FlagE;
             _output.WriteLine($"Cycle Count: Expected {cycles}, Actual {mpuState.Cycles}");
             _output.WriteLine($"PC:    Expected ${goal.State.PC:X4}, Actual ${mpuState.PC:X4} {((goal.State.PC == mpuState.PC) ? "" : "XX")}");
             _output.WriteLine($"SP:    Expected ${goal.State.SP:X4}, Actual ${mpuState.SP:X4} {((goal.State.SP == mpuState.SP) ? "" : "XX")}");
@@ -44,29 +62,21 @@ namespace EmuXTesting
             _output.WriteLine($"D:     Expected ${goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((goal.State.DP == mpuState.DP) ? "" : "XX")}");
             _output.WriteLine($"DB:    Expected ${goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((goal.State.DB == mpuState.DB) ? "" : "XX")}");
             _output.WriteLine($"PB:    Expected ${goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((goal.State.PB == mpuState.PB) ? "" : "XX")}");
-            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2}");
-            // Assert.Equal(cycles, mpuState.Cycles);
-            Assert.Equal(goal.State.PC, mpuState.PC);
-            Assert.Equal(goal.State.SP, mpuState.SP);
-            Assert.Equal(goal.State.A, mpuState.A);
-            Assert.Equal(goal.State.X, mpuState.X);
-            Assert.Equal(goal.State.Y, mpuState.Y);
-            Assert.Equal(goal.State.DP, mpuState.DP);
-            Assert.Equal(goal.State.DB, mpuState.DB);
-            Assert.Equal(goal.State.PB, mpuState.PB);
+            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {((goal.State.Flags() == mpuState.Flags()) ? "" : "XX")}");
+            _output.WriteLine("\nMemory values:\nAddress  Ex   Ac");
+            bool ramEqual = true;
             foreach (var kvp in goal.RamValues)
             {
-                Assert.Equal(kvp.Value, ram[kvp.Key]);
+                _output.WriteLine($"${kvp.Key:X6}: ${kvp.Value:X2}  ${ram[kvp.Key]:X2}");
+                if (ram[kvp.Key] != kvp.Value)
+                {
+                    ramEqual = false;
+                    _output.WriteLine("XX");
+                }
             }
-            Assert.Equal(goal.State.FlagN, mpuState.FlagN);
-            Assert.Equal(goal.State.FlagV, mpuState.FlagV);
-            Assert.Equal(goal.State.FlagM, mpuState.FlagM);
-            Assert.Equal(goal.State.FlagX, mpuState.FlagX);
-            Assert.Equal(goal.State.FlagD, mpuState.FlagD);
-            Assert.Equal(goal.State.FlagI, mpuState.FlagI);
-            Assert.Equal(goal.State.FlagZ, mpuState.FlagZ);
-            Assert.Equal(goal.State.FlagC, mpuState.FlagC);
-            Assert.Equal(goal.State.FlagE, mpuState.FlagE);
+            Assert.True(registersEqual, "Registers do not match expected values.");
+            // Assert.Equal(cycles, mpuState.Cycles);
+            Assert.True(ramEqual, "RAM values do not match expected values.");
         }
 
         /*
