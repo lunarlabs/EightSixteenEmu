@@ -1,16 +1,24 @@
 ﻿using EightSixteenEmu;
 using EightSixteenEmu.Devices;
 using System.Text.Json;
+using Xunit.Abstractions;
 
 namespace EmuXTesting
 {
     public class BurnInTests
     {
+        private readonly ITestOutputHelper _output;
+
+        public BurnInTests(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+
         [Theory]
         [ClassData(typeof(QuickBurnInData))]
         public void QuickBurnIn(byte inst, BurnInTestState start, BurnInTestState goal, int cycles)
         {
-            EmuCore emu = new EmuCore();
+            EmuCore emu = new();
             var ram = new DevRAM(0x1000000);
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
             emu.Deactivate();
@@ -22,11 +30,21 @@ namespace EmuXTesting
             byte instruction = ram[(uint)((start.State.PB << 16) + start.State.PC)];
             Assert.Equal(inst, instruction); // barf if we read the wrong instruction from RAM
             (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(instruction);
-            Console.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(start.State.FlagE ? "emulated" : "native" )}");
-
+            _output.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(start.State.FlagE ? "emulated" : "native" )}");
+            _output.WriteLine("Initial State: " + start.State.ToString());
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
             var mpuState = emu.MPU.GetStatus();
+            _output.WriteLine($"Cycle Count: Expected {cycles}, Actual {mpuState.Cycles}");
+            _output.WriteLine($"PC:    Expected ${goal.State.PC:X4}, Actual ${mpuState.PC:X4} {((goal.State.PC == mpuState.PC) ? "" : "XX")}");
+            _output.WriteLine($"SP:    Expected ${goal.State.SP:X4}, Actual ${mpuState.SP:X4} {((goal.State.SP == mpuState.SP) ? "" : "XX")}");
+            _output.WriteLine($"A:     Expected ${goal.State.A:X4}, Actual ${mpuState.A:X4} {((goal.State.A == mpuState.A) ? "" : "XX")}");
+            _output.WriteLine($"X:     Expected ${goal.State.X:X4}, Actual ${mpuState.X:X4} {((goal.State.X == mpuState.X) ? "" : "XX")}");
+            _output.WriteLine($"Y:     Expected ${goal.State.Y:X4}, Actual ${mpuState.Y:X4} {((goal.State.Y == mpuState.Y) ? "" : "XX")}");
+            _output.WriteLine($"D:     Expected ${goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((goal.State.DP == mpuState.DP) ? "" : "XX")}");
+            _output.WriteLine($"DB:    Expected ${goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((goal.State.DB == mpuState.DB) ? "" : "XX")}");
+            _output.WriteLine($"PB:    Expected ${goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((goal.State.PB == mpuState.PB) ? "" : "XX")}");
+            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2}");
             // Assert.Equal(cycles, mpuState.Cycles);
             Assert.Equal(goal.State.PC, mpuState.PC);
             Assert.Equal(goal.State.SP, mpuState.SP);
@@ -36,6 +54,10 @@ namespace EmuXTesting
             Assert.Equal(goal.State.DP, mpuState.DP);
             Assert.Equal(goal.State.DB, mpuState.DB);
             Assert.Equal(goal.State.PB, mpuState.PB);
+            foreach (var kvp in goal.RamValues)
+            {
+                Assert.Equal(kvp.Value, ram[kvp.Key]);
+            }
             Assert.Equal(goal.State.FlagN, mpuState.FlagN);
             Assert.Equal(goal.State.FlagV, mpuState.FlagV);
             Assert.Equal(goal.State.FlagM, mpuState.FlagM);
@@ -45,10 +67,6 @@ namespace EmuXTesting
             Assert.Equal(goal.State.FlagZ, mpuState.FlagZ);
             Assert.Equal(goal.State.FlagC, mpuState.FlagC);
             Assert.Equal(goal.State.FlagE, mpuState.FlagE);
-            foreach (var kvp in goal.RamValues)
-            {
-                Assert.Equal(kvp.Value, ram[kvp.Key]);
-            }
         }
 
         /*
@@ -80,22 +98,22 @@ namespace EmuXTesting
 
         public QuickBurnInData()
         {
-            Random rng = new Random();
+            Random rng = new();
             int testNumber = 0;
             string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
+            JsonSerializerOptions options = new()
+            {
+                PropertyNameCaseInsensitive = true
+            };
             foreach (string fileName in testFiles)
             {
                 string jsonContent = File.ReadAllText(fileName);
                 JsonDocument doc = JsonDocument.Parse(jsonContent);
+                
                 if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > testNumber)
                 {
                     string testObject = doc.RootElement[testNumber].ToString();
-                    Console.WriteLine($"Test Object from {fileName}: {testObject}");
-
-                    var options = new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    };
+                    //Console.WriteLine($"Test Object from {fileName}: {testObject}");
 
                     BurnInParameters? parameters = JsonSerializer.Deserialize<BurnInParameters>(testObject, options);
                     if (parameters != null)

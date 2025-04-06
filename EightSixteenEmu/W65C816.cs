@@ -253,7 +253,7 @@ namespace EightSixteenEmu
                 0x07 => (OpCode.ORA, AddressingMode.DirectIndirectLong),
                 0x08 => (OpCode.PHP, AddressingMode.Stack),
                 0x09 => (OpCode.ORA, AddressingMode.Immediate),
-                0x0a => (OpCode.ASL, AddressingMode.Implied),
+                0x0a => (OpCode.ASL, AddressingMode.Accumulator),
                 0x0b => (OpCode.PHD, AddressingMode.Stack),
                 0x0c => (OpCode.TSB, AddressingMode.Absolute),
                 0x0d => (OpCode.ORA, AddressingMode.Absolute),

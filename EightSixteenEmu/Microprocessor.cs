@@ -333,6 +333,7 @@ namespace EightSixteenEmu
                 { W65C816.OpCode.STP, new OP_STP() },
                 { W65C816.OpCode.TAX, new OP_TAX() },
                 { W65C816.OpCode.TAY, new OP_TAY() },
+                { W65C816.OpCode.TSB, new OP_TSB() },
                 { W65C816.OpCode.TSX, new OP_TSX() },
                 { W65C816.OpCode.TXA, new OP_TXA() },
                 { W65C816.OpCode.TXS, new OP_TXS() },
@@ -792,7 +793,7 @@ namespace EightSixteenEmu
             SetStatusFlag(StatusFlags.I, state.FlagI);
             SetStatusFlag(StatusFlags.Z, state.FlagZ);
             SetStatusFlag(StatusFlags.C, state.FlagC);
-            _flagE = state.FlagE;
+            SetEmulationMode(state.FlagE);
         }
 
         public class MicroprocessorState
@@ -806,6 +807,11 @@ namespace EightSixteenEmu
             {
                 string flags = $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
                 return $"Cycles: {Cycles}\nA:  0x{A:x4}\nX:  0x{X:x4}\nY:  0x{Y:x4}\nDP: 0x{DP:x4}\nSP: 0x{SP:x4}\nDB:   0x{DB:x2}\nPB: 0x{PB:x2} PC: 0x{PC:x4}\nFlags: {flags}";
+            }
+
+            public string Flags()
+            {
+                return $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
             }
         }
     }
