@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace EightSixteenEmu
 {
-    internal class W65C816
+    public class W65C816
     {
         public enum Vector : uint
         {

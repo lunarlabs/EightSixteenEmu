@@ -192,7 +192,8 @@ namespace EightSixteenEmu.MPU
         private ProcessorStateRunning() { }
         internal override void NextInstruction()
         {
-            throw new NotImplementedException();
+            _context?.mpu.DecodeInstruction();
+            _context?.mpu.Instruction.Execute(_context.mpu);
         }
         internal override void Interrupt(InterruptType type)
         {

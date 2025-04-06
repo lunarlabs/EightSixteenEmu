@@ -19,8 +19,12 @@ namespace EmuXTesting
             {
                 ram[kvp.Key] = (byte)kvp.Value;
             }
+            byte instruction = ram[(uint)((start.State.PB << 16) + start.State.PC)];
+            (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(instruction);
+            Console.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(start.State.FlagE ? "emulated" : "native" )}");
+
             EmuCore.Instance.Activate(false);
-            EmuCore.Instance.MPU.ExecuteOperation();
+            EmuCore.Instance.MPU.ExecuteInstruction();
             var mpuState = EmuCore.Instance.MPU.GetStatus();
             Assert.Equal(cycles, mpuState.Cycles);
             Assert.Equal(goal.State.PC, mpuState.PC);
@@ -77,7 +81,7 @@ namespace EmuXTesting
         {
             Random rng = new Random();
             int testNumber = rng.Next(0, 9999);
-            string[] testFiles = Directory.GetFiles(@"testData\v1", "*.json");
+            string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
             foreach (string fileName in testFiles)
             {
                 string jsonContent = File.ReadAllText(fileName);

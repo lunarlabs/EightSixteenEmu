@@ -37,11 +37,13 @@ namespace EightSixteenEmu
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
-        private readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
-        private readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
+        internal readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
+        internal readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
         private readonly ProcessorContext context;
 
+        internal W65C816.OpCode CurrentOpCode { get; private set; }
         internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
+        internal OpcodeCommand Instruction { get => _operations[CurrentOpCode]; }
         internal IAddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
 
         public bool Verbose
@@ -212,7 +214,7 @@ namespace EightSixteenEmu
         public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
 
         // non-accessible registers
-        private byte _regIR; // instruction register
+        internal byte _regIR; // instruction register
         private byte _regMD; // memory data register
 
         internal byte RegMD
@@ -728,7 +730,13 @@ namespace EightSixteenEmu
         //    }
         //}
 
-        public void ExecuteOperation()
+        internal void DecodeInstruction()
+        {
+            _regIR = ReadByte();
+            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(_regIR);
+        }
+
+        public void ExecuteInstruction()
         {
             if (_runThread == null || !_threadRunning) 
             {
