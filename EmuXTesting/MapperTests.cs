@@ -9,22 +9,22 @@ namespace EmuXTesting
         [Fact]
         public void AddDevice_ShouldMapCorrectly()
         {
+            EmuCore emu = new EmuCore();
             var device = new DevRAM(0x1000);
-            EmuCore.Instance.Mapper.Clear();
-            EmuCore.Instance.Mapper.AddDevice(device, 0x0000, 0x0000, 0x1000);
+            emu.Mapper.AddDevice(device, 0x0000, 0x0000, 0x1000);
 
             // Check if the device is mapped correctly
-            Assert.NotNull(EmuCore.Instance.Mapper[0x0000]);
-            Assert.NotNull(EmuCore.Instance.Mapper[0x0FFF]);
-            Assert.Null(EmuCore.Instance.Mapper[0x1000]); // end value should be exclusive
+            Assert.NotNull(emu.Mapper[0x0000]);
+            Assert.NotNull(emu.Mapper[0x0FFF]);
+            Assert.Null(emu.Mapper[0x1000]); // end value should be exclusive
         }
 
         [Fact]
         public void AddDevice_ShouldNotAllowZeroLength()
         {
+            EmuCore emu = new EmuCore();
             var device = new DevRAM(0x1000);
-            EmuCore.Instance.Mapper.Clear();
-            Assert.Throws<ArgumentOutOfRangeException>(() => EmuCore.Instance.Mapper.AddDevice(device, 0x0000, 0x0000, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() => emu.Mapper.AddDevice(device, 0x0000, 0x0000, 0));
         }
     }
 }

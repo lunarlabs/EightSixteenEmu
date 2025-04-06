@@ -10,11 +10,11 @@ namespace EmuXTesting
         [ClassData(typeof(QuickBurnInData))]
         public void QuickBurnIn(BurnInTestState start, BurnInTestState goal, int cycles)
         {
-            EmuCore.Instance.Deactivate();
-            EmuCore.Instance.Mapper.Clear();
+            EmuCore emu = new EmuCore();
             var ram = new DevRAM(0x1000000);
-            EmuCore.Instance.Mapper.AddDevice(ram, 0, 0, 0x1000000);
-            EmuCore.Instance.MPU.SetProcessorState(start.State);
+            emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
+            emu.Deactivate();
+            emu.MPU.SetProcessorState(start.State);
             foreach (var kvp in start.RamValues)
             {
                 ram[kvp.Key] = (byte)kvp.Value;
@@ -23,9 +23,9 @@ namespace EmuXTesting
             (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(instruction);
             Console.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(start.State.FlagE ? "emulated" : "native" )}");
 
-            EmuCore.Instance.Activate(false);
-            EmuCore.Instance.MPU.ExecuteInstruction();
-            var mpuState = EmuCore.Instance.MPU.GetStatus();
+            emu.Activate(false);
+            emu.MPU.ExecuteInstruction();
+            var mpuState = emu.MPU.GetStatus();
             Assert.Equal(cycles, mpuState.Cycles);
             Assert.Equal(goal.State.PC, mpuState.PC);
             Assert.Equal(goal.State.SP, mpuState.SP);
