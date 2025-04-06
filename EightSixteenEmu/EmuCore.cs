@@ -16,21 +16,6 @@ namespace EightSixteenEmu
     public class EmuCore
     {
 
-        private static EmuCore? _instance;
-        private static readonly Lock _lock = new();
-
-        public static EmuCore Instance
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    _instance ??= new EmuCore();
-                    return _instance;
-                }
-            }
-        }
-
         private readonly Microprocessor _mpu;
         private readonly MemoryMapper _mapper;
         public Microprocessor MPU { get { return _mpu; } }
@@ -42,10 +27,16 @@ namespace EightSixteenEmu
         public event EventHandler? NMI;
         public event EventHandler? IRQ;
 
-        private EmuCore()
+        public EmuCore()
         {
             _mpu = new(this);
             _mapper = new();
+        }
+
+        public EmuCore(MemoryMapper mapper)
+        {
+            _mpu = new(this);
+            _mapper = mapper;
         }
 
         #region Device Management
