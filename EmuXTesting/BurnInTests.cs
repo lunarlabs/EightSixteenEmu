@@ -19,10 +19,14 @@ namespace EmuXTesting
         public void QuickBurnIn(byte inst, BurnInTestState start, BurnInTestState goal, int cycles)
         {
             EmuCore emu = new();
+            emu.MPU.MemoryRead += OnMemoryRead;
+            emu.MPU.MemoryWrite += OnMemoryWrite;
+            emu.MPU.NewCycle += OnNewCycle;
             var ram = new DevRAM(0x1000000);
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
             emu.Deactivate();
             emu.MPU.SetProcessorState(start.State);
+            _output.WriteLine("Initial State: " + start.State.ToString());
             _output.WriteLine("Memory values:");
             foreach (var kvp in start.RamValues)
             {
@@ -30,10 +34,9 @@ namespace EmuXTesting
                 ram[kvp.Key] = (byte)kvp.Value;
             }
             byte instruction = ram[(uint)((start.State.PB << 16) + start.State.PC)];
-            Assert.Equal(inst, instruction); // barf if we read the wrong instruction from RAM
             (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(instruction);
+            Assert.Equal(inst, instruction); // barf if we read the wrong instruction from RAM
             _output.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(start.State.FlagE ? "emulated" : "native" )}");
-            _output.WriteLine("Initial State: " + start.State.ToString());
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
             var mpuState = emu.MPU.GetStatus();
@@ -78,6 +81,22 @@ namespace EmuXTesting
             Assert.True(registersEqual, "Registers do not match expected values.");
             Assert.True(ramEqual, "RAM values do not match expected values.");
             Assert.True(cycles == mpuState.Cycles, "Operation did not run in the expected amount of cycles.");
+        }
+
+        private void OnMemoryRead(uint address, byte value)
+        {
+            _output.WriteLine($"Memory Read: Address ${address:X6}, Value ${value:X2}");
+        }
+
+        private void OnMemoryWrite(uint address, byte value)
+        {
+            _output.WriteLine($"Memory Write: Address ${address:X6}, Value ${value:X2}");
+        }
+
+        private void OnNewCycle(int cycles)
+        {
+            _output.WriteLine($"Cycles count now {cycles}");
+            
         }
 
         /*

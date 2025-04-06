@@ -54,6 +54,26 @@ namespace EightSixteenEmu
 #endif
         }
 
+        public delegate void MemoryAccessHandler(Addr address, byte value);
+        public delegate void CycleHandler(int cycles);
+
+        public event MemoryAccessHandler? MemoryRead;
+        public event MemoryAccessHandler? MemoryWrite;
+        public event CycleHandler? NewCycle;
+
+        protected virtual void OnMemoryRead(Addr address, byte value)
+        {
+            MemoryRead?.Invoke(address, value);
+        }
+        protected virtual void OnMemoryWrite(Addr address, byte value)
+        {
+            MemoryWrite?.Invoke(address, value);
+        }
+        protected virtual void OnNewCycle(int cycles)
+        {
+            NewCycle?.Invoke(cycles);
+        }
+
         public int Cycles
         {
             get => _cycles;
@@ -471,6 +491,7 @@ namespace EightSixteenEmu
                 _clockEvent.WaitOne();
             }
             _cycles++;
+            OnNewCycle(_cycles);
         }
 
         #region Data Manipulation
@@ -552,12 +573,13 @@ namespace EightSixteenEmu
 
         internal byte ReadByte(Addr address)
         {
-            NextCycle();
             byte? result = _core.Mapper[address];
             if (result != null)
             {
                 _regMD = (byte)result;
             }
+            OnMemoryRead(address, _regMD);
+            NextCycle();
             return _regMD;
         }
 
@@ -606,10 +628,10 @@ namespace EightSixteenEmu
 
         internal void WriteByte(byte value, Addr address)
         {
-            NextCycle();
-            
             _regMD = value;
             _core.Mapper[address] = value;
+            OnMemoryWrite(address, _regMD);
+            NextCycle();
         }
 
         internal void WriteWord(Word value, Addr address)
@@ -766,7 +788,6 @@ namespace EightSixteenEmu
         {
             if (_runThread == null || !_threadRunning) 
             {
-                NextCycle();
                 NextInstruction(); 
             }
             else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
