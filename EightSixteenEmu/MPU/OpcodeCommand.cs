@@ -382,7 +382,6 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA |= operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.NextCycle();
         }
     }
 
@@ -409,7 +408,6 @@ namespace EightSixteenEmu.MPU
                 }
                 mpu.SetStatusFlag(StatusFlags.Z, (mpu.RegA & operand) == 0);
             }
-            mpu.NextCycle();
         }
     }
 

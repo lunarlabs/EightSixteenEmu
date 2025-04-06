@@ -37,14 +37,14 @@ namespace EightSixteenEmu
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
-        internal readonly Dictionary<W65C816.AddressingMode, IAddressingModeStrategy> _addressingModes;
+        internal readonly Dictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
         internal readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
         private readonly ProcessorContext context;
 
         internal W65C816.OpCode CurrentOpCode { get; private set; }
         internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
         internal OpcodeCommand Instruction { get => _operations[CurrentOpCode]; }
-        internal IAddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
+        internal AddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
 
         public bool Verbose
         {
@@ -248,7 +248,7 @@ namespace EightSixteenEmu
 
             // the house of pain
             #region Dictionary Initialization
-            _addressingModes = new Dictionary<W65C816.AddressingMode, IAddressingModeStrategy>
+            _addressingModes = new Dictionary<W65C816.AddressingMode, AddressingModeStrategy>
             {
                 { W65C816.AddressingMode.Immediate, new AM_Immediate() },
                 { W65C816.AddressingMode.Accumulator, new AM_Accumulator() },
@@ -740,6 +740,7 @@ namespace EightSixteenEmu
         {
             if (_runThread == null || !_threadRunning) 
             {
+                NextCycle();
                 NextInstruction(); 
             }
             else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
