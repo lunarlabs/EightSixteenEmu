@@ -277,7 +277,6 @@ namespace EightSixteenEmu.MPU
                 {
                     mpu.SetNZStatusFlagsFromValue(++mpu.RegA);
                 }
-                mpu.NextCycle();
             }
             else
             {
@@ -636,9 +635,9 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    internal class OP_BRA
+    internal class OP_BRA : OpcodeCommand
     {
-        internal void Execture(Microprocessor mpu)
+        internal override void Execute(Microprocessor mpu)
         {
             OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
         }

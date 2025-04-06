@@ -37,7 +37,8 @@ namespace EmuXTesting
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
             var mpuState = emu.MPU.GetStatus();
-            bool registersEqual = goal.State.A == mpuState.A 
+            bool registersEqual = goal.State.PC == mpuState.PC
+                && goal.State.A == mpuState.A 
                 && goal.State.X == mpuState.X 
                 && goal.State.Y == mpuState.Y 
                 && goal.State.DP == mpuState.DP 
@@ -54,15 +55,15 @@ namespace EmuXTesting
                 && goal.State.FlagC == mpuState.FlagC
                 && goal.State.FlagE == mpuState.FlagE;
             _output.WriteLine($"Cycle Count: Expected {cycles}, Actual {mpuState.Cycles}");
-            _output.WriteLine($"PC:    Expected ${goal.State.PC:X4}, Actual ${mpuState.PC:X4} {((goal.State.PC == mpuState.PC) ? "" : "XX")}");
-            _output.WriteLine($"SP:    Expected ${goal.State.SP:X4}, Actual ${mpuState.SP:X4} {((goal.State.SP == mpuState.SP) ? "" : "XX")}");
-            _output.WriteLine($"A:     Expected ${goal.State.A:X4}, Actual ${mpuState.A:X4} {((goal.State.A == mpuState.A) ? "" : "XX")}");
-            _output.WriteLine($"X:     Expected ${goal.State.X:X4}, Actual ${mpuState.X:X4} {((goal.State.X == mpuState.X) ? "" : "XX")}");
-            _output.WriteLine($"Y:     Expected ${goal.State.Y:X4}, Actual ${mpuState.Y:X4} {((goal.State.Y == mpuState.Y) ? "" : "XX")}");
-            _output.WriteLine($"D:     Expected ${goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((goal.State.DP == mpuState.DP) ? "" : "XX")}");
-            _output.WriteLine($"DB:    Expected ${goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((goal.State.DB == mpuState.DB) ? "" : "XX")}");
-            _output.WriteLine($"PB:    Expected ${goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((goal.State.PB == mpuState.PB) ? "" : "XX")}");
-            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {((goal.State.Flags() == mpuState.Flags()) ? "" : "XX")}");
+            _output.WriteLine($"PC:    Expected ${goal.State.PC:X4}, Actual ${mpuState.PC:X4} {((goal.State.PC == mpuState.PC) ? "" : "!!")}");
+            _output.WriteLine($"SP:    Expected ${goal.State.SP:X4}, Actual ${mpuState.SP:X4} {((goal.State.SP == mpuState.SP) ? "" : "!!")}");
+            _output.WriteLine($"A:     Expected ${goal.State.A:X4}, Actual ${mpuState.A:X4} {((goal.State.A == mpuState.A) ? "" : "!!")}");
+            _output.WriteLine($"X:     Expected ${goal.State.X:X4}, Actual ${mpuState.X:X4} {((goal.State.X == mpuState.X) ? "" : "!!")}");
+            _output.WriteLine($"Y:     Expected ${goal.State.Y:X4}, Actual ${mpuState.Y:X4} {((goal.State.Y == mpuState.Y) ? "" : "!!")}");
+            _output.WriteLine($"D:     Expected ${goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((goal.State.DP == mpuState.DP) ? "" : "!!")}");
+            _output.WriteLine($"DB:    Expected ${goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((goal.State.DB == mpuState.DB) ? "" : "!!")}");
+            _output.WriteLine($"PB:    Expected ${goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((goal.State.PB == mpuState.PB) ? "" : "!!")}");
+            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {((goal.State.Flags() == mpuState.Flags()) ? "" : "!!")}");
             _output.WriteLine("\nMemory values:\nAddress  Ex   Ac");
             bool ramEqual = true;
             foreach (var kvp in goal.RamValues)
@@ -71,12 +72,12 @@ namespace EmuXTesting
                 if (ram[kvp.Key] != kvp.Value)
                 {
                     ramEqual = false;
-                    _output.WriteLine("XX");
+                    _output.WriteLine("!!");
                 }
             }
             Assert.True(registersEqual, "Registers do not match expected values.");
-            // Assert.Equal(cycles, mpuState.Cycles);
             Assert.True(ramEqual, "RAM values do not match expected values.");
+            Assert.True(cycles == mpuState.Cycles, "Operation did not run in the expected amount of cycles.");
         }
 
         /*

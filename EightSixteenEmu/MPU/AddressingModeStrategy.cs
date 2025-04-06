@@ -52,7 +52,7 @@ namespace EightSixteenEmu.MPU
             }
             else
             {
-                mpu.NextCycle();
+                //mpu.NextCycle();
                 return FullAddress(0, mpu.RegDP + offset);
             }
         }
@@ -108,7 +108,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2}";
-            if (mpu.RegDL != 0x00) mpu.NextCycle();
+            //if (mpu.RegDL != 0x00) mpu.NextCycle();
             return AddressingModeStrategy.FullAddress(0, mpu.RegDP + offset);
         }
     }
@@ -119,7 +119,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2},X";
-            if (mpu.RegDL != 0x00) mpu.NextCycle();
+            //if (mpu.RegDL != 0x00) mpu.NextCycle();
             return AddressingModeStrategy.CalculateDirectAddress(mpu, offset, mpu.RegX);
         }
     }
@@ -130,7 +130,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2},Y";
-            if (mpu.RegDL != 0x00) mpu.NextCycle();
+            //if (mpu.RegDL != 0x00) mpu.NextCycle();
             return AddressingModeStrategy.CalculateDirectAddress(mpu, offset, mpu.RegY);
         }
     }
