@@ -347,7 +347,7 @@ namespace EightSixteenEmu
 
                 0x60 => (OpCode.RTS, AddressingMode.Implied),
                 0x61 => (OpCode.ADC, AddressingMode.DirectIndexedIndirect),
-                0x62 => (OpCode.PER, AddressingMode.ProgramCounterRelativeLong),
+                0x62 => (OpCode.PER, AddressingMode.Immediate),
                 0x63 => (OpCode.ADC, AddressingMode.StackRelative),
                 0x64 => (OpCode.STZ, AddressingMode.Direct),
                 0x65 => (OpCode.ADC, AddressingMode.Direct),

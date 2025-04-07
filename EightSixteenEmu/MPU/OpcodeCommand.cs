@@ -371,6 +371,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            mpu.NextCycle();
             if (mpu.AccumulatorIs8Bit)
             {
                 mpu.RegAL |= (byte)operand;
@@ -459,9 +460,9 @@ namespace EightSixteenEmu.MPU
             else
             {
                 ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
-                mpu.SetStatusFlag(StatusFlags.C, (operand & 0x8000) != 0);
+                mpu.SetStatusFlag(StatusFlags.C, (operand & (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000)) != 0);
                 operand <<= 1;
-                mpu.SetNZStatusFlagsFromValue(operand);
+                mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
                 mpu.NextCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
@@ -493,7 +494,7 @@ namespace EightSixteenEmu.MPU
                 ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
                 mpu.SetStatusFlag(StatusFlags.C, (operand & 0x0001) != 0);
                 operand >>>= 1;
-                mpu.SetNZStatusFlagsFromValue(operand);
+                mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
                 mpu.NextCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
@@ -527,6 +528,7 @@ namespace EightSixteenEmu.MPU
                 operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
                 operand = operand << 1 | (mpu.ReadStatusFlag(StatusFlags.C) ? 1u : 0u);
                 mpu.SetStatusFlag(StatusFlags.C, (mpu.AccumulatorIs8Bit ? (operand & 0x100) : (operand & 0x10000)) != 0);
+                mpu.SetNZStatusFlagsFromValue((ushort)operand, mpu.AccumulatorIs8Bit);
                 mpu.NextCycle();
                 mpu.WriteValue((ushort)operand, mpu.AccumulatorIs8Bit, address);
             }
@@ -573,9 +575,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (!mpu.ReadStatusFlag(StatusFlags.C))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -584,9 +587,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (mpu.ReadStatusFlag(StatusFlags.C))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -595,9 +599,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (mpu.ReadStatusFlag(StatusFlags.Z))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -606,9 +611,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (mpu.ReadStatusFlag(StatusFlags.N))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -617,9 +623,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (!mpu.ReadStatusFlag(StatusFlags.Z))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -628,9 +635,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (!mpu.ReadStatusFlag(StatusFlags.N))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -639,7 +647,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+            BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
         }
     }
 
@@ -647,9 +655,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (!mpu.ReadStatusFlag(StatusFlags.V))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -658,9 +667,10 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            uint destination = mpu.AddressingMode.GetAddress(mpu);
             if (mpu.ReadStatusFlag(StatusFlags.V))
             {
-                OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+                BranchTo(mpu, destination);
             }
         }
     }
@@ -669,7 +679,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            OpcodeCommand.BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
+            BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
         }
     }
 
@@ -705,7 +715,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
-            mpu.PushWord(mpu.RegPC);
+            mpu.PushWord((ushort)(mpu.RegPC - 1));
             mpu.RegPC = (ushort)destination;
             mpu.NextCycle();
         }
@@ -980,7 +990,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            OpcodeCommand.CopyMemory(mpu, operand);
+            CopyMemory(mpu, operand);
             if (mpu.IndexesAre8Bit)
             {
                 mpu.RegXL++;
@@ -999,7 +1009,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            OpcodeCommand.CopyMemory(mpu, operand);
+            CopyMemory(mpu, operand);
             if (mpu.IndexesAre8Bit)
             {
                 mpu.RegXL--;

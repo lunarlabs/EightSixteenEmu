@@ -13,6 +13,7 @@
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
 using EightSixteenEmu.MPU;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Addr = System.UInt32;
 using Word = System.UInt16;
@@ -702,9 +703,9 @@ namespace EightSixteenEmu
             SetStatusFlag(StatusFlags.Z, value == 0);
         }
 
-        internal void SetNZStatusFlagsFromValue(Word value)
+        internal void SetNZStatusFlagsFromValue(Word value, bool isByte = false)
         {
-            SetStatusFlag(StatusFlags.N, (value & 0x8000) != 0);
+            SetStatusFlag(StatusFlags.N, (value & (isByte ? 0x80 : 0x8000)) != 0);
             SetStatusFlag(StatusFlags.Z, value == 0);
         }
 
