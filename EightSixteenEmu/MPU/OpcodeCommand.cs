@@ -1164,7 +1164,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.PushByte(mpu.RegPB);
+            mpu.PushByte(mpu.RegDB);
         }
     }
 
@@ -1196,8 +1196,8 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.RegPB = mpu.PullByte();
-            mpu.SetNZStatusFlagsFromValue(mpu.RegPB);
+            mpu.RegDB = mpu.PullByte();
+            mpu.SetNZStatusFlagsFromValue(mpu.RegDB);
         }
     }
 
@@ -1227,12 +1227,20 @@ namespace EightSixteenEmu.MPU
     // TODO: We need to figure out how to handle the microprocessor state in Microprocessor.cs before we implement these
     internal class OP_STP : OpcodeCommand
     {
-        internal override void Execute(Microprocessor mpu) => throw new NotImplementedException();
+        internal override void Execute(Microprocessor mpu)
+        {
+            mpu.NextCycle();
+            mpu.Stop();
+        }
     }
 
     internal class OP_WAI : OpcodeCommand
     {
-        internal override void Execute(Microprocessor mpu) => throw new NotImplementedException();
+        internal override void Execute(Microprocessor mpu)
+        {
+            mpu.NextCycle();
+            mpu.Wait();
+        }
     }
 
     internal class OP_TAX : OpcodeCommand
@@ -1429,7 +1437,7 @@ namespace EightSixteenEmu.MPU
             byte temp = mpu.RegAL;
             mpu.RegAL = mpu.RegAH;
             mpu.RegAH = temp;
-            mpu.SetNZStatusFlagsFromValue(mpu.RegA);
+            mpu.SetNZStatusFlagsFromValue(mpu.RegAL);
             mpu.NextCycle();
         }
     }

@@ -166,7 +166,50 @@ namespace EightSixteenEmu.MPU
         }
         internal override void Interrupt(InterruptType type)
         {
-            throw new NotImplementedException();
+            if (_context != null)
+            { 
+                ushort addressToPush = (type == InterruptType.BRK || type == InterruptType.COP) ? (ushort)(_context.mpu.RegPC + 1) : _context.mpu.RegPC;
+                if (!_context.mpu.FlagE) _context.mpu.PushByte(_context.mpu.RegPB);
+                _context.mpu.PushWord(addressToPush);
+                if(_context.mpu.FlagE && type == InterruptType.BRK)
+                {
+                    _context.mpu.PushByte((byte)(_context.mpu.RegSR | StatusFlags.X));
+                }
+                else
+                {
+                    _context.mpu.PushByte((byte)_context.mpu.RegSR);
+                }
+                _context.mpu.SetStatusFlag(StatusFlags.I, true);
+                _context.mpu.SetStatusFlag(StatusFlags.D, false);
+                W65C816.Vector vector;
+                if (_context.mpu.FlagE)
+                {
+                    vector = type switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.EmulationIRQ,
+                        InterruptType.COP => W65C816.Vector.EmulationCOP,
+                        InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
+                        InterruptType.NMI => W65C816.Vector.EmulationNMI,
+                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                    };
+                }
+                else
+                {
+                    vector = type switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.NativeBRK,
+                        InterruptType.COP => W65C816.Vector.NativeCOP,
+                        InterruptType.IRQ => W65C816.Vector.NativeIRQ,
+                        InterruptType.NMI => W65C816.Vector.NativeNMI,
+                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                    };
+                }
+                _context.mpu.LoadInterruptVector(vector);
+            }
+            else
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
         }
         internal override void Stop()
         {
