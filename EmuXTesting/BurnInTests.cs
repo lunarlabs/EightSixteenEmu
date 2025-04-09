@@ -19,8 +19,6 @@ namespace EmuXTesting
         public void QuickBurnIn(byte inst, BurnInTestState start, BurnInTestState goal, int cycles)
         {
             EmuCore emu = new();
-            emu.MPU.MemoryRead += OnMemoryRead;
-            emu.MPU.MemoryWrite += OnMemoryWrite;
             emu.MPU.NewCycle += OnNewCycle;
             var ram = new DevRAM(0x1000000);
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
@@ -94,9 +92,9 @@ namespace EmuXTesting
             _output.WriteLine($"Memory Write: Address ${address:X6}, Value ${value:X2}");
         }
 
-        private void OnNewCycle(int cycles)
+        private void OnNewCycle(int cycles, Microprocessor.Cycle details)
         {
-            _output.WriteLine($"Cycles count now {cycles}");
+            _output.WriteLine($"{cycles}: {details}");
             
         }
 

@@ -55,24 +55,13 @@ namespace EightSixteenEmu
 #endif
         }
 
-        public delegate void MemoryAccessHandler(Addr address, byte value);
-        public delegate void CycleHandler(int cycles);
+        public delegate void CycleHandler(int cycles, Cycle details);
 
-        public event MemoryAccessHandler? MemoryRead;
-        public event MemoryAccessHandler? MemoryWrite;
         public event CycleHandler? NewCycle;
 
-        protected virtual void OnMemoryRead(Addr address, byte value)
+        protected virtual void OnNewCycle(int cycles, Cycle details)
         {
-            MemoryRead?.Invoke(address, value);
-        }
-        protected virtual void OnMemoryWrite(Addr address, byte value)
-        {
-            MemoryWrite?.Invoke(address, value);
-        }
-        protected virtual void OnNewCycle(int cycles)
-        {
-            NewCycle?.Invoke(cycles);
+            NewCycle?.Invoke(cycles, details);
         }
 
         public int Cycles
@@ -104,6 +93,13 @@ namespace EightSixteenEmu
             IRQ,
             BRK,
             COP,
+        }
+
+        public enum CycleType : Byte
+        {
+            Internal,
+            Write,
+            Read,
         }
 
         // accessible registers
@@ -237,6 +233,7 @@ namespace EightSixteenEmu
         // non-accessible registers
         internal byte _regIR; // instruction register
         private byte _regMD; // memory data register
+        private Addr _lastAddress; // last address accessed
 
         internal byte RegMD
         {
@@ -485,14 +482,19 @@ namespace EightSixteenEmu
             }
         }
 
-        internal void NextCycle()
+        internal void InternalCycle()
+        {
+            OnNewCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress));
+            HandleClockCycle();
+        }
+
+        private void HandleClockCycle()
         {
             if (_threadRunning)
             {
                 _clockEvent.WaitOne();
             }
             _cycles++;
-            OnNewCycle(_cycles);
         }
 
         #region Data Manipulation
@@ -574,13 +576,15 @@ namespace EightSixteenEmu
 
         internal byte ReadByte(Addr address)
         {
+            _lastAddress = address;
             byte? result = _core.Mapper[address];
             if (result != null)
             {
                 _regMD = (byte)result;
             }
-            OnMemoryRead(address, _regMD);
-            NextCycle();
+            
+            OnNewCycle(_cycles, new Cycle(CycleType.Read, address, _regMD));
+            HandleClockCycle();
             return _regMD;
         }
 
@@ -629,10 +633,11 @@ namespace EightSixteenEmu
 
         internal void WriteByte(byte value, Addr address)
         {
+            _lastAddress = address;
             _regMD = value;
             _core.Mapper[address] = value;
-            OnMemoryWrite(address, _regMD);
-            NextCycle();
+            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD));
+            HandleClockCycle();
         }
 
         internal void WriteWord(Word value, Addr address)
@@ -841,6 +846,24 @@ namespace EightSixteenEmu
             SetStatusFlag(StatusFlags.Z, state.FlagZ);
             SetStatusFlag(StatusFlags.C, state.FlagC);
             SetEmulationMode(state.FlagE);
+        }
+
+        public struct Cycle
+        {
+            public CycleType Type;
+            public Addr Address;
+            public byte Value;
+            public override string ToString()
+            {
+                return $"Address: 0x{Address:X6}, Value: 0x{Value:X2}, Type: {Type}";
+            }
+
+            public Cycle(CycleType type, Addr address, byte value = 0x00)
+            {
+                Type = type;
+                Address = address;
+                Value = value;
+            }
         }
 
         public class MicroprocessorState

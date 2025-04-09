@@ -52,7 +52,7 @@ namespace EightSixteenEmu.MPU
             }
             else
             {
-                mpu.NextCycle();
+                mpu.InternalCycle();
                 return FullAddress(0, mpu.RegDP + offset + register);
             }
         }
