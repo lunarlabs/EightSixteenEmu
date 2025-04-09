@@ -392,7 +392,7 @@ namespace EightSixteenEmu.MPU
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
             if (mpu.AccumulatorIs8Bit)
             {
-                if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Immediate)
+                if (mpu.CurrentAddressingMode != W65C816.AddressingMode.Immediate)
                 {
                     mpu.SetStatusFlag(StatusFlags.V, (operand & 0x40) != 0);
                     mpu.SetStatusFlag(StatusFlags.N, (operand & 0x80) != 0);
@@ -401,7 +401,7 @@ namespace EightSixteenEmu.MPU
             }
             else
             {
-                if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Immediate)
+                if (mpu.CurrentAddressingMode != W65C816.AddressingMode.Immediate)
                 {
                     mpu.SetStatusFlag(StatusFlags.V, (operand & 0x4000) != 0);
                     mpu.SetStatusFlag(StatusFlags.N, (operand & 0x8000) != 0);
