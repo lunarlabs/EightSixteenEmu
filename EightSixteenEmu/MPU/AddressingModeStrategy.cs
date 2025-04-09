@@ -200,7 +200,8 @@ namespace EightSixteenEmu.MPU
         {
             ushort address = mpu.ReadWord();
             _notation = $"${address:x4}, X";
-            return FullAddress(mpu.RegDB, address + mpu.RegX);
+            // return FullAddress(mpu.RegDB, address + mpu.RegX);
+            return FullAddress(mpu.RegDB, address) + mpu.RegX;
         }
     }
 
@@ -210,7 +211,7 @@ namespace EightSixteenEmu.MPU
         {
             ushort address = mpu.ReadWord();
             _notation = $"${address:x4}, Y";
-            return FullAddress(mpu.RegDB, address + mpu.RegY);
+            return FullAddress(mpu.RegDB, address) + mpu.RegY;
         }
     }
 
