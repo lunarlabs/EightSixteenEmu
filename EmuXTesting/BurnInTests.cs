@@ -18,6 +18,7 @@ namespace EmuXTesting
         [ClassData(typeof(QuickBurnInData))]
         public void QuickBurnIn(byte inst, BurnInTestState start, BurnInTestState goal, int cycles)
         {
+            if (inst == 0x54 || inst == 0x44) Assert.Fail("Block Move test data is broken.");
             EmuCore emu = new();
             emu.MPU.NewCycle += OnNewCycle;
             var ram = new DevRAM(0x1000000);
