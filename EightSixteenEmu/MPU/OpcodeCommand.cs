@@ -701,12 +701,24 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            // wtf? In the SingleStepTests the order seems to be: read lower 16 bits, push PB, read bank address, push PC?!
+            // functionally it doesn't matter, but the order is strange... if one-to-one is really required,
+            // use the commented replacement...
             uint destination = mpu.AddressingMode.GetAddress(mpu);
-            mpu.PushWord(mpu.RegPB);
-            mpu.RegPB = (byte)(destination >> 16);
-            mpu.PushWord(mpu.RegPC);
+            mpu.PushByte(mpu.RegPB);
+            mpu.PushWord((ushort)(mpu.RegPC - 1)); // that ugly off-by-one raised its head again in testing...
             mpu.RegPC = (ushort)destination;
+            mpu.RegPB = (byte)(destination >> 16);
             mpu.InternalCycle();
+
+            // Replacement:
+            //ushort destAddr = mpu.ReadWord();
+            //mpu.PushByte(mpu.RegPB);
+            //byte bankAddr = mpu.ReadByte();
+            //mpu.PushWord(mpu.RegPC);
+            //mpu.RegPC = destAddr;
+            //mpu.RegPB = bankAddr;
+            //mpu.InternalCycle();
         }
     }
 

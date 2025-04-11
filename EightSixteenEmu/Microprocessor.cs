@@ -386,6 +386,7 @@ namespace EightSixteenEmu
                 { W65C816.OpCode.TSC, new OP_TSC() },
                 { W65C816.OpCode.TCD, new OP_TCD() },
                 { W65C816.OpCode.TDC, new OP_TDC() },
+                { W65C816.OpCode.JSL, new OP_JSL() },
             };
             #endregion
             context = new ProcessorContext(this);

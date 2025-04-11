@@ -279,7 +279,7 @@ namespace EightSixteenEmu
 
                 0x20 => (OpCode.JSR, AddressingMode.Absolute),
                 0x21 => (OpCode.AND, AddressingMode.DirectIndexedIndirect),
-                0x22 => (OpCode.ORA, AddressingMode.DirectIndirect),
+                0x22 => (OpCode.JSL, AddressingMode.AbsoluteLong),
                 0x23 => (OpCode.AND, AddressingMode.StackRelative),
                 0x24 => (OpCode.BIT, AddressingMode.Direct),
                 0x25 => (OpCode.AND, AddressingMode.Direct),
