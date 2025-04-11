@@ -286,9 +286,9 @@ namespace EightSixteenEmu.MPU
     {
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true)
         {
-            ushort source = mpu.ReadWord();
-            ushort dest = mpu.ReadWord();
-            _notation = $"${source:x4},${dest:x4}";
+            byte source = mpu.ReadByte();
+            byte dest = mpu.ReadByte();
+            _notation = $"${source:x2},${dest:x2}";
             return (ushort)((source << 8) | dest);
             // remember to split this into two bytes when using it
         }
