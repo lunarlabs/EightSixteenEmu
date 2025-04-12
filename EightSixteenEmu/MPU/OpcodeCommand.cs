@@ -833,9 +833,9 @@ namespace EightSixteenEmu.MPU
             mpu.InternalCycle();
             mpu.RegSR = (StatusFlags)mpu.PullByte();
             mpu.RegPC = mpu.PullWord();
-            if (mpu.FlagE)
+            if (!mpu.FlagE)
             {
-                mpu.RegPC = mpu.PullByte();
+                mpu.RegPB = mpu.PullByte();
             }
         }
     }

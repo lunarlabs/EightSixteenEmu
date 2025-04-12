@@ -664,11 +664,7 @@ namespace EightSixteenEmu
 
         internal byte PullByte()
         {
-            byte result = ReadByte(++_regSP);
-            if (_flagE)
-            {
-                RegSH = 0x01;
-            }
+            byte result = _flagE ? ReadByte((uint)(0x0100 | ++RegSL)) : ReadByte(++_regSP);
             return result;
         }
 
