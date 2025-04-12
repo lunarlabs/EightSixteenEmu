@@ -31,5 +31,36 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+	<ItemGroup>
+	  <Folder Include="ASMTestCode\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="ASMTestCode\*.a65" />
+	</ItemGroup>
+
+
+	<Target Name="AssembleA65TestFiles" BeforeTargets="BeforeBuild">
+		<ItemGroup>
+			<A65TestFiles Include="ASMTestCode\*.a65" />
+		</ItemGroup>
+		<Exec Command="ca65 %(A65TestFiles.Identity) -o %(A65TestFiles.Filename).o" />
+		<Exec Command="ld65 -C ASMTestCode/TestCodeConfig.cfg -o %(A65TestFiles.Filename).rom %(A65TestFiles.Filename).o -m mapfile.txt" />
+		<Copy SourceFiles="%(A65TestFiles.Filename).rom" DestinationFolder="$(OutputPath)" />
+		<Message Text="Assembled %(A65TestFiles.Identity) to %(A65TestFiles.Filename).rom" Importance="high" />
+	</Target>
+
+	<Target Name="CleanUpA65ObjectFiles" AfterTargets="Build">
+		<ItemGroup>
+			<A65ObjectFiles Include="*.o" />
+			<RomFiles Include="*.rom" />
+		</ItemGroup>
+		<Message Text="Cleaning up object files: @(A65ObjectFiles)" Importance="high" />
+		<Delete Files="@(A65ObjectFiles)" />
+		<Message Text="Deleted object files: @(A65ObjectFiles)" Importance="high" />
+		<Message Text="Cleaning up ROM files: @(RomFiles)" Importance="high" />
+		<Delete Files="@(RomFiles)" />
+		<Message Text="Deleted ROM files: @(RomFiles)" Importance="high" />
+	</Target>
 
 </Project>

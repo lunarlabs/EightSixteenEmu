@@ -1,0 +1,52 @@
+; Load/Store Test
+; This test will test the MVN and MVP instructions
+
+.p816
+.macpack generic
+.macpack longbranch
+.import __DATA_LOAD__, __DATA_RUN__, __DATA_SIZE__
+
+;test code goes here
+.code
+start:	clc
+		xce
+		rep #$30
+		.a16
+		.i16
+
+loop:	lda .loword(__DATA_SIZE__ - 1)						; how many bytes to move
+		bit $00												; determines what command to use
+		bne Positive
+		ldx .loword(__DATA_LOAD__)							; where to move from
+		ldy #$0200											; where to move to
+		mvn #$00, #$00										; move data
+Positive:
+		ldx .loword(__DATA_LOAD__ + __DATA_SIZE__ - 1)		; where to move from
+		ldy .loword(__DATA_SIZE__ - 1)						; where to move to
+		mvp #$00, #$01										; move data to bank $01
+
+		stp
+
+; data to move
+		.data
+		.word $f00f, $f0f0, $f00f, $f0f0, $1234, $5678, $9abc, $def0
+		.word $7f80, $7f80, $7f80, $7f80, $7f80, $7f80, $7f80, $7f80
+
+; reset vector
+		.segment "HEADER"
+		.byte "MoveTest        "	; 16 byte program name
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; native COP not used
+		.word $ffff				; native BRK not used
+		.word $ffff				; native ABORT not used
+		.word $ffff				; native NMI not used
+		.word $ffff				; unused vector
+		.word $ffff				; native IRQ not used
+
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; emulation COP not used
+		.word $ffff				; unused vector
+		.word $ffff				; emulation ABORT not used
+		.word $ffff				; emulation NMI not used
+		.addr start				; reset vector
+		.word $ffff				; emulation IRQ/BRK not used

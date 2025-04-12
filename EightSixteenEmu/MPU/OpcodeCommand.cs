@@ -843,6 +843,7 @@ namespace EightSixteenEmu.MPU
             if (mpu.FlagE)
             {
                 mpu.SetStatusFlag(StatusFlags.X, bFlag);
+                mpu.SetStatusFlag(StatusFlags.M, true);
             }
             else
             {
