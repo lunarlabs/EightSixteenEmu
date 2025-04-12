@@ -55,8 +55,8 @@ namespace EightSixteenEmu.MPU
             {
                 if (mpu.ReadStatusFlag(StatusFlags.D))
                 {
-                    byte lo = (byte)((mpu.RegAL & 0x00ff) + (addend & 0x00ff) + carry);
-                    byte hi = (byte)(((mpu.RegAL & 0xff00) + (addend & 0xff00)) >> 4);
+                    byte lo = (byte)((mpu.RegAL & 0x0f) + (addend & 0x0f) + carry);
+                    byte hi = (byte)((mpu.RegAL >> 4 & 0x0f) + (addend >> 4 & 0x0f));
                     if (lo > 9)
                     {
                         lo -= 10;
@@ -71,8 +71,9 @@ namespace EightSixteenEmu.MPU
                     {
                         mpu.SetStatusFlag(StatusFlags.C, false);
                     }
-                    byte result = (byte)((hi << 4) | lo);
+                    byte result = (byte)((hi << 4) | lo & 0x0f);
                     mpu.InternalCycle();
+                    mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegAL = result;
                 }
@@ -108,6 +109,7 @@ namespace EightSixteenEmu.MPU
                     }
                     mpu.SetStatusFlag(StatusFlags.C, carry != 0);
                     mpu.InternalCycle();
+                    mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegA = result;
                 }
@@ -133,19 +135,20 @@ namespace EightSixteenEmu.MPU
 
             if (mpu.AccumulatorIs8Bit)
             {
-                if (mpu.ReadStatusFlag(StatusFlags.D))
+                if (mpu.ReadStatusFlag(StatusFlags.D)) // BCD mode
                 {
-                    byte lo = (byte)((mpu.RegAL & 0x00ff) - (subtrahend & 0x00ff) - (1 - carry));
-                    byte hi = (byte)(((mpu.RegAL & 0xff00) - (subtrahend & 0xff00)) >> 4);
+                    byte lo = (byte)((mpu.RegAL & 0x0F) - (subtrahend & 0x0F) - (1 - carry));
+                    byte hi = (byte)((mpu.RegAL >> 4) - (subtrahend >> 4));
 
-                    if ((lo & 0x80) != 0) // Borrow occurred
+                    if (lo > 0x0F) // Borrow occurred in the low nibble
                     {
-                        lo -= 6;
+                        lo -= 0x06;
                         hi--;
                     }
-                    if ((hi & 0x80) != 0) // Borrow occurred
+
+                    if (hi > 0x0F) // Borrow occurred in the high nibble
                     {
-                        hi -= 6;
+                        hi -= 0x06;
                         mpu.SetStatusFlag(StatusFlags.C, false);
                     }
                     else
@@ -153,12 +156,13 @@ namespace EightSixteenEmu.MPU
                         mpu.SetStatusFlag(StatusFlags.C, true);
                     }
 
-                    byte result = (byte)((hi << 4) | (lo & 0x0f));
+                    byte result = (byte)((hi << 4) | (lo & 0x0F));
+                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
                     mpu.InternalCycle();
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegAL = result;
                 }
-                else
+                else // Binary mode
                 {
                     int result = mpu.RegAL - (byte)subtrahend - (1 - carry);
                     mpu.SetStatusFlag(StatusFlags.C, result >= 0);
@@ -170,15 +174,15 @@ namespace EightSixteenEmu.MPU
             }
             else
             {
-                if (mpu.ReadStatusFlag(StatusFlags.D))
+                if (mpu.ReadStatusFlag(StatusFlags.D)) // BCD mode
                 {
                     ushort result = 0;
                     for (int i = 0; i < 4; i++)
                     {
-                        byte digit = (byte)(((mpu.RegA >> (4 * i)) & 0x0f) - ((subtrahend >> (4 * i)) & 0x0f) - (1 - carry));
-                        if ((digit & 0x80) != 0) // Borrow occurred
+                        byte digit = (byte)(((mpu.RegA >> (4 * i)) & 0x0F) - ((subtrahend >> (4 * i)) & 0x0F) - (1 - carry));
+                        if (digit > 0x0F) // Borrow occurred
                         {
-                            digit -= 10;
+                            digit -= 0x0A;
                             carry = 1;
                         }
                         else
@@ -188,11 +192,12 @@ namespace EightSixteenEmu.MPU
                         result |= (ushort)(digit << (4 * i));
                     }
                     mpu.SetStatusFlag(StatusFlags.C, carry == 0);
+                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
                     mpu.InternalCycle();
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegA = result;
                 }
-                else
+                else // Binary mode
                 {
                     int result = mpu.RegA - subtrahend - (1 - carry);
                     mpu.SetStatusFlag(StatusFlags.C, result >= 0);
@@ -810,7 +815,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.RegPC = mpu.PullWord();
+            mpu.RegPC = (ushort)(mpu.PullWord() + 1);
             mpu.InternalCycle();
         }
     }
@@ -819,7 +824,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.RegPC = mpu.PullWord();
+            mpu.RegPC = (ushort)(mpu.PullWord() + 1);
             mpu.RegPB = mpu.PullByte();
             mpu.InternalCycle();
         }
@@ -829,11 +834,17 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            bool bFlag = mpu.ReadStatusFlag(StatusFlags.X);
+            // TODO: are we meant to keep the B flag as is in emulation? Or is it an always set thing??
             mpu.InternalCycle();
             mpu.InternalCycle();
             mpu.RegSR = (StatusFlags)mpu.PullByte();
             mpu.RegPC = mpu.PullWord();
-            if (!mpu.FlagE)
+            if (mpu.FlagE)
+            {
+                mpu.SetStatusFlag(StatusFlags.X, bFlag);
+            }
+            else
             {
                 mpu.RegPB = mpu.PullByte();
             }
