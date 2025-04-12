@@ -14,6 +14,14 @@ namespace EmuXTesting
             _output = output;
         }
 
+        /*
+         * Okay, why are we excluding the block move tests?
+         * Simply put, the JSON data is broken. It seems to just be the first 100 cycles of the test. The nature of the block moves
+         * means that the accumulator will always be 0xFFFF after the copy is finished. The tests in the JSON set the accumulator to
+         * something like 0xFE8B (65,163 bytes!!) and then the goal state is set after only 100 cycles, meaning only about 14 or so
+         * bytes are copied at test's end!
+         * What a shame. I'll probably write a test for block move instructions that use a ROM file instead of JSON data.
+         */
         [Theory]
         [ClassData(typeof(QuickBurnInData))]
         public void QuickBurnIn(byte inst, BurnInTestState start, BurnInTestState goal, int cycles)

@@ -53,37 +53,73 @@ namespace EightSixteenEmu.MPU
             byte carry = mpu.ReadStatusFlag(StatusFlags.C) ? (byte)1 : (byte)0;
             if (mpu.AccumulatorIs8Bit)
             {
-                int result = mpu.RegAL + addend + carry;
                 if (mpu.ReadStatusFlag(StatusFlags.D))
                 {
+                    byte lo = (byte)((mpu.RegAL & 0x00ff) + (addend & 0x00ff) + carry);
+                    byte hi = (byte)(((mpu.RegAL & 0xff00) + (addend & 0xff00)) >> 4);
+                    if (lo > 9)
                     {
-                        if (((result) & 0x0f) > 0x09) result += 0x06;
-                        if (((result) & 0xf0) > 0x90) result += 0x60;
+                        lo -= 10;
+                        hi++;
                     }
+                    if (hi > 9)
+                    {
+                        hi -= 10;
+                        mpu.SetStatusFlag(StatusFlags.C, true);
+                    }
+                    else
+                    {
+                        mpu.SetStatusFlag(StatusFlags.C, false);
+                    }
+                    byte result = (byte)((hi << 4) | lo);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue(result);
+                    mpu.RegAL = result;
                 }
-                mpu.SetStatusFlag(StatusFlags.C, (result & 0x100) != 0);
-                mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
-                mpu.InternalCycle();
-                mpu.SetNZStatusFlagsFromValue((byte)result);
-                mpu.RegAL = (byte)result;
+                else
+                {
+                    int result = mpu.RegAL + (byte)addend + carry;
+                    mpu.SetStatusFlag(StatusFlags.C, (result & 0x100) != 0);
+                    mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue((byte)result);
+                    mpu.RegAL = (byte)result;
+                }
             }
             else
             {
-                int result = mpu.RegA + addend + carry;
+
                 if (mpu.ReadStatusFlag(StatusFlags.D))
                 {
+                    ushort result = 0;
+                    for (int i = 0; i < 4; i++)
                     {
-                        if (((result) & 0x000f) > 0x0009) result += 0x0006;
-                        if (((result) & 0x00f0) > 0x0090) result += 0x0060;
-                        if (((result) & 0x0f00) > 0x0900) result += 0x0600;
-                        if (((result) & 0xf000) > 0x9000) result += 0x6000;
+                        byte digit = (byte)(((mpu.RegA >> (4 * i)) & 0x0f) + ((addend >> (4 * i)) & 0x0f) + carry);
+                        if (digit > 9)
+                        {
+                            digit -= 10;
+                            carry = 1;
+                        }
+                        else
+                        {
+                            carry = 0;
+                        }
+                        result |= (ushort)(digit << (4 * i));
                     }
+                    mpu.SetStatusFlag(StatusFlags.C, carry != 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue(result);
+                    mpu.RegA = result;
                 }
-                mpu.SetStatusFlag(StatusFlags.C, (result & 0x10000) != 0);
-                mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegA ^ addend)) & (mpu.RegA ^ result) & 0x8000) != 0);
-                mpu.InternalCycle();
-                mpu.SetNZStatusFlagsFromValue((ushort)result);
-                mpu.RegA = (ushort)result;
+                else
+                {
+                    int result = mpu.RegA + addend + carry;
+                    mpu.SetStatusFlag(StatusFlags.C, (result & 0x10000) != 0);
+                    mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegA ^ addend)) & (mpu.RegA ^ result) & 0x8000) != 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue((ushort)result);
+                    mpu.RegA = (ushort)result;
+                }
             }
         }
     }
@@ -94,40 +130,77 @@ namespace EightSixteenEmu.MPU
         {
             ushort subtrahend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
             byte carry = mpu.ReadStatusFlag(StatusFlags.C) ? (byte)1 : (byte)0;
+
             if (mpu.AccumulatorIs8Bit)
             {
-                int result = mpu.RegAL + ~(byte)subtrahend - (1 - carry);
                 if (mpu.ReadStatusFlag(StatusFlags.D))
                 {
+                    byte lo = (byte)((mpu.RegAL & 0x00ff) - (subtrahend & 0x00ff) - (1 - carry));
+                    byte hi = (byte)(((mpu.RegAL & 0xff00) - (subtrahend & 0xff00)) >> 4);
+
+                    if ((lo & 0x80) != 0) // Borrow occurred
                     {
-                        if (((result) & 0x0f) > 0x09) result += 0x06;
-                        if (((result) & 0xf0) > 0x90) result += 0x60;
+                        lo -= 6;
+                        hi--;
                     }
+                    if ((hi & 0x80) != 0) // Borrow occurred
+                    {
+                        hi -= 6;
+                        mpu.SetStatusFlag(StatusFlags.C, false);
+                    }
+                    else
+                    {
+                        mpu.SetStatusFlag(StatusFlags.C, true);
+                    }
+
+                    byte result = (byte)((hi << 4) | (lo & 0x0f));
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue(result);
+                    mpu.RegAL = result;
                 }
-                mpu.SetStatusFlag(StatusFlags.C, (byte)result >= (byte)subtrahend);
-                mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
-                mpu.InternalCycle();
-                mpu.SetNZStatusFlagsFromValue((byte)result);
-                mpu.RegAL = (byte)result;
+                else
+                {
+                    int result = mpu.RegAL - (byte)subtrahend - (1 - carry);
+                    mpu.SetStatusFlag(StatusFlags.C, result >= 0);
+                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue((byte)result);
+                    mpu.RegAL = (byte)result;
+                }
             }
             else
             {
-                int result = mpu.RegA - subtrahend - (1 - carry);
                 if (mpu.ReadStatusFlag(StatusFlags.D))
                 {
+                    ushort result = 0;
+                    for (int i = 0; i < 4; i++)
                     {
-                        if (((result) & 0x000f) > 0x0009) result += 0x0006;
-                        if (((result) & 0x00f0) > 0x0090) result += 0x0060;
-                        if (((result) & 0x0f00) > 0x0900) result += 0x0600;
-                        if (((result) & 0xf000) > 0x9000) result += 0x6000;
+                        byte digit = (byte)(((mpu.RegA >> (4 * i)) & 0x0f) - ((subtrahend >> (4 * i)) & 0x0f) - (1 - carry));
+                        if ((digit & 0x80) != 0) // Borrow occurred
+                        {
+                            digit -= 10;
+                            carry = 1;
+                        }
+                        else
+                        {
+                            carry = 0;
+                        }
+                        result |= (ushort)(digit << (4 * i));
                     }
+                    mpu.SetStatusFlag(StatusFlags.C, carry == 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue(result);
+                    mpu.RegA = result;
                 }
-                mpu.SetStatusFlag(StatusFlags.C, (ushort)result >= subtrahend);
-                mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
-                mpu.InternalCycle();
-                mpu.SetNZStatusFlagsFromValue((ushort)result);
-                mpu.RegA = (ushort)result;
-
+                else
+                {
+                    int result = mpu.RegA - subtrahend - (1 - carry);
+                    mpu.SetStatusFlag(StatusFlags.C, result >= 0);
+                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
+                    mpu.InternalCycle();
+                    mpu.SetNZStatusFlagsFromValue((ushort)result);
+                    mpu.RegA = (ushort)result;
+                }
             }
         }
     }
