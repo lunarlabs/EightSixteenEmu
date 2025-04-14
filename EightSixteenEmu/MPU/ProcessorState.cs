@@ -37,7 +37,8 @@ namespace EightSixteenEmu.MPU
                 _context.mpu.RegSP = 0x0100;
                 _context.mpu.RegSR = (StatusFlags)0x34;
                 _context.mpu.LoadInterruptVector(W65C816.Vector.Reset);
-                _context?.TransitionTo(new ProcessorStateRunning());
+                if (this is not ProcessorStateRunning)
+                    _context.TransitionTo(new ProcessorStateRunning());
             }
         }
         internal virtual void NextInstruction() => throw new InvalidOperationException($"Processor must be in running state to execute instructions. Current state: {GetType().Name}");
@@ -84,9 +85,13 @@ namespace EightSixteenEmu.MPU
             // In my head, the only reason you'd want the processor in the disabled state
             // is to mess with the registers programatically -- like when loading a save state?
             // Whatever. If null's passed, assume we're starting completely fresh.
-            _state = state ?? new ProcessorStateRunning();
+            _state = state ?? new ProcessorStateDisabled();
             _state.SetContext(this);
             this.mpu = mpu;
+            if (state == null)
+            {
+                this.TransitionTo(new ProcessorStateRunning());
+            }
         }
 
         public string StateName => _state.GetType().Name;

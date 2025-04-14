@@ -164,7 +164,7 @@ namespace EightSixteenEmu.MPU
             byte offset = mpu.ReadByte();
             _notation = $"(${offset:x2}),Y";
             uint pointer = CalculateDirectAddress(mpu, offset);
-            return FullAddress(mpu.RegDB, mpu.ReadWord(pointer) + mpu.RegY);
+            return (uint)((mpu.RegDB << 16) + mpu.ReadWord(pointer) + mpu.RegY);
         }
     }
     internal class AM_DirectIndirectLong : AddressingModeStrategy
@@ -249,7 +249,7 @@ namespace EightSixteenEmu.MPU
             byte offset = mpu.ReadByte();
             _notation = $"(${offset:x2}, S), Y";
             uint pointer = FullAddress(0, mpu.RegSP + offset);
-            return FullAddress(mpu.RegDB, mpu.ReadWord(pointer) + mpu.RegY);
+            return FullAddress(mpu.RegDB, mpu.ReadWord(pointer))+ mpu.RegY;
         }
     }
     internal class AM_AbsoluteIndirect : AddressingModeStrategy
@@ -278,7 +278,7 @@ namespace EightSixteenEmu.MPU
         {
             ushort address = mpu.ReadWord();
             _notation = $"(${address:x4}, X)";
-            return FullAddress(mpu.RegPB, mpu.ReadWord(FullAddress(0, address + mpu.RegX)));
+            return FullAddress(mpu.RegPB, mpu.ReadWord(FullAddress(mpu.RegPB, address + mpu.RegX)));
         }
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }

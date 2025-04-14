@@ -36,7 +36,7 @@ namespace EmuXTesting
             // TODO: make rom file
             // Act
             // Assert
-            throw new NotImplementedException();
+            Assert.Fail("I didn't code the interrupts ROM yet!");
         }
 
         /* As for the other hardware interrupts, their mechanics are quite like the COP and BRK instructions, so much so

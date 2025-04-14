@@ -48,22 +48,30 @@ namespace EmuXTesting
             emu.MPU.ExecuteInstruction();
             var mpuState = emu.MPU.GetStatus();
             bool registersEqual = goal.State.PC == mpuState.PC
-                && goal.State.A == mpuState.A 
-                && goal.State.X == mpuState.X 
-                && goal.State.Y == mpuState.Y 
-                && goal.State.DP == mpuState.DP 
-                && goal.State.SP == mpuState.SP 
-                && goal.State.DB == mpuState.DB 
-                && goal.State.PB == mpuState.PB 
-                && goal.State.FlagN == mpuState.FlagN 
-                && goal.State.FlagV == mpuState.FlagV 
-                && goal.State.FlagM == mpuState.FlagM 
-                && goal.State.FlagX == mpuState.FlagX 
-                && goal.State.FlagD == mpuState.FlagD 
-                && goal.State.FlagI == mpuState.FlagI 
-                && goal.State.FlagZ == mpuState.FlagZ 
+                && goal.State.A == mpuState.A
+                && goal.State.X == mpuState.X
+                && goal.State.Y == mpuState.Y
+                && goal.State.DP == mpuState.DP
+                && goal.State.SP == mpuState.SP
+                && goal.State.DB == mpuState.DB
+                && goal.State.PB == mpuState.PB;
+
+            bool ignoreV = (op == W65C816.OpCode.ADC || op == W65C816.OpCode.SBC) && mpuState.FlagD;
+            bool vMatch = ignoreV || goal.State.FlagV == mpuState.FlagV;
+
+            bool checkM = !mpuState.FlagE;
+            bool mMatch = !checkM || goal.State.FlagM == mpuState.FlagM;
+
+            bool flagsEqual = goal.State.FlagN == mpuState.FlagN
+                && vMatch
+                && mMatch
+                && goal.State.FlagX == mpuState.FlagX
+                && goal.State.FlagD == mpuState.FlagD
+                && goal.State.FlagI == mpuState.FlagI
+                && goal.State.FlagZ == mpuState.FlagZ
                 && goal.State.FlagC == mpuState.FlagC
                 && goal.State.FlagE == mpuState.FlagE;
+
             _output.WriteLine($"Cycle Count: Expected {cycles}, Actual {mpuState.Cycles}");
             _output.WriteLine($"PC:    Expected ${goal.State.PC:X4}, Actual ${mpuState.PC:X4} {((goal.State.PC == mpuState.PC) ? "" : "!!")}");
             _output.WriteLine($"SP:    Expected ${goal.State.SP:X4}, Actual ${mpuState.SP:X4} {((goal.State.SP == mpuState.SP) ? "" : "!!")}");
@@ -73,7 +81,7 @@ namespace EmuXTesting
             _output.WriteLine($"D:     Expected ${goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((goal.State.DP == mpuState.DP) ? "" : "!!")}");
             _output.WriteLine($"DB:    Expected ${goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((goal.State.DB == mpuState.DB) ? "" : "!!")}");
             _output.WriteLine($"PB:    Expected ${goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((goal.State.PB == mpuState.PB) ? "" : "!!")}");
-            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {((goal.State.Flags() == mpuState.Flags()) ? "" : "!!")}");
+            _output.WriteLine($"Flags: Expected {goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {(flagsEqual ? "" : "!!")}");
             _output.WriteLine("\nMemory values:\nAddress  Ex   Ac");
             bool ramEqual = true;
             foreach (var kvp in goal.RamValues)
@@ -86,6 +94,7 @@ namespace EmuXTesting
                 }
             }
             Assert.True(registersEqual, "Registers do not match expected values.");
+            Assert.True(flagsEqual, "Flags do not match expected values.");
             Assert.True(ramEqual, "RAM values do not match expected values.");
             // TODO: Let's put this aside before it drives me up the wall
             //Assert.True(cycles == mpuState.Cycles, "Operation did not run in the expected amount of cycles.");

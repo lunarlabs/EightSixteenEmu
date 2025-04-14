@@ -38,7 +38,7 @@ namespace EightSixteenEmu.MPU
             byte destination = (byte)(operand >> 8);
             mpu.RegDB = destination;
             byte source = (byte)operand;
-            mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX),(uint)(destination <<16)| mpu.RegY);
+            mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX), (uint)(destination << 16) | mpu.RegY);
             mpu.InternalCycle();
             mpu.InternalCycle();
             if (--mpu.RegA != 0xffff) mpu.RegPC -= 3; // jump back to the move instruction
@@ -256,7 +256,8 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CPY : OpcodeCommand
     {
-        internal override void Execute(Microprocessor mpu) {
+        internal override void Execute(Microprocessor mpu)
+        {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
             if (mpu.IndexesAre8Bit)
             {
@@ -644,6 +645,7 @@ namespace EightSixteenEmu.MPU
                 operand = (ushort)(mpu.ReadStatusFlag(StatusFlags.C) ? (operand >> 1) | (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000) : operand >> 1);
                 mpu.SetStatusFlag(StatusFlags.C, carry);
                 mpu.InternalCycle();
+                mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -851,7 +853,7 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-    
+
     internal class OP_BRK : OpcodeCommand
     {
         internal override void Execute(Microprocessor mpu)
@@ -963,7 +965,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_LDA : OpcodeCommand
     {
-        internal override void Execute(Microprocessor mpu) 
+        internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
             if (mpu.AccumulatorIs8Bit)
@@ -1157,7 +1159,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.PushWord(mpu.AddressingMode.GetOperand(mpu, false));
+            mpu.PushWord((ushort)mpu.AddressingMode.GetAddress(mpu));
         }
     }
 
@@ -1495,7 +1497,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            if(mpu.FlagE)
+            if (mpu.FlagE)
             {
                 mpu.RegSL = mpu.RegAL;
             }
@@ -1507,7 +1509,7 @@ namespace EightSixteenEmu.MPU
         }
     }
 
-    internal class OP_TDC : OpcodeCommand 
+    internal class OP_TDC : OpcodeCommand
     {
         internal override void Execute(Microprocessor mpu)
         {
