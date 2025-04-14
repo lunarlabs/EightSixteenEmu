@@ -454,7 +454,7 @@ namespace EightSixteenEmu
                 0xc4 => (OpCode.CPY, AddressingMode.Direct),
                 0xc5 => (OpCode.CMP, AddressingMode.Direct),
                 0xc6 => (OpCode.DEC, AddressingMode.Direct),
-                0xc7 => (OpCode.CMP, AddressingMode.DirectIndirectLongIndexed),
+                0xc7 => (OpCode.CMP, AddressingMode.DirectIndirectLong),
                 0xc8 => (OpCode.INY, AddressingMode.Implied),
                 0xc9 => (OpCode.CMP, AddressingMode.Immediate),
                 0xca => (OpCode.DEX, AddressingMode.Implied),

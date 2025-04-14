@@ -131,22 +131,28 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort subtrahend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            byte carry = mpu.ReadStatusFlag(StatusFlags.C) ? (byte)1 : (byte)0;
+            mpu.InternalCycle(); // Account for operand fetch cycle
 
             if (mpu.AccumulatorIs8Bit)
             {
+                int carry = mpu.ReadStatusFlag(StatusFlags.C) ? 1 : 0;
+
                 if (mpu.ReadStatusFlag(StatusFlags.D)) // BCD mode
                 {
-                    byte lo = (byte)((mpu.RegAL & 0x0F) - (subtrahend & 0x0F) - (1 - carry));
-                    byte hi = (byte)((mpu.RegAL >> 4) - (subtrahend >> 4));
+                    byte a = mpu.RegAL;
+                    byte b = (byte)subtrahend;
+                    int diff = a - b - (1 - carry);
 
-                    if (lo > 0x0F) // Borrow occurred in the low nibble
+                    byte lo = (byte)((a & 0x0F) - (b & 0x0F) - (1 - carry));
+                    byte hi = (byte)((a >> 4) - (b >> 4));
+
+                    if ((lo & 0x10) != 0) // Borrow occurred in the low nibble
                     {
                         lo -= 0x06;
                         hi--;
                     }
 
-                    if (hi > 0x0F) // Borrow occurred in the high nibble
+                    if ((hi & 0x10) != 0) // Borrow in high nibble
                     {
                         hi -= 0x06;
                         mpu.SetStatusFlag(StatusFlags.C, false);
@@ -157,52 +163,62 @@ namespace EightSixteenEmu.MPU
                     }
 
                     byte result = (byte)((hi << 4) | (lo & 0x0F));
-                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
-                    mpu.InternalCycle();
+                    mpu.SetStatusFlag(StatusFlags.V, ((a ^ b) & (a ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegAL = result;
                 }
                 else // Binary mode
                 {
-                    int result = mpu.RegAL - (byte)subtrahend - (1 - carry);
+                    byte a = mpu.RegAL;
+                    byte b = (byte)subtrahend;
+                    int result = a - b - (1 - carry);
+
                     mpu.SetStatusFlag(StatusFlags.C, result >= 0);
-                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegAL ^ subtrahend) & (mpu.RegAL ^ result) & 0x80) != 0);
-                    mpu.InternalCycle();
+                    mpu.SetStatusFlag(StatusFlags.V, ((a ^ b) & (a ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue((byte)result);
                     mpu.RegAL = (byte)result;
                 }
             }
             else
             {
+                int carry = mpu.ReadStatusFlag(StatusFlags.C) ? 1 : 0;
+
                 if (mpu.ReadStatusFlag(StatusFlags.D)) // BCD mode
                 {
                     ushort result = 0;
+                    int borrow = 1 - carry;
                     for (int i = 0; i < 4; i++)
                     {
-                        byte digit = (byte)(((mpu.RegA >> (4 * i)) & 0x0F) - ((subtrahend >> (4 * i)) & 0x0F) - (1 - carry));
-                        if (digit > 0x0F) // Borrow occurred
+                        byte digitA = (byte)((mpu.RegA >> (4 * i)) & 0x0F);
+                        byte digitB = (byte)((subtrahend >> (4 * i)) & 0x0F);
+                        byte digit = (byte)(digitA - digitB - borrow);
+
+                        if ((digit & 0x10) != 0) // Borrow occurred
                         {
                             digit -= 0x0A;
-                            carry = 1;
+                            borrow = 1;
                         }
                         else
                         {
-                            carry = 0;
+                            borrow = 0;
                         }
+
                         result |= (ushort)(digit << (4 * i));
                     }
-                    mpu.SetStatusFlag(StatusFlags.C, carry == 0);
+
+                    mpu.SetStatusFlag(StatusFlags.C, borrow == 0);
                     mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
-                    mpu.InternalCycle();
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegA = result;
                 }
                 else // Binary mode
                 {
-                    int result = mpu.RegA - subtrahend - (1 - carry);
+                    ushort a = mpu.RegA;
+                    ushort b = subtrahend;
+                    int result = a - b - (1 - carry);
+
                     mpu.SetStatusFlag(StatusFlags.C, result >= 0);
-                    mpu.SetStatusFlag(StatusFlags.V, ((mpu.RegA ^ subtrahend) & (mpu.RegA ^ result) & 0x8000) != 0);
-                    mpu.InternalCycle();
+                    mpu.SetStatusFlag(StatusFlags.V, ((a ^ b) & (a ^ result) & 0x8000) != 0);
                     mpu.SetNZStatusFlagsFromValue((ushort)result);
                     mpu.RegA = (ushort)result;
                 }
@@ -261,14 +277,14 @@ namespace EightSixteenEmu.MPU
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
             if (mpu.IndexesAre8Bit)
             {
-                int result = mpu.RegXL - (byte)operand;
+                int result = mpu.RegYL - (byte)operand;
                 mpu.SetStatusFlag(StatusFlags.C, (byte)result <= mpu.RegYL);
                 mpu.SetNZStatusFlagsFromValue((byte)result);
                 mpu.InternalCycle();
             }
             else
             {
-                int result = mpu.RegX - operand;
+                int result = mpu.RegY - operand;
                 mpu.SetStatusFlag(StatusFlags.C, (ushort)result <= mpu.RegY);
                 mpu.SetNZStatusFlagsFromValue((ushort)result);
                 mpu.InternalCycle();
