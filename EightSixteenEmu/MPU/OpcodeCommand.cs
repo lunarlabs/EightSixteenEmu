@@ -465,6 +465,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
+            if (mpu.AddressingMode is not AM_Immediate) mpu.InternalCycle();
             if (mpu.AccumulatorIs8Bit)
             {
                 mpu.RegAL |= (byte)operand;
@@ -872,6 +873,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
             mpu.Interrupt(InterruptType.BRK);
         }
     }
@@ -880,6 +882,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
             mpu.Interrupt(InterruptType.COP);
         }
     }

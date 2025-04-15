@@ -173,7 +173,7 @@ namespace EightSixteenEmu.MPU
         {
             if (_context != null)
             { 
-                ushort addressToPush = (type == InterruptType.BRK || type == InterruptType.COP) ? (ushort)(_context.mpu.RegPC + 1) : _context.mpu.RegPC;
+                ushort addressToPush = (type == InterruptType.BRK || type == InterruptType.COP) ? (ushort)(_context.mpu.RegPC) : _context.mpu.RegPC;
                 if (!_context.mpu.FlagE) _context.mpu.PushByte(_context.mpu.RegPB);
                 _context.mpu.PushWord(addressToPush);
                 if(_context.mpu.FlagE && type == InterruptType.BRK)
