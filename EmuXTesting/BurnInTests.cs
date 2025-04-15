@@ -50,7 +50,30 @@ namespace EmuXTesting
             _output.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(test.Start.State.FlagE ? "emulated" : "native" )}");
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
-            var mpuState = emu.MPU.GetStatus();
+            _output.WriteLine($"Cyc |{"Expected",-21}|{"Actual",-21}");
+            _output.WriteLine($"    |{"Address",-7} {"Val",-3} {"Type",-9}|{"Address",-7} {"Val",-3} {"Type",-9}");
+            for (int i = 0; i < Math.Max(test.Cycles.Count, executionCycles.Count); i++)
+            {
+                string s = $"{i,3} |";
+                if (i < test.Cycles.Count)
+                {
+                    s += $"${test.Cycles[i].Address:X6} ${test.Cycles[i].Value:X2} {test.Cycles[i].Type,-9}|";
+                }
+                else
+                {
+                    s += $"{"N/A",-21}|";
+                }
+                if (i < executionCycles.Count)
+                {
+                    s += $"${executionCycles[i].Address:X6} ${executionCycles[i].Value:X2} {executionCycles[i].Type,-9}";
+                }
+                else
+                {
+                    s += $"{"N/A",-21}";
+                }
+                _output.WriteLine(s);
+            }
+                var mpuState = emu.MPU.GetStatus();
             bool registersEqual = test.Goal.State.PC == mpuState.PC
                 && test.Goal.State.A == mpuState.A
                 && test.Goal.State.X == mpuState.X
@@ -101,7 +124,8 @@ namespace EmuXTesting
             Assert.True(flagsEqual, "Flags do not match expected values.");
             Assert.True(ramEqual, "RAM values do not match expected values.");
             // TODO: Let's put this aside before it drives me up the wall
-            //Assert.True(cycles == mpuState.Cycles, "Operation did not run in the expected amount of cycles.");
+            // Time to figure out where to put Internal cycles
+            Assert.True(test.Cycles.Count == executionCycles.Count, "Operation did not run in the expected amount of cycles.");
         }
 
         private void OnNewCycle(int cycles, Microprocessor.Cycle details)
@@ -148,6 +172,17 @@ namespace EmuXTesting
             };
             if (File.Exists(cacheFile))
             {
+                string jsonContent = File.ReadAllText(cacheFile);
+                JsonDocument doc = JsonDocument.Parse(jsonContent);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
+                    {
+                        BurnInTest test = new(testElement);
+                        Console.WriteLine($"Test no. {test.Inst:X2}, {test.IsEmulated}");
+                        Add(test);
+                    }
+                }
             }
             else
             {
@@ -170,6 +205,7 @@ namespace EmuXTesting
                         }
                     }
                 }
+                File.WriteAllText(cacheFile, cacheArray.ToJsonString());
             }
         }
     }

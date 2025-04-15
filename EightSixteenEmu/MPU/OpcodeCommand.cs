@@ -25,10 +25,10 @@ namespace EightSixteenEmu.MPU
 
         internal static void BranchTo(Microprocessor mpu, uint address)
         {
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
             if (mpu.FlagE && (byte)(mpu.RegPC >> 8) != (byte)(address >> 8))
             {
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             mpu.RegPC = (ushort)address;
         }
@@ -39,8 +39,8 @@ namespace EightSixteenEmu.MPU
             mpu.RegDB = destination;
             byte source = (byte)operand;
             mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX), (uint)(destination << 16) | mpu.RegY);
-            mpu.InternalCycle();
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
+            //mpu.InternalCycle();
             if (--mpu.RegA != 0xffff) mpu.RegPC -= 3; // jump back to the move instruction
         }
     }
@@ -72,7 +72,7 @@ namespace EightSixteenEmu.MPU
                         mpu.SetStatusFlag(StatusFlags.C, false);
                     }
                     byte result = (byte)((hi << 4) | lo & 0x0f);
-                    mpu.InternalCycle();
+                    //mpu.InternalCycle();
                     mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegAL = result;
@@ -82,7 +82,7 @@ namespace EightSixteenEmu.MPU
                     int result = mpu.RegAL + (byte)addend + carry;
                     mpu.SetStatusFlag(StatusFlags.C, (result & 0x100) != 0);
                     mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
-                    mpu.InternalCycle();
+                    //mpu.InternalCycle();
                     mpu.SetNZStatusFlagsFromValue((byte)result);
                     mpu.RegAL = (byte)result;
                 }
@@ -108,7 +108,7 @@ namespace EightSixteenEmu.MPU
                         result |= (ushort)(digit << (4 * i));
                     }
                     mpu.SetStatusFlag(StatusFlags.C, carry != 0);
-                    mpu.InternalCycle();
+                    //mpu.InternalCycle();
                     mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegAL ^ addend)) & (mpu.RegAL ^ result) & 0x80) != 0);
                     mpu.SetNZStatusFlagsFromValue(result);
                     mpu.RegA = result;
@@ -118,7 +118,7 @@ namespace EightSixteenEmu.MPU
                     int result = mpu.RegA + addend + carry;
                     mpu.SetStatusFlag(StatusFlags.C, (result & 0x10000) != 0);
                     mpu.SetStatusFlag(StatusFlags.V, ((~(mpu.RegA ^ addend)) & (mpu.RegA ^ result) & 0x8000) != 0);
-                    mpu.InternalCycle();
+                    //mpu.InternalCycle();
                     mpu.SetNZStatusFlagsFromValue((ushort)result);
                     mpu.RegA = (ushort)result;
                 }
@@ -131,7 +131,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort subtrahend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            mpu.InternalCycle(); // Account for operand fetch cycle
+            //mpu.InternalCycle(); // Account for operand fetch cycle
 
             if (mpu.AccumulatorIs8Bit)
             {
@@ -236,14 +236,14 @@ namespace EightSixteenEmu.MPU
                 int result = mpu.RegAL - (byte)operand;
                 mpu.SetStatusFlag(StatusFlags.C, (byte)result <= mpu.RegAL);
                 mpu.SetNZStatusFlagsFromValue((byte)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
                 int result = mpu.RegA - operand;
                 mpu.SetStatusFlag(StatusFlags.C, (ushort)result <= mpu.RegA);
                 mpu.SetNZStatusFlagsFromValue((ushort)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
         }
     }
@@ -258,14 +258,14 @@ namespace EightSixteenEmu.MPU
                 int result = mpu.RegXL - (byte)operand;
                 mpu.SetStatusFlag(StatusFlags.C, (byte)result <= mpu.RegXL);
                 mpu.SetNZStatusFlagsFromValue((byte)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
                 int result = mpu.RegX - operand;
                 mpu.SetStatusFlag(StatusFlags.C, (ushort)result <= mpu.RegX);
                 mpu.SetNZStatusFlagsFromValue((ushort)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
         }
     }
@@ -280,14 +280,14 @@ namespace EightSixteenEmu.MPU
                 int result = mpu.RegYL - (byte)operand;
                 mpu.SetStatusFlag(StatusFlags.C, (byte)result <= mpu.RegYL);
                 mpu.SetNZStatusFlagsFromValue((byte)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
                 int result = mpu.RegY - operand;
                 mpu.SetStatusFlag(StatusFlags.C, (ushort)result <= mpu.RegY);
                 mpu.SetNZStatusFlagsFromValue((ushort)result);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
         }
     }
@@ -306,7 +306,7 @@ namespace EightSixteenEmu.MPU
                 {
                     mpu.SetNZStatusFlagsFromValue(--mpu.RegA);
                 }
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
@@ -320,7 +320,7 @@ namespace EightSixteenEmu.MPU
                 {
                     mpu.SetNZStatusFlagsFromValue((ushort)operand);
                 }
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -338,7 +338,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.SetNZStatusFlagsFromValue(--mpu.RegX);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -354,7 +354,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.SetNZStatusFlagsFromValue(--mpu.RegY);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -385,7 +385,7 @@ namespace EightSixteenEmu.MPU
                 {
                     mpu.SetNZStatusFlagsFromValue((ushort)operand);
                 }
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -403,7 +403,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.SetNZStatusFlagsFromValue(++mpu.RegX);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -419,7 +419,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.SetNZStatusFlagsFromValue(++mpu.RegY);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -438,7 +438,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA &= operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -457,7 +457,6 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA ^= operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.InternalCycle();
         }
     }
 
@@ -466,7 +465,6 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            mpu.InternalCycle();
             if (mpu.AccumulatorIs8Bit)
             {
                 mpu.RegAL |= (byte)operand;
@@ -515,7 +513,7 @@ namespace EightSixteenEmu.MPU
             operand &= (ushort)~mask;
             mpu.SetStatusFlag(StatusFlags.Z, operand == 0);
             mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -528,7 +526,7 @@ namespace EightSixteenEmu.MPU
             operand |= mask;
             mpu.SetStatusFlag(StatusFlags.Z, operand == 0);
             mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -550,7 +548,7 @@ namespace EightSixteenEmu.MPU
                     mpu.RegA <<= 1;
                     mpu.SetNZStatusFlagsFromValue(mpu.RegA);
                 }
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
@@ -558,7 +556,7 @@ namespace EightSixteenEmu.MPU
                 mpu.SetStatusFlag(StatusFlags.C, (operand & (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000)) != 0);
                 operand <<= 1;
                 mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -582,7 +580,7 @@ namespace EightSixteenEmu.MPU
                     mpu.RegA >>>= 1;
                     mpu.SetNZStatusFlagsFromValue(mpu.RegA);
                 }
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
             }
             else
             {
@@ -590,7 +588,7 @@ namespace EightSixteenEmu.MPU
                 mpu.SetStatusFlag(StatusFlags.C, (operand & 0x0001) != 0);
                 operand >>>= 1;
                 mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -606,7 +604,7 @@ namespace EightSixteenEmu.MPU
                 operand = mpu.AccumulatorIs8Bit ? mpu.RegAL : mpu.RegA;
                 operand = operand << 1 | (mpu.ReadStatusFlag(StatusFlags.C) ? 1u : 0u);
                 mpu.SetStatusFlag(StatusFlags.C, (mpu.AccumulatorIs8Bit ? (operand & 0x100) : (operand & 0x10000)) != 0);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 if (mpu.AccumulatorIs8Bit)
                 {
                     mpu.RegAL = (byte)operand;
@@ -624,7 +622,7 @@ namespace EightSixteenEmu.MPU
                 operand = operand << 1 | (mpu.ReadStatusFlag(StatusFlags.C) ? 1u : 0u);
                 mpu.SetStatusFlag(StatusFlags.C, (mpu.AccumulatorIs8Bit ? (operand & 0x100) : (operand & 0x10000)) != 0);
                 mpu.SetNZStatusFlagsFromValue((ushort)operand, mpu.AccumulatorIs8Bit);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.WriteValue((ushort)operand, mpu.AccumulatorIs8Bit, address);
             }
         }
@@ -642,7 +640,7 @@ namespace EightSixteenEmu.MPU
                 carry = operand % 2 == 1;
                 operand = (ushort)(mpu.ReadStatusFlag(StatusFlags.C) ? (operand >> 1) | (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000) : operand >> 1);
                 mpu.SetStatusFlag(StatusFlags.C, carry);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 if (mpu.AccumulatorIs8Bit)
                 {
                     mpu.RegAL = (byte)operand;
@@ -660,7 +658,7 @@ namespace EightSixteenEmu.MPU
                 carry = operand % 2 == 1;
                 operand = (ushort)(mpu.ReadStatusFlag(StatusFlags.C) ? (operand >> 1) | (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000) : operand >> 1);
                 mpu.SetStatusFlag(StatusFlags.C, carry);
-                mpu.InternalCycle();
+                //mpu.InternalCycle();
                 mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
                 mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
             }
@@ -789,7 +787,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegPB = (byte)(destination >> 16);
             }
             mpu.RegPC = (ushort)destination;
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -805,7 +803,7 @@ namespace EightSixteenEmu.MPU
             mpu.PushWord((ushort)(mpu.RegPC - 1)); // that ugly off-by-one raised its head again in testing...
             mpu.RegPC = (ushort)destination;
             mpu.RegPB = (byte)(destination >> 16);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
 
             // Replacement:
             //ushort destAddr = mpu.ReadWord();
@@ -814,7 +812,7 @@ namespace EightSixteenEmu.MPU
             //mpu.PushWord(mpu.RegPC);
             //mpu.RegPC = destAddr;
             //mpu.RegPB = bankAddr;
-            //mpu.InternalCycle();
+            ////mpu.InternalCycle();
         }
     }
 
@@ -825,7 +823,7 @@ namespace EightSixteenEmu.MPU
             uint destination = mpu.AddressingMode.GetAddress(mpu);
             mpu.PushWord((ushort)(mpu.RegPC - 1));
             mpu.RegPC = (ushort)destination;
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -834,7 +832,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegPC = (ushort)(mpu.PullWord() + 1);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -844,7 +842,7 @@ namespace EightSixteenEmu.MPU
         {
             mpu.RegPC = (ushort)(mpu.PullWord() + 1);
             mpu.RegPB = mpu.PullByte();
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -854,8 +852,8 @@ namespace EightSixteenEmu.MPU
         {
             bool bFlag = mpu.ReadStatusFlag(StatusFlags.X);
             // TODO: are we meant to keep the B flag as is in emulation? Or is it an always set thing??
-            mpu.InternalCycle();
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
+            //mpu.InternalCycle();
             mpu.RegSR = (StatusFlags)mpu.PullByte();
             mpu.RegPC = mpu.PullWord();
             if (mpu.FlagE)
@@ -891,7 +889,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.C, false);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -900,7 +898,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.D, false);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -909,7 +907,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.I, false);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -918,7 +916,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.V, false);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -927,7 +925,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.C, true);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -936,7 +934,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.D, true);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -945,7 +943,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.I, true);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -960,7 +958,7 @@ namespace EightSixteenEmu.MPU
                 operand &= 0xCF;
             }
             mpu.RegSR &= (StatusFlags)~operand;
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -975,7 +973,7 @@ namespace EightSixteenEmu.MPU
                 operand &= 0xCF;
             }
             mpu.RegSR |= (StatusFlags)operand;
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -994,7 +992,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA = operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1013,7 +1011,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegX = operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegX);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1032,7 +1030,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegY = operand;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegY);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1142,7 +1140,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1151,7 +1149,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegPC++;
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1344,7 +1342,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
             mpu.Stop();
         }
     }
@@ -1353,7 +1351,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
             mpu.Wait();
         }
     }
@@ -1372,7 +1370,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegX = mpu.RegA;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegX);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1390,7 +1388,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegY = mpu.RegA;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegY);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1425,7 +1423,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA = mpu.RegX;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1441,7 +1439,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.RegSP = mpu.RegX;
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1459,7 +1457,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegY = mpu.RegX;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegY);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1477,7 +1475,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegA = mpu.RegY;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegA);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1495,7 +1493,7 @@ namespace EightSixteenEmu.MPU
                 mpu.RegX = mpu.RegY;
                 mpu.SetNZStatusFlagsFromValue(mpu.RegX);
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1505,7 +1503,7 @@ namespace EightSixteenEmu.MPU
         {
             mpu.RegDP = mpu.RegA;
             mpu.SetNZStatusFlagsFromValue(mpu.RegDP);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1521,7 +1519,7 @@ namespace EightSixteenEmu.MPU
             {
                 mpu.RegSP = mpu.RegA;
             }
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1531,7 +1529,7 @@ namespace EightSixteenEmu.MPU
         {
             mpu.RegA = mpu.RegDP;
             mpu.SetNZStatusFlagsFromValue(mpu.RegA);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1541,7 +1539,7 @@ namespace EightSixteenEmu.MPU
         {
             mpu.RegA = mpu.RegSP;
             mpu.SetNZStatusFlagsFromValue(mpu.RegA);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1553,7 +1551,7 @@ namespace EightSixteenEmu.MPU
             mpu.RegAL = mpu.RegAH;
             mpu.RegAH = temp;
             mpu.SetNZStatusFlagsFromValue(mpu.RegAL);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 
@@ -1564,7 +1562,7 @@ namespace EightSixteenEmu.MPU
             bool carry = mpu.ReadStatusFlag(StatusFlags.C);
             mpu.SetStatusFlag(StatusFlags.C, mpu.FlagE);
             mpu.SetEmulationMode(carry);
-            mpu.InternalCycle();
+            //mpu.InternalCycle();
         }
     }
 }
