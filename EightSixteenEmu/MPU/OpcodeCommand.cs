@@ -465,7 +465,6 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
-            if (mpu.AddressingMode is not AM_Immediate) mpu.InternalCycle();
             if (mpu.AccumulatorIs8Bit)
             {
                 mpu.RegAL |= (byte)operand;
@@ -524,6 +523,8 @@ namespace EightSixteenEmu.MPU
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
             ushort mask = (ushort)(mpu.AccumulatorIs8Bit ? mpu.RegAL : mpu.RegA);
+            if (mpu.FlagE) mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
+            else mpu.InternalCycle();
             operand |= mask;
             mpu.SetStatusFlag(StatusFlags.Z, operand == 0);
             mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
@@ -537,6 +538,7 @@ namespace EightSixteenEmu.MPU
         {
             if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator)
             {
+                mpu.InternalCycle();
                 if (mpu.AccumulatorIs8Bit)
                 {
                     mpu.SetStatusFlag(StatusFlags.C, (mpu.RegAL & 0x80) != 0);
@@ -549,12 +551,12 @@ namespace EightSixteenEmu.MPU
                     mpu.RegA <<= 1;
                     mpu.SetNZStatusFlagsFromValue(mpu.RegA);
                 }
-                //mpu.InternalCycle();
             }
             else
             {
                 ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
                 mpu.SetStatusFlag(StatusFlags.C, (operand & (mpu.AccumulatorIs8Bit ? 0x80 : 0x8000)) != 0);
+                mpu.WriteValue(operand, mpu.AccumulatorIs8Bit, address);
                 operand <<= 1;
                 mpu.SetNZStatusFlagsFromValue(operand, mpu.AccumulatorIs8Bit);
                 //mpu.InternalCycle();
@@ -1184,6 +1186,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             if (mpu.AccumulatorIs8Bit)
             {
                 mpu.PushByte(mpu.RegAL);
@@ -1199,6 +1202,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             if (mpu.IndexesAre8Bit)
             {
                 mpu.PushByte(mpu.RegXL);
@@ -1214,6 +1218,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             if (mpu.IndexesAre8Bit)
             {
                 mpu.PushByte(mpu.RegYL);
@@ -1280,6 +1285,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             mpu.PushByte(mpu.RegDB);
         }
     }
@@ -1288,6 +1294,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             mpu.PushWord(mpu.RegDP);
         }
     }
@@ -1296,6 +1303,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             mpu.PushByte(mpu.RegPB);
         }
     }
@@ -1304,6 +1312,7 @@ namespace EightSixteenEmu.MPU
     {
         internal override void Execute(Microprocessor mpu)
         {
+            mpu.InternalCycle();
             mpu.PushByte((byte)mpu.RegSR);
         }
     }

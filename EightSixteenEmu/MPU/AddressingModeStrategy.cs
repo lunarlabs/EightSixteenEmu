@@ -46,7 +46,7 @@ namespace EightSixteenEmu.MPU
 
         internal static uint CalculateDirectAddress(Microprocessor mpu, byte offset, ushort register = 0)
         {
-            if (mpu.FlagE && mpu.RegDL == 0x00)
+            if (/*mpu.FlagE &&*/ mpu.RegDL == 0x00)
             {
                 return FullAddress(0, mpu.RegDH, (byte)(offset + (byte)register));
             }
@@ -71,7 +71,11 @@ namespace EightSixteenEmu.MPU
     internal class AM_Accumulator : AddressingModeStrategy
     {
         public override string Notation => "A";
-        internal override ushort GetOperand(Microprocessor mpu, bool isByte = true) => isByte ? mpu.RegAL : mpu.RegA;
+        internal override ushort GetOperand(Microprocessor mpu, bool isByte = true)
+        {
+            mpu.InternalCycle();
+            return isByte ? mpu.RegAL : mpu.RegA;
+        }
     }
 
     internal class AM_ProgramCounterRelative : AddressingModeStrategy
@@ -108,7 +112,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2}";
-            //if (mpu.RegDL != 0x00) mpu.NextCycle();
+            if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return FullAddress(0, mpu.RegDP + offset);
         }
     }
@@ -151,6 +155,7 @@ namespace EightSixteenEmu.MPU
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
+            mpu.InternalCycle();
             _notation = $"(${offset:x2},X)";
             uint pointer = CalculateDirectAddress(mpu, offset, mpu.RegX);
             return FullAddress(mpu.RegDB, mpu.ReadWord(pointer));
@@ -172,6 +177,7 @@ namespace EightSixteenEmu.MPU
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
+            mpu.InternalCycle();
             _notation = $"[${offset:x2}]";
             return mpu.ReadAddr(FullAddress(0, mpu.RegDP + offset), true);
         }
@@ -239,6 +245,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2}, S";
+            mpu.InternalCycle();
             return FullAddress(0, mpu.RegSP + offset);
         }
     }
@@ -247,6 +254,7 @@ namespace EightSixteenEmu.MPU
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
+            mpu.InternalCycle();
             _notation = $"(${offset:x2}, S), Y";
             uint pointer = FullAddress(0, mpu.RegSP + offset);
             return FullAddress(mpu.RegDB, mpu.ReadWord(pointer))+ mpu.RegY;

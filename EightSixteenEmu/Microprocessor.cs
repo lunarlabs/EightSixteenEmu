@@ -643,8 +643,8 @@ namespace EightSixteenEmu
 
         internal void WriteWord(Word value, Addr address)
         {
-            WriteByte(LowByte(value), address);
             WriteByte(HighByte(value), address + 1);
+            WriteByte(LowByte(value), address);
         }
 
         internal void PushByte(byte value)
