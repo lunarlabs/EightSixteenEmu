@@ -28,16 +28,11 @@ namespace EightSixteenEmu
         private int _cycles;
         private bool _threadRunning;
         private Thread? _runThread;
-        private bool _resetting;
-        private bool _interruptingMaskable;
-        private bool _interruptingNonMaskable;
-        private bool _aborting;
-        private bool _stopped;
-        private bool _waiting;
         private bool _verbose;
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
+        internal HWInterruptType HardwareInterrupt => HWInterruptType.None;
         internal readonly Dictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
         internal readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
         private readonly ProcessorContext context;
@@ -93,6 +88,13 @@ namespace EightSixteenEmu
             IRQ,
             BRK,
             COP,
+        }
+
+        internal enum HWInterruptType : byte
+        {
+            None,
+            IRQ,
+            NMI,
         }
 
         public enum CycleType : Byte
@@ -250,10 +252,6 @@ namespace EightSixteenEmu
             ColdReset();
 
             _threadRunning = false;
-            _resetting = true;
-            _interruptingMaskable = false;
-            _interruptingNonMaskable = false;
-            _stopped = false;
 #if DEBUG
             _verbose = true;
 #endif
@@ -785,6 +783,9 @@ namespace EightSixteenEmu
         {
             _regIR = ReadByte();
             (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(_regIR);
+            // TODO: Maybe an event here that peeks ahead and gives out the instruction?
+            // I already have the notation templates in AddressingModeStrategy, probably would be
+            // trivial to make it its own method
         }
 
         public void ExecuteInstruction()

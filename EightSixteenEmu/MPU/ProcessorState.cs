@@ -85,13 +85,15 @@ namespace EightSixteenEmu.MPU
             // In my head, the only reason you'd want the processor in the disabled state
             // is to mess with the registers programatically -- like when loading a save state?
             // Whatever. If null's passed, assume we're starting completely fresh.
+
+            // A few weeks later -- No, you don't want to start it in the running state!
+            // The context is in the mpu constructor, which is in the emucore constructor!
+            // Before any devices are added to the bus! If we just jump out of the box running,
+            // the reset vector pull will just grab from open bus (which is a BAD THING)
+            // SO: start disabled, set up the devices, then call Reset() on the context.
             _state = state ?? new ProcessorStateDisabled();
             _state.SetContext(this);
             this.mpu = mpu;
-            if (state == null)
-            {
-                this.TransitionTo(new ProcessorStateRunning());
-            }
         }
 
         public string StateName => _state.GetType().Name;
@@ -166,14 +168,34 @@ namespace EightSixteenEmu.MPU
     {
         internal override void NextInstruction()
         {
-            _context?.mpu.DecodeInstruction();
-            _context?.mpu.Instruction.Execute(_context.mpu);
+            if (_context != null)
+            {
+                // When interrupting, the microprocessor finishes its current instruction
+                // TODO: Is this the right place to do this?
+                if (_context.mpu.HardwareInterrupt is HWInterruptType.IRQ)
+                {
+                    Interrupt(InterruptType.IRQ);
+                }
+                else if (_context.mpu.HardwareInterrupt is HWInterruptType.NMI)
+                {
+                    Interrupt(InterruptType.NMI);
+                }
+                else
+                {
+                    _context.mpu.DecodeInstruction();
+                    _context.mpu.Instruction.Execute(_context.mpu);
+                }
+            }
+            else
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
         }
         internal override void Interrupt(InterruptType type)
         {
             if (_context != null)
             { 
-                ushort addressToPush = (type == InterruptType.BRK || type == InterruptType.COP) ? (ushort)(_context.mpu.RegPC) : _context.mpu.RegPC;
+                ushort addressToPush = _context.mpu.RegPC;
                 if (!_context.mpu.FlagE) _context.mpu.PushByte(_context.mpu.RegPB);
                 _context.mpu.PushWord(addressToPush);
                 if(_context.mpu.FlagE && type == InterruptType.BRK)
