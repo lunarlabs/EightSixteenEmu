@@ -171,14 +171,14 @@ namespace EightSixteenEmu.MPU
             if (_context != null)
             {
                 // When interrupting, the microprocessor finishes its current instruction
-                // TODO: Is this the right place to do this?
-                if (_context.mpu.HardwareInterrupt is HWInterruptType.IRQ)
-                {
-                    Interrupt(InterruptType.IRQ);
-                }
-                else if (_context.mpu.HardwareInterrupt is HWInterruptType.NMI)
+                // IRQ is level triggered, NMI is edge triggered
+                if (_context.mpu.NMICalled)
                 {
                     Interrupt(InterruptType.NMI);
+                }
+                else if (_context.mpu.IRQ && !_context.mpu.ReadStatusFlag(StatusFlags.I))
+                {
+                    Interrupt(InterruptType.IRQ);
                 }
                 else
                 {
@@ -231,6 +231,7 @@ namespace EightSixteenEmu.MPU
                         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
                     };
                 }
+                if (type == InterruptType.NMI) _context.mpu.NMICalled = false;
                 _context.mpu.LoadInterruptVector(vector);
             }
             else

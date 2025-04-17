@@ -32,7 +32,8 @@ namespace EightSixteenEmu
         private static readonly AutoResetEvent _clockEvent = new(false);
         private readonly EmuCore _core;
         private readonly StringBuilder _lastInstruction;
-        internal HWInterruptType HardwareInterrupt => HWInterruptType.None;
+        internal bool IRQ => _core.Mapper.DeviceInterrupting;
+        internal bool NMICalled;
         internal readonly Dictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
         internal readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
         private readonly ProcessorContext context;
@@ -257,7 +258,6 @@ namespace EightSixteenEmu
 #endif
             _core.ClockTick += OnClockTick;
             _core.Reset += OnReset;
-            _core.IRQ += OnInterrupt;
             _core.NMI += OnNMI;
             _lastInstruction = new StringBuilder();
             var implied = new AM_Implied(); // this one pulls double duty
@@ -426,23 +426,18 @@ namespace EightSixteenEmu
             }
         }
 
-        internal void OnInterrupt(object? sender, EventArgs e)
-        {
-            Interrupt(InterruptType.IRQ);
-        }
-
         internal void OnReset(object? sender, EventArgs e)
         {
             // TODO: Right now, if the Reset event is fired, the current operation will complete
             // which means memory and registers will be altered before the reset starts.
-            // This is probably not how the real '816 handles resets...
-            // Use a cancellation token?
+            // The '816 treats the reset signal as immediate, don't change anything
+            // Use a cancellation token or Thread.Interrupt?
             Reset();
         }
 
         internal void OnNMI(object? sender, EventArgs e)
         {
-            Interrupt(InterruptType.NMI);
+            NMICalled = true;
         }
 
         public void StartThread()
@@ -471,13 +466,25 @@ namespace EightSixteenEmu
                 Console.WriteLine("Starting W65C816 microprocessor thread.");
             }
             _threadRunning = true;
-            while (_threadRunning)
+            try
             {
-                NextInstruction();
+                while (_threadRunning)
+                {
+                    NextInstruction();
+                }
             }
-            if (_verbose)
+            catch (ThreadInterruptedException ex)
             {
-                Console.WriteLine("Stopping W65C816 microprocessor thread.");
+                if(_verbose) Console.WriteLine(ex.Message);
+                _threadRunning = false;
+                _runThread?.Join();
+            }
+            finally
+            {
+                if (_verbose)
+                {
+                    Console.WriteLine("Stopping W65C816 microprocessor thread.");
+                }
             }
         }
 
@@ -728,56 +735,6 @@ namespace EightSixteenEmu
             _regPC = ReadWord((Addr)vector);
             _regPB = 0x00;
         }
-
-        //internal void Interrupt(InterruptType source)
-        //{
-        //    if (source == InterruptType.Reset)
-        //    {
-        //        Reset();
-        //    }
-        //    else
-        //    {
-        //        Word addressToPush = (source == InterruptType.BRK || source == InterruptType.COP) ? (Word)(_regPC + 1) : _regPC;
-        //        NextCycle();
-        //        NextCycle();
-        //        if (!_flagE) PushByte(_regPB);
-        //        PushWord(addressToPush);
-        //        if (_flagE && source == InterruptType.BRK)
-        //        {
-        //            PushByte((byte)(_regSR | StatusFlags.X));
-        //        }
-        //        else
-        //        {
-        //            PushByte((byte)(_regSR));
-        //        }
-        //        SetStatusFlag(StatusFlags.I, true);
-        //        SetStatusFlag(StatusFlags.D, false);
-        //        W65C816.Vector vector;
-        //        if (_flagE)
-        //        {
-        //            vector = source switch
-        //            {
-        //                InterruptType.BRK => W65C816.Vector.EmulationIRQ,
-        //                InterruptType.COP => W65C816.Vector.EmulationCOP,
-        //                InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
-        //                InterruptType.NMI => W65C816.Vector.EmulationNMI,
-        //                _ => throw new NotImplementedException(),
-        //            };
-        //        }
-        //        else
-        //        {
-        //            vector = source switch
-        //            {
-        //                InterruptType.BRK => W65C816.Vector.NativeBRK,
-        //                InterruptType.COP => W65C816.Vector.NativeCOP,
-        //                InterruptType.IRQ => W65C816.Vector.NativeIRQ,
-        //                InterruptType.NMI => W65C816.Vector.NativeNMI,
-        //                _ => throw new NotImplementedException(),
-        //            };
-        //        }
-        //        LoadInterruptVector(vector);
-        //    }
-        //}
 
         internal void DecodeInstruction()
         {

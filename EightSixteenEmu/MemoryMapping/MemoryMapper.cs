@@ -12,12 +12,14 @@
  */
 
 using EightSixteenEmu.Devices;
+using System.Security.AccessControl;
 
 namespace EightSixteenEmu.MemoryMapping
 {
     public class MemoryMapper()
     {
         private readonly List<IMappableDevice> _devices = [];
+        private readonly List<IInterruptingMappableDevice> _interruptingMappableDevices = [];
         private readonly SortedList<uint, (uint length, IMappableDevice dev, uint offset)> _memmap = [];
 
         // So I don't end up confusing myself when documenting this, here are the definitions I'll use:
@@ -146,6 +148,11 @@ namespace EightSixteenEmu.MemoryMapping
                 _devices.Add(device);
             }
 
+            if (device is IInterruptingMappableDevice idv && !_interruptingMappableDevices.Contains(device))
+            {
+                _interruptingMappableDevices.Add(idv);
+            }
+
             _memmap.Add(mapLocation, ((uint)length, device, offset));
         }
 
@@ -200,8 +207,19 @@ namespace EightSixteenEmu.MemoryMapping
             KeyValuePair<uint, IMappableDevice>? entry = SeekDevice(address);
             if (entry is not null)
             {
+                var device = entry.Value.Value;
                 _memmap.Remove(entry.Value.Key);
+                if (!IsDeviceMapped(device)) _devices.Remove(device);
             }
+        }
+
+        private bool IsDeviceMapped(IMappableDevice device)
+        {
+            foreach (var entry in _memmap)
+            {
+                if (entry.Value.dev == device) return true;
+            }
+            return false;
         }
 
         public void Clear()
@@ -215,6 +233,18 @@ namespace EightSixteenEmu.MemoryMapping
             foreach (var device in _devices)
             {
                 device.Init();
+            }
+        }
+
+        internal bool DeviceInterrupting
+        {
+            get
+            {
+                foreach (var device in _interruptingMappableDevices)
+                {
+                    if (device.Interrupting) return true;
+                }
+                return false;
             }
         }
     }

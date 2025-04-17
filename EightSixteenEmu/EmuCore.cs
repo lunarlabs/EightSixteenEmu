@@ -25,7 +25,6 @@ namespace EightSixteenEmu
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
         public event EventHandler? NMI;
-        public event EventHandler? IRQ;
 
         public EmuCore()
         {
@@ -54,10 +53,6 @@ namespace EightSixteenEmu
         #endregion
 
         #region Event Management
-        public void OnInterrupt(object sender, EventArgs e)
-        {
-            _mpu.OnInterrupt(sender, e);
-        }
 
         public void Deactivate(bool resetDevices = true)
         {
