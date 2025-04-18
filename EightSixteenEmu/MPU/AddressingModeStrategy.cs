@@ -15,6 +15,8 @@
  *  Addressing Modes
  */
 
+using System.Net;
+
 namespace EightSixteenEmu.MPU
 {
     // WARN: When using one of these in an opcode command, only use GetAddress or GetOperand, not both.
@@ -46,7 +48,7 @@ namespace EightSixteenEmu.MPU
 
         internal static uint CalculateDirectAddress(Microprocessor mpu, byte offset, ushort register = 0)
         {
-            if (/*mpu.FlagE &&*/ mpu.RegDL == 0x00)
+            if (mpu.FlagE && mpu.RegDL == 0x00)
             {
                 return FullAddress(0, mpu.RegDH, (byte)(offset + (byte)register));
             }
@@ -56,6 +58,8 @@ namespace EightSixteenEmu.MPU
                 return FullAddress(0, mpu.RegDP + offset + register);
             }
         }
+
+        internal static bool CrossesPageBoundaries(uint a, uint b) => (byte)(a >> 8) != (byte)(b >> 8);
     }
 
     internal class AM_Immediate : AddressingModeStrategy
@@ -123,7 +127,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2},X";
-            //if (mpu.RegDL != 0x00) mpu.NextCycle();
+            if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return CalculateDirectAddress(mpu, offset, mpu.RegX);
         }
     }
@@ -134,7 +138,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"${offset:x2},Y";
-            //if (mpu.RegDL != 0x00) mpu.NextCycle();
+            if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return CalculateDirectAddress(mpu, offset, mpu.RegY);
         }
     }
@@ -169,7 +173,9 @@ namespace EightSixteenEmu.MPU
             byte offset = mpu.ReadByte();
             _notation = $"(${offset:x2}),Y";
             uint pointer = CalculateDirectAddress(mpu, offset);
-            return (uint)((mpu.RegDB << 16) + mpu.ReadWord(pointer) + mpu.RegY);
+            uint destination = (uint)((mpu.RegDB << 16) + mpu.ReadWord(pointer) + mpu.RegY);
+            if (!mpu.FlagX || CrossesPageBoundaries(destination, destination - mpu.RegY)) mpu.InternalCycle();
+            return destination;
         }
     }
     internal class AM_DirectIndirectLong : AddressingModeStrategy
@@ -188,6 +194,7 @@ namespace EightSixteenEmu.MPU
         {
             byte offset = mpu.ReadByte();
             _notation = $"[${offset:x2}],Y";
+            if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return mpu.ReadAddr(FullAddress(0, mpu.RegDP + offset), true) + mpu.RegY;
         }
     }
@@ -207,7 +214,17 @@ namespace EightSixteenEmu.MPU
             ushort address = mpu.ReadWord();
             _notation = $"${address:x4}, X";
             // return FullAddress(mpu.RegDB, address + mpu.RegX);
-            return FullAddress(mpu.RegDB, address) + mpu.RegX;
+            uint destination = FullAddress(mpu.RegDB, address) + mpu.RegX;
+            if (!mpu.FlagX
+                || mpu.CurrentOpCode == W65C816.OpCode.ASL
+                || mpu.CurrentOpCode == W65C816.OpCode.DEC
+                || mpu.CurrentOpCode == W65C816.OpCode.INC
+                || mpu.CurrentOpCode == W65C816.OpCode.LSR
+                || mpu.CurrentOpCode == W65C816.OpCode.ROL
+                || mpu.CurrentOpCode == W65C816.OpCode.ROR
+                || mpu.CurrentOpCode == W65C816.OpCode.STZ
+                || CrossesPageBoundaries(address, destination)) mpu.InternalCycle();
+            return destination;
         }
     }
 
@@ -217,7 +234,17 @@ namespace EightSixteenEmu.MPU
         {
             ushort address = mpu.ReadWord();
             _notation = $"${address:x4}, Y";
-            return FullAddress(mpu.RegDB, address) + mpu.RegY;
+            uint destination = FullAddress(mpu.RegDB, address) + mpu.RegY;
+            if (!mpu.FlagX
+                || mpu.CurrentOpCode == W65C816.OpCode.ASL
+                || mpu.CurrentOpCode == W65C816.OpCode.DEC
+                || mpu.CurrentOpCode == W65C816.OpCode.INC
+                || mpu.CurrentOpCode == W65C816.OpCode.LSR
+                || mpu.CurrentOpCode == W65C816.OpCode.ROL
+                || mpu.CurrentOpCode == W65C816.OpCode.ROR
+                || mpu.CurrentOpCode == W65C816.OpCode.STA
+                || CrossesPageBoundaries(address, destination)) mpu.InternalCycle();
+            return destination;
         }
     }
 
@@ -257,7 +284,9 @@ namespace EightSixteenEmu.MPU
             mpu.InternalCycle();
             _notation = $"(${offset:x2}, S), Y";
             uint pointer = FullAddress(0, mpu.RegSP + offset);
-            return FullAddress(mpu.RegDB, mpu.ReadWord(pointer))+ mpu.RegY;
+            uint destination = FullAddress(mpu.RegDB, mpu.ReadWord(pointer))+ mpu.RegY;
+            mpu.InternalCycle();
+            return destination;
         }
     }
     internal class AM_AbsoluteIndirect : AddressingModeStrategy

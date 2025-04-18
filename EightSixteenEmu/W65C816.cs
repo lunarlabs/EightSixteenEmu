@@ -366,7 +366,7 @@ namespace EightSixteenEmu
                 0x71 => (OpCode.ADC, AddressingMode.DirectIndirectIndexed),
                 0x72 => (OpCode.ADC, AddressingMode.DirectIndirect),
                 0x73 => (OpCode.ADC, AddressingMode.StackRelativeIndirectIndexed),
-                0x74 => (OpCode.STZ, AddressingMode.Direct),
+                0x74 => (OpCode.STZ, AddressingMode.DirectIndexedWithX),
                 0x75 => (OpCode.ADC, AddressingMode.DirectIndexedWithX),
                 0x76 => (OpCode.ROR, AddressingMode.DirectIndexedWithX),
                 0x77 => (OpCode.ADC, AddressingMode.DirectIndirectLongIndexed),
