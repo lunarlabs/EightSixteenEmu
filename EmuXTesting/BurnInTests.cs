@@ -139,12 +139,13 @@ namespace EmuXTesting
         {
             // this is going to execute 5,120,000 instructions. God help me.
 
-            executionCycles.Clear();
             EmuCore emu = new();
             emu.MPU.NewCycle += OnNewCycle;
             var ram = new DevRAM(0x1000000);
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
             BurnInTest test;
+            int testRun = 0;
+            string testResult;
 
             string jsonContent = File.ReadAllText(fileName);
             JsonDocument doc = JsonDocument.Parse(jsonContent);
@@ -153,10 +154,19 @@ namespace EmuXTesting
             {
                 foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
                 {
+                    testResult = "";
+                    testRun++;
+                    executionCycles.Clear();
                     test = new(testElement);
-                    ram.Clear();
+                    foreach (var kvp in test.Start.RamValues)
+                    {
+                        ram[kvp.Key] = (byte)kvp.Value;
+                    }
+                    byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
+                    emu.MPU.SetProcessorState(test.Start.State);
                 }
             }
+            doc.Dispose();
         }
         
 
