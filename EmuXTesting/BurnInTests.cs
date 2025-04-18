@@ -107,7 +107,7 @@ namespace EmuXTesting
             _output.WriteLine($"D:     Expected ${test.Goal.State.DP:X4}, Actual ${mpuState.DP:X4} {((test.Goal.State.DP == mpuState.DP) ? "" : "!!")}");
             _output.WriteLine($"DB:    Expected ${test.Goal.State.DB:X2}, Actual ${mpuState.DB:X2} {((test.Goal.State.DB == mpuState.DB) ? "" : "!!")}");
             _output.WriteLine($"PB:    Expected ${test.Goal.State.PB:X2}, Actual ${mpuState.PB:X2} {((test.Goal.State.PB == mpuState.PB) ? "" : "!!")}");
-            _output.WriteLine($"Flags: Expected {test.Goal.State.Flags():X2}, Actual {mpuState.Flags():X2} {(flagsEqual ? "" : "!!")}");
+            _output.WriteLine($"Flags: Expected {test.Goal.State.Flags()}, Actual {mpuState.Flags()} {(flagsEqual ? "" : "!!")}");
             _output.WriteLine("\nMemory values:\nAddress  Ex   Ac");
             bool ramEqual = true;
             foreach (var kvp in test.Goal.RamValues)
@@ -132,16 +132,46 @@ namespace EmuXTesting
             executionCycles.Add(details);
         }
 
-        /*
+        
         [Theory]
-        public void FullBurnIn()
+        [ClassData(typeof(FullBurnInFile))]
+        public void FullBurnIn(string fileName)
         {
             // this is going to execute 5,120,000 instructions. God help me.
-            // should I have the classdata be by file?
+
+            executionCycles.Clear();
+            EmuCore emu = new();
+            emu.MPU.NewCycle += OnNewCycle;
+            var ram = new DevRAM(0x1000000);
+            emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
+            BurnInTest test;
+
+            string jsonContent = File.ReadAllText(fileName);
+            JsonDocument doc = JsonDocument.Parse(jsonContent);
+
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
+                {
+                    test = new(testElement);
+                    ram.Clear();
+                }
+            }
         }
-        */
+        
 
 
+    }
+
+    public class FullBurnInFile : TheoryData<string>
+    {
+        public FullBurnInFile() {
+            string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
+            foreach (string s in testFiles)
+            {
+                if (Path.GetFileNameWithoutExtension(s)[..2] != "54" && Path.GetFileNameWithoutExtension(s)[..2] != "44") Add(s);
+            }
+        }
     }
 
     public class QuickBurnInData : TheoryData<BurnInTest>
@@ -162,7 +192,7 @@ namespace EmuXTesting
         public QuickBurnInData()
         {
             Random rng = new();
-            int testNumber = 0;
+            int testNumber = rng.Next(10000);
             string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
             string cacheFile = $"{Path.GetTempPath()}{testNumber:D5}-testCache.json";
             JsonSerializerOptions options = new()

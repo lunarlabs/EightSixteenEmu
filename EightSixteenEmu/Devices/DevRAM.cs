@@ -17,5 +17,13 @@
         {
             data.Initialize();
         }
+
+#if DEBUG
+        public void Clear()
+        {
+            data.Initialize();
+        }
+#endif
+
     }
 }
