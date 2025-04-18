@@ -35,7 +35,6 @@ namespace EmuXTesting
             emu.MPU.NewCycle += OnNewCycle;
             var ram = new DevRAM(0x1000000);
             emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
-            emu.Deactivate();
             emu.MPU.SetProcessorState(test.Start.State);
             _output.WriteLine("Initial State: " + test.Start.State.ToString());
             _output.WriteLine("Memory values:");
