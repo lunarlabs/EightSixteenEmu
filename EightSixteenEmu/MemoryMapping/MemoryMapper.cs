@@ -34,12 +34,8 @@ namespace EightSixteenEmu.MemoryMapping
         {
             get
             {
-                if (index > 0xffffff)
-                {
-                    throw new IndexOutOfRangeException();
-                }
-                else
-                {
+                index &= 0xffffff;
+                
                     var kvp = SeekDevice(index);
                     if (kvp is not null)
                     {
@@ -56,7 +52,7 @@ namespace EightSixteenEmu.MemoryMapping
                     {
                         return null;
                     }
-                }
+                
             }
             set
             {
@@ -64,10 +60,7 @@ namespace EightSixteenEmu.MemoryMapping
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                if (index > 0xffffff)
-                {
-                    throw new IndexOutOfRangeException();
-                }
+                index &= 0xffffff;
                 var kvp = SeekDevice(index);
                 if (kvp is not null)
                 {
