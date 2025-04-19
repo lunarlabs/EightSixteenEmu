@@ -46,7 +46,7 @@ namespace EmuXTesting
             byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
             (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(instruction);
             Assert.Equal(test.Inst, instruction); // barf if we read the wrong instruction from RAM
-            _output.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(test.Start.State.FlagE ? "emulated" : "native" )}");
+            _output.WriteLine($"Testing ${instruction:X2}: {op} {mode} - {(test.Start.State.FlagE ? "emulated" : "native")}");
             emu.Activate(false);
             emu.MPU.ExecuteInstruction();
             _output.WriteLine($"Cyc |{"Expected",-21}|{"Actual",-21}");
@@ -72,7 +72,7 @@ namespace EmuXTesting
                 }
                 _output.WriteLine(s);
             }
-                var mpuState = emu.MPU.GetStatus();
+            var mpuState = emu.MPU.GetStatus();
             bool registersEqual = test.Goal.State.PC == mpuState.PC
                 && test.Goal.State.A == mpuState.A
                 && test.Goal.State.X == mpuState.X
@@ -132,12 +132,16 @@ namespace EmuXTesting
             executionCycles.Add(details);
         }
 
-        
+
         [Theory]
         [ClassData(typeof(FullBurnInFile))]
         public void FullBurnIn(string fileName)
         {
             // this is going to execute 5,120,000 instructions. God help me.
+            var inst = byte.Parse(Path.GetFileNameWithoutExtension(fileName)[..2], System.Globalization.NumberStyles.HexNumber);
+            (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(inst);
+
+            _output.WriteLine($"Testing ${Path.GetFileNameWithoutExtension(fileName)}: {op} {mode}");
 
             EmuCore emu = new();
             emu.MPU.NewCycle += OnNewCycle;
@@ -146,6 +150,7 @@ namespace EmuXTesting
             BurnInTest test;
             int testRun = 0;
             string testResult;
+            bool pass = true;
 
             string jsonContent = File.ReadAllText(fileName);
             JsonDocument doc = JsonDocument.Parse(jsonContent);
@@ -158,24 +163,129 @@ namespace EmuXTesting
                     testRun++;
                     executionCycles.Clear();
                     test = new(testElement);
+                    Dictionary<string, ushort> goalStateRegisters = test.Goal.State.RegistersAsDictionary;
                     foreach (var kvp in test.Start.RamValues)
                     {
                         ram[kvp.Key] = (byte)kvp.Value;
                     }
                     byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
                     emu.MPU.SetProcessorState(test.Start.State);
+                    emu.Activate(false);
+                    try
+                    {
+                        emu.MPU.ExecuteInstruction();
+                        var mpuState = emu.MPU.GetStatus();
+
+                        bool registersEqual = true;
+                        foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)
+                        {
+                            if (kvp.Value != goalStateRegisters[kvp.Key])
+                            {
+                                testResult += $"Register {kvp.Key} differs from goal.\n";
+                                registersEqual = false;
+                            }
+                        }
+
+                        bool ignoreV = (op == W65C816.OpCode.ADC || op == W65C816.OpCode.SBC) && mpuState.FlagD;
+                        bool vMatch = ignoreV || test.Goal.State.FlagV == mpuState.FlagV;
+
+                        bool checkM = !mpuState.FlagE;
+                        bool mMatch = !checkM || test.Goal.State.FlagM == mpuState.FlagM;
+
+                        bool flagsEqual = test.Goal.State.FlagN == mpuState.FlagN
+                            && vMatch
+                            && mMatch
+                            && test.Goal.State.FlagX == mpuState.FlagX
+                            && test.Goal.State.FlagD == mpuState.FlagD
+                            && test.Goal.State.FlagI == mpuState.FlagI
+                            && test.Goal.State.FlagZ == mpuState.FlagZ
+                            && test.Goal.State.FlagC == mpuState.FlagC
+                            && test.Goal.State.FlagE == mpuState.FlagE;
+
+                        if (!flagsEqual) testResult += "Status flags differ from goal.\n";
+
+                        bool cyclesEqual = test.Cycles.Count == executionCycles.Count;
+                        if (!cyclesEqual) testResult += "Operation did not take the specified number of cycles.\n";
+
+                        if (!registersEqual || !flagsEqual || !cyclesEqual)
+                        {
+                            pass = false;
+                            _output.WriteLine(testResult);
+
+                            _output.WriteLine("Registers:");
+                            _output.WriteLine($"{"",6} {"Expected",-10} | {"Actual",10}");
+                            _output.WriteLine($"{"A:",6} {test.Goal.State.A,10:X4} | {mpuState.A,10:X4}");
+                            _output.WriteLine($"{"X:",6} {test.Goal.State.X,10:X4} | {mpuState.X,10:X4}");
+                            _output.WriteLine($"{"Y:",6} {test.Goal.State.Y,10:X4} | {mpuState.Y,10:X4}");
+                            _output.WriteLine($"{"D:",6} {test.Goal.State.DP,10:X4} | {mpuState.DP,10:X4}");
+                            _output.WriteLine($"{"DBR:",6} {test.Goal.State.DB,10:X2} | {mpuState.DB,10:X2}");
+                            _output.WriteLine($"{"SP:",6} {test.Goal.State.SP,10:X4} | {mpuState.SP,10:X4}");
+                            _output.WriteLine("");
+                            _output.WriteLine($"{"PB PC:",6} {test.Goal.State.PB,5:X2} {test.Goal.State.PC:X4} | {mpuState.PB,5:X2} {mpuState.PC:X4}");
+                            _output.WriteLine("");
+                            _output.WriteLine($"{"Flags:",6} {test.Goal.State.Flags(),10} | {mpuState.Flags(),10:X4}");
+                            _output.WriteLine("");
+                            _output.WriteLine("Memory:");
+                            _output.WriteLine("Address  St  Ex  Ac");
+                            foreach (var kvp in test.Goal.RamValues)
+                            {
+                                string s = $"{kvp.Key,7:X6}  ";
+                                s += test.Start.RamValues.TryGetValue(kvp.Key, out byte value) ? $"{value:X2}  " : "XX  ";
+                                s += $"{kvp.Value:X2}  {ram[kvp.Key]:X2}";
+                                _output.WriteLine(s);
+                            }
+                            _output.WriteLine("");
+                            _output.WriteLine("XX: not set");
+                            _output.WriteLine("");
+                            _output.WriteLine("Cycles:");
+                            _output.WriteLine($"    |{"Expected",-21}|{"Actual",-21}");
+                            _output.WriteLine($"    |{"Address",-7} {"Val",-3} {"Type",-9}|{"Address",-7} {"Val",-3} {"Type",-9}");
+                            for (int i = 0; i < Math.Max(test.Cycles.Count, executionCycles.Count); i++)
+                            {
+                                string s = $"{i,3} |";
+                                if (i < test.Cycles.Count)
+                                {
+                                    s += $"${test.Cycles[i].Address:X6} ${test.Cycles[i].Value:X2} {test.Cycles[i].Type,-9}|";
+                                }
+                                else
+                                {
+                                    s += $"{"N/A",-21}|";
+                                }
+                                if (i < executionCycles.Count)
+                                {
+                                    s += $"${executionCycles[i].Address:X6} ${executionCycles[i].Value:X2} {executionCycles[i].Type,-9}";
+                                }
+                                else
+                                {
+                                    s += $"{"N/A",-21}";
+                                }
+                                _output.WriteLine(s);
+                            }
+                            break;
+                        }
+                    }
+                    catch (Exception ex) 
+                    {
+                        _output.WriteLine(ex.ToString());
+                        _output.WriteLine(ex.StackTrace);
+                        pass = false;
+                        break;
+                    }
+                    finally
+                    { emu.Deactivate(); }
                 }
+                Assert.True(pass, $"Failed at test no. {testRun}");
+                _output.WriteLine("PASS");
             }
             doc.Dispose();
         }
-        
-
 
     }
 
     public class FullBurnInFile : TheoryData<string>
     {
-        public FullBurnInFile() {
+        public FullBurnInFile()
+        {
             string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
             foreach (string s in testFiles)
             {
@@ -202,7 +312,7 @@ namespace EmuXTesting
         public QuickBurnInData()
         {
             Random rng = new();
-            int testNumber = rng.Next(10000);
+            int testNumber = 1;
             string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
             string cacheFile = $"{Path.GetTempPath()}{testNumber:D5}-testCache.json";
             JsonSerializerOptions options = new()
@@ -240,7 +350,7 @@ namespace EmuXTesting
                             cacheArray.Add(JsonNode.Parse(testElement.GetRawText()));
 
                             Add(new BurnInTest(testElement));
-                            
+
                         }
                     }
                 }
@@ -301,7 +411,7 @@ namespace EmuXTesting
                 JsonElement intermediateCycleList = json.GetProperty("cycles");
                 if (intermediateCycleList.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (JsonElement element in intermediateCycleList.EnumerateArray()) 
+                    foreach (JsonElement element in intermediateCycleList.EnumerateArray())
                     {
                         Microprocessor.Cycle cycle = new Microprocessor.Cycle();
                         if (element[0].ValueKind == JsonValueKind.Number)
@@ -324,10 +434,10 @@ namespace EmuXTesting
                             }
                             Cycles.Add(cycle);
                         }
-                        else
-                        {
-                            Console.WriteLine("You should only see this if the instruction is STP or WAI");
-                        }
+                        //else
+                        //{
+                        //    Console.WriteLine("You should only see this if the instruction is STP or WAI");
+                        //}
                     }
                 }
 

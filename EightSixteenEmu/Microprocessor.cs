@@ -838,6 +838,25 @@ namespace EightSixteenEmu
             {
                 return $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? (FlagM ? "." : "!") : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
             }
+
+            public Dictionary<string, ushort> RegistersAsDictionary
+            {
+                get
+                {
+                    var result = new Dictionary<string, ushort>
+                {
+                    { "A", A },
+                    { "X", X },
+                    { "Y", Y },
+                    { "DP", DP },
+                    { "SP", SP },
+                    { "PC", PC },
+                    { "DB", DB },
+                    { "PB", PB }
+                };
+                    return result;
+                }
+            }
         }
     }
 }
