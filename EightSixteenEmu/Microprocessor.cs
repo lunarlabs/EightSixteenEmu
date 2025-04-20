@@ -667,16 +667,25 @@ namespace EightSixteenEmu
             PushByte(LowByte(value));
         }
 
-        internal byte PullByte()
+        internal byte PullByte(bool ignoreBounds = false)
         {
-            byte result = _flagE ? ReadByte((uint)(0x0100 | ++RegSL)) : ReadByte(++_regSP);
+            byte result;
+            if (_flagE && ignoreBounds)
+            {
+                result = ReadByte(++_regSP);
+            }
+            else
+            { 
+                result = _flagE ? ReadByte((uint)(0x0100 | ++RegSL)) : ReadByte(++_regSP); 
+            }
             return result;
         }
 
-        internal Word PullWord()
+        internal Word PullWord(bool ignoreBounds = false)
         {
-            byte l = PullByte();
-            byte h = PullByte();
+            byte l = PullByte(ignoreBounds);
+            byte h = PullByte(ignoreBounds);
+            if (_flagE && !ignoreBounds) RegSH = 0x01;
             return Join(l, h);
         }
 
@@ -713,7 +722,7 @@ namespace EightSixteenEmu
         internal void SetNZStatusFlagsFromValue(Word value, bool isByte = false)
         {
             SetStatusFlag(StatusFlags.N, (value & (isByte ? 0x80 : 0x8000)) != 0);
-            SetStatusFlag(StatusFlags.Z, value == 0);
+            SetStatusFlag(StatusFlags.Z, (isByte ? (byte)value : value) == 0);
         }
 
         internal void SetEmulationMode(bool value)
