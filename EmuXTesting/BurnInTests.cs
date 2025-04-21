@@ -132,6 +132,18 @@ namespace EmuXTesting
             executionCycles.Add(details);
         }
 
+        [Fact]
+        public void MvnMvpInstructions_WorkProperly()
+        {
+            // Arrange
+            byte[] data =
+            {
+                0xf0, 0x0f, 0xf0, 0xf0, 0xf0, 0x0f, 0xf0, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+                0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80,
+            };
+            EmuCore emu = new();
+            emu.MPU.NewCycle += OnNewCycle;
+        }
 
         [Theory]
         [ClassData(typeof(FullBurnInFile))]
