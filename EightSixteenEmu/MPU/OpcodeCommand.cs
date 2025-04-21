@@ -106,7 +106,7 @@ namespace EightSixteenEmu.MPU
                         {
                             carry = 0;
                         }
-                        result |= (ushort)(digit << (4 * i));
+                        result |= (ushort)((digit & 0x0f) << (4 * i));
                     }
                     mpu.SetStatusFlag(StatusFlags.C, carry != 0);
                     //mpu.InternalCycle();
@@ -204,7 +204,7 @@ namespace EightSixteenEmu.MPU
                             borrow = 0;
                         }
 
-                        result |= (ushort)(digit << (4 * i));
+                        result |= (ushort)((digit & 0x0f) << (4 * i));
                     }
 
                     mpu.SetStatusFlag(StatusFlags.C, borrow == 0);
