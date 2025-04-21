@@ -192,11 +192,11 @@ namespace EightSixteenEmu.MPU
                     {
                         byte digitA = (byte)((mpu.RegA >> (4 * i)) & 0x0F);
                         byte digitB = (byte)((subtrahend >> (4 * i)) & 0x0F);
-                        byte digit = (byte)(digitA - digitB - borrow);
+                        int digit = (digitA - digitB - borrow);
 
-                        if ((digit & 0x10) != 0) // Borrow occurred
+                        if (digit < 0) // Borrow occurred
                         {
-                            digit -= 0x0A;
+                            digit += 10;
                             borrow = 1;
                         }
                         else
