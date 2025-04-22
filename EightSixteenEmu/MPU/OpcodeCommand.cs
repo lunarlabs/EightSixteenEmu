@@ -40,8 +40,8 @@ namespace EightSixteenEmu.MPU
             mpu.RegDB = destination;
             byte source = (byte)operand;
             mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX), (uint)(destination << 16) | mpu.RegY);
-            //mpu.InternalCycle();
-            //mpu.InternalCycle();
+            mpu.InternalCycle();
+            mpu.InternalCycle();
             if (--mpu.RegA != 0xffff) mpu.RegPC -= 3; // jump back to the move instruction
         }
     }

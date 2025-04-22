@@ -773,7 +773,7 @@ namespace EightSixteenEmu
                     case W65C816.AddressingMode.Accumulator:
                         return "A";
                     case W65C816.AddressingMode.ProgramCounterRelative:
-                        return $"{(sbyte)ReadOperand():+0,-#}";
+                        return $"{(sbyte)ReadOperand():+0;-0}";
                     case W65C816.AddressingMode.ProgramCounterRelativeLong:
                         return $"+{(short)ReadOperand(2)}";
                     case W65C816.AddressingMode.Implied:

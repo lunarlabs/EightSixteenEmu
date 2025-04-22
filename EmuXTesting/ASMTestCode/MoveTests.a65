@@ -14,15 +14,16 @@ start:	clc
 		.a16
 		.i16
 
-loop:	lda .loword(__DATA_SIZE__ - 1)						; how many bytes to move
-		bit $00												; determines what command to use
+loop:	lda #.loword(__DATA_SIZE__ - 1)						; how many bytes to move
+		bit $0200												; determines what command to use
 		bne Positive
-		ldx .loword(__DATA_LOAD__)							; where to move from
+		ldx #.loword(__DATA_LOAD__)							; where to move from
 		ldy #$0200											; where to move to
 		mvn #$00, #$00										; move data
+		jmp loop
 Positive:
-		ldx .loword(__DATA_LOAD__ + __DATA_SIZE__ - 1)		; where to move from
-		ldy .loword(__DATA_SIZE__ - 1)						; where to move to
+		ldx #.loword(__DATA_LOAD__ + __DATA_SIZE__ - 1)		; where to move from
+		ldy #.loword(__DATA_SIZE__ - 1)						; where to move to
 		mvp #$00, #$01										; move data to bank $01
 
 		stp
