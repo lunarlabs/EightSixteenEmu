@@ -15,6 +15,7 @@
 using EightSixteenEmu.MPU;
 using System.Runtime.CompilerServices;
 using System.Text;
+using static EightSixteenEmu.W65C816;
 using Addr = System.UInt32;
 using Word = System.UInt16;
 
@@ -43,21 +44,22 @@ namespace EightSixteenEmu
         internal OpcodeCommand Instruction { get => _operations[CurrentOpCode]; }
         internal AddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
 
-        public bool Verbose
+        public delegate void InstructionHandler(W65C816.OpCode opCode, string operand);
+
+        public event InstructionHandler? NewInstruction;
+
+        protected virtual void OnNewInstruction(OpCode opCode, string operand)
         {
-            get => _verbose;
-#if !DEBUG
-            set => _verbose = value;
-#endif
+            NewInstruction?.Invoke(opCode, operand);
         }
 
-        public delegate void CycleHandler(int cycles, Cycle details);
+        public delegate void CycleHandler(int cycles, Cycle details, MicroprocessorState state);
 
         public event CycleHandler? NewCycle;
 
-        protected virtual void OnNewCycle(int cycles, Cycle details)
+        protected virtual void OnNewCycle(int cycles, Cycle details, MicroprocessorState state)
         {
-            NewCycle?.Invoke(cycles, details);
+            NewCycle?.Invoke(cycles, details, state);
         }
 
         public int Cycles
@@ -490,7 +492,7 @@ namespace EightSixteenEmu
 
         internal void InternalCycle()
         {
-            OnNewCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress));
+            OnNewCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);
             HandleClockCycle();
         }
 
@@ -589,7 +591,7 @@ namespace EightSixteenEmu
                 _regMD = (byte)result;
             }
             
-            OnNewCycle(_cycles, new Cycle(CycleType.Read, address, _regMD));
+            OnNewCycle(_cycles, new Cycle(CycleType.Read, address, _regMD), Status);
             HandleClockCycle();
             return _regMD;
         }
@@ -642,7 +644,7 @@ namespace EightSixteenEmu
             _lastAddress = address;
             _regMD = value;
             _core.Mapper[address] = value;
-            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD));
+            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD), Status);
             HandleClockCycle();
         }
 
@@ -747,11 +749,91 @@ namespace EightSixteenEmu
 
         internal void DecodeInstruction()
         {
+            // peek ahead for the event
+            byte inst = _core.Mapper[_longPC] ?? _regMD;
+            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(inst);
+            OnNewInstruction(CurrentOpCode, AddressModeNotation(CurrentAddressingMode));
+
+            // now have the actual read to fire off the cycle event
             _regIR = ReadByte();
-            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(_regIR);
-            // TODO: Maybe an event here that peeks ahead and gives out the instruction?
-            // I already have the notation templates in AddressingModeStrategy, probably would be
-            // trivial to make it its own method
+
+            string AddressModeNotation(W65C816.AddressingMode mode)
+            {
+                switch (mode)
+                {
+                    case W65C816.AddressingMode.Immediate:
+                        if (AccumulatorIs8Bit)
+                        {
+                            return $"#${(byte)ReadOperand():X2}";
+                        }
+                        else
+                        {
+                            return $"#${(ushort)ReadOperand(2):X4}";
+                        }
+                    case W65C816.AddressingMode.Accumulator:
+                        return "A";
+                    case W65C816.AddressingMode.ProgramCounterRelative:
+                        return $"{(sbyte)ReadOperand():+0,-#}";
+                    case W65C816.AddressingMode.ProgramCounterRelativeLong:
+                        return $"+{(short)ReadOperand(2)}";
+                    case W65C816.AddressingMode.Implied:
+                        return "";
+                    case W65C816.AddressingMode.Stack:
+                        return "";
+                    case W65C816.AddressingMode.Direct:
+                        return $"${(byte)ReadOperand():X2}";
+                    case W65C816.AddressingMode.DirectIndexedWithX:
+                        return $"${(byte)ReadOperand():X2}, X";
+                    case W65C816.AddressingMode.DirectIndexedWithY:
+                        return $"${(byte)ReadOperand():X2}, Y";
+                    case W65C816.AddressingMode.DirectIndirect:
+                        return $"(${(byte)ReadOperand():X2})";
+                    case W65C816.AddressingMode.DirectIndexedIndirect:
+                        return $"(${(byte)ReadOperand():X2}, X)";
+                    case W65C816.AddressingMode.DirectIndirectIndexed:
+                        return $"(${(byte)ReadOperand():X2}), Y";
+                    case W65C816.AddressingMode.DirectIndirectLong:
+                        return $"[${(byte)ReadOperand():X2}]";
+                    case W65C816.AddressingMode.DirectIndirectLongIndexed:
+                        return $"[${(byte)ReadOperand():X2}], Y";
+                    case W65C816.AddressingMode.Absolute:
+                        return $"${(ushort)ReadOperand(2):X4}";
+                    case W65C816.AddressingMode.AbsoluteIndexedWithX:
+                        return $"${(ushort)ReadOperand(2):X4}, X";
+                    case W65C816.AddressingMode.AbsoluteIndexedWithY:
+                        return $"${(ushort)ReadOperand(2):X4}, Y";
+                    case W65C816.AddressingMode.AbsoluteLong:
+                        return $"${ReadOperand(3):X6}";
+                    case W65C816.AddressingMode.AbsoluteLongIndexed:
+                        return $"${ReadOperand(3):X6}, X";
+                    case W65C816.AddressingMode.StackRelative:
+                        return $"${(byte)ReadOperand():X2}, S";
+                    case W65C816.AddressingMode.StackRelativeIndirectIndexed:
+                        return $"$({(byte)ReadOperand():X2}, S), Y";
+                    case W65C816.AddressingMode.AbsoluteIndirect:
+                        return $"(${(ushort)ReadOperand(2):X4})";
+                    case W65C816.AddressingMode.AbsoluteIndirectLong:
+                        return $"[${(ushort)ReadOperand(2):X4}]";
+                    case W65C816.AddressingMode.AbsoluteIndexedIndirect:
+                        return $"(${(ushort)ReadOperand(2):X4}, X)";
+                    case W65C816.AddressingMode.BlockMove:
+                        byte source = _core.Mapper[_longPC + 1] ?? _regMD;
+                        byte dest = _core.Mapper[_longPC + 2] ?? _regMD;
+                        return $"${source:X2}, ${dest:X2}";
+                    default:
+                        throw new ArgumentException("invalid addressing mode", nameof(mode));
+                }
+
+                int ReadOperand(int bytes = 1)
+                {
+                    int result = 0;
+                    for (byte i = 0; i < bytes; i++)
+                    {
+                        result |= (_core.Mapper[_longPC + i + 1] ?? _regMD) << i * 8;
+                    }
+                    return result;
+                }
+            }
         }
 
         public void ExecuteInstruction()
@@ -762,54 +844,57 @@ namespace EightSixteenEmu
             }
             else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
         }
-        
 
-        public MicroprocessorState GetStatus()
+
+        public MicroprocessorState Status
         {
-            MicroprocessorState result = new()
+            get
             {
-                Cycles = _cycles,
-                A = _regA,
-                X = _regX,
-                Y = _regY,
-                DP = _regDP,
-                SP = _regSP,
-                PC = _regPC,
-                DB = _regDB,
-                PB = _regPB,
-                FlagN = (_regSR & StatusFlags.N) == StatusFlags.N,
-                FlagV = (_regSR & StatusFlags.V) == StatusFlags.V,
-                FlagM = (_regSR & StatusFlags.M) == StatusFlags.M,
-                FlagX = (_regSR & StatusFlags.X) == StatusFlags.X,
-                FlagD = (_regSR & StatusFlags.D) == StatusFlags.D,
-                FlagI = (_regSR & StatusFlags.I) == StatusFlags.I,
-                FlagZ = (_regSR & StatusFlags.Z) == StatusFlags.Z,
-                FlagC = (_regSR & StatusFlags.C) == StatusFlags.C,
-                FlagE = _flagE
-            };
-            return result;
-        }
+                MicroprocessorState result = new()
+                {
+                    Cycles = _cycles,
+                    A = _regA,
+                    X = _regX,
+                    Y = _regY,
+                    DP = _regDP,
+                    SP = _regSP,
+                    PC = _regPC,
+                    DB = _regDB,
+                    PB = _regPB,
+                    FlagN = (_regSR & StatusFlags.N) == StatusFlags.N,
+                    FlagV = (_regSR & StatusFlags.V) == StatusFlags.V,
+                    FlagM = (_regSR & StatusFlags.M) == StatusFlags.M,
+                    FlagX = (_regSR & StatusFlags.X) == StatusFlags.X,
+                    FlagD = (_regSR & StatusFlags.D) == StatusFlags.D,
+                    FlagI = (_regSR & StatusFlags.I) == StatusFlags.I,
+                    FlagZ = (_regSR & StatusFlags.Z) == StatusFlags.Z,
+                    FlagC = (_regSR & StatusFlags.C) == StatusFlags.C,
+                    FlagE = _flagE
+                };
+                return result;
+            }
 
-        public void SetStatus(MicroprocessorState state)
-        {
-            _cycles = state.Cycles;
-            _regA = state.A;
-            _regX = state.X;
-            _regY = state.Y;
-            _regDP = state.DP;
-            _regSP = state.SP;
-            _regPC = state.PC;
-            _regDB = state.DB;
-            _regPB = state.PB;
-            SetStatusFlag(StatusFlags.N, state.FlagN);
-            SetStatusFlag(StatusFlags.V, state.FlagV);
-            SetStatusFlag(StatusFlags.M, state.FlagM);
-            SetStatusFlag(StatusFlags.X, state.FlagX);
-            SetStatusFlag(StatusFlags.D, state.FlagD);
-            SetStatusFlag(StatusFlags.I, state.FlagI);
-            SetStatusFlag(StatusFlags.Z, state.FlagZ);
-            SetStatusFlag(StatusFlags.C, state.FlagC);
-            SetEmulationMode(state.FlagE);
+            internal set
+            {
+                _cycles = value.Cycles;
+                _regA = value.A;
+                _regX = value.X;
+                _regY = value.Y;
+                _regDP = value.DP;
+                _regSP = value.SP;
+                _regPC = value.PC;
+                _regDB = value.DB;
+                _regPB = value.PB;
+                SetStatusFlag(StatusFlags.N, value.FlagN);
+                SetStatusFlag(StatusFlags.V, value.FlagV);
+                SetStatusFlag(StatusFlags.M, value.FlagM);
+                SetStatusFlag(StatusFlags.X, value.FlagX);
+                SetStatusFlag(StatusFlags.D, value.FlagD);
+                SetStatusFlag(StatusFlags.I, value.FlagI);
+                SetStatusFlag(StatusFlags.Z, value.FlagZ);
+                SetStatusFlag(StatusFlags.C, value.FlagC);
+                SetEmulationMode(value.FlagE);
+            }
         }
 
         public struct Cycle

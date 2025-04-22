@@ -186,7 +186,7 @@ namespace EmuXTesting
                     try
                     {
                         emu.MPU.ExecuteInstruction();
-                        var mpuState = emu.MPU.GetStatus();
+                        var mpuState = emu.MPU.Status;
 
                         bool registersEqual = true;
                         foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)

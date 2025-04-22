@@ -300,7 +300,7 @@ namespace EightSixteenEmu.MPU
         {
             if (_context != null)
             {
-                _context.mpu.SetStatus(state);
+                _context.mpu.Status = state;
             }
             else
             {
