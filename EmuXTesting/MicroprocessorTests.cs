@@ -12,6 +12,8 @@ namespace EmuXTesting
          * that, when triggered, finishes the current instruction but in a way that does not affect the CPU state or memory--
          * basically turns the current operation into a NOP in most cases). 
          */
+
+        const string romFile = "interruptTests.rom";
         [Fact]
         public void Reset_ShouldLoadProperVector()
         {
@@ -59,6 +61,14 @@ namespace EmuXTesting
          * IRQ, native mode, I = 1, waiting state
          * (Yes, IRQ when in the waiting mode with I set should act the same in both native and emulated mode, but we should
          * be thorough and test both.)
+         * 
+         * During the arrange phase, byte 0x000000 should be set to configure the processor into the state we need
+         * We'll be using:
+         * bit 7 - the desired state of the emulation mode flag
+         * bit 6 - the desired state of the I (interrupt disable) flag
+         * bit 5 - if set, use waiting state, loop otherwise
+         * 
+         * TODO: check to see how to export symbols from ca65/ld65 so we can check PC register
          */
 
         /*

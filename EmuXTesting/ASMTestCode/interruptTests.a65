@@ -1,0 +1,60 @@
+﻿; Interrupt Tests
+; This file contains tests for the interrupt handling of the 65C816 CPU.
+
+.p816
+.macpack generic
+.macpack longbranch
+.import __DATA_LOAD__, __DATA_RUN__, __DATA_SIZE__
+
+;test code goes here
+.code
+start:	bit $00					; the test will set this byte in RAM to tell us
+								; what setup to use
+		bpl goNative			; if bit 7 is clear, use native mode
+IChk:	bvc enableIRQ			; if bit 6 is clear, don't mask IRQ
+WaiChk: lda #$20				; no one-instruction way to check bit 5
+		and $00
+		beq goWait				; if bit 5 is set, use WAI
+spin:	inx						; if not, just loop
+		jmp spin
+
+goNative:
+		clc						; clear carry
+		xce						; enter native mode
+		rep #$30				; set 16 bit mode
+		.a16
+		.i16					; let the assembler know
+		jmp IChk				; check the interrupt setup
+
+enableIRQ:
+		cli						; enable IRQ
+		jmp WaiChk				; check for WAI
+
+goWait:
+		wai						; wait for interrupt
+		lda magic				; if I set, load the magic number
+
+.rodata
+magic:	.word $0b0e				; this is the magic number if we're doing wait
+								; while I is set
+								; NOTE: due to the endianness of the 65C816,
+								; this should fetch $0e when the accumulator is
+								; 8 bits
+
+.segment "HEADER"
+		.byte "InterruptTest   "	; 16 byte program name
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; native COP not used
+		.word $ffff				; native BRK not used
+		.word $ffff				; native ABORT not used
+		.word $ffff				; native NMI
+		.word $ffff				; unused vector
+		.word $ffff				; native IRQ
+
+		.word $ffff, $ffff		; unused vectors
+		.word $ffff				; emulation COP not used
+		.word $ffff				; unused vector
+		.word $ffff				; emulation ABORT not used
+		.word $ffff				; emulation NMI
+		.addr start				; reset vector
+		.word $ffff				; emulation IRQ/BRK

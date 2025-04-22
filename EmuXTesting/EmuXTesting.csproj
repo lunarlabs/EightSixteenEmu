@@ -31,9 +31,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-	<ItemGroup>
-	  <Folder Include="ASMTestCode\" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<None Include="ASMTestCode\*.a65" />
