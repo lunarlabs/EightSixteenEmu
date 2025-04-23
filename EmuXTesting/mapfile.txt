@@ -1,0 +1,36 @@
+Modules list:
+-------------
+MoveTests.o:
+    CODE              Offs=000000  Size=000022  Align=00001  Fill=0000
+    DATA              Offs=000000  Size=000020  Align=00001  Fill=0000
+    HEADER            Offs=000000  Size=000030  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+DATA                  000000  00001F  000020  00001
+CODE                  008000  008021  000022  00001
+HEADER                00FFD0  00FFFF  000030  00001
+
+
+Exports list by name:
+---------------------
+__DATA_LOAD__             008100 RLA    __DATA_SIZE__             000020 REA    
+
+
+
+Exports list by value:
+----------------------
+__DATA_SIZE__             000020 REA    __DATA_LOAD__             008100 RLA    
+
+
+
+Imports list:
+-------------
+__DATA_LOAD__ ([linker generated]):
+    MoveTests.o               ASMTestCode\MoveTests.a65:7
+__DATA_SIZE__ ([linker generated]):
+    MoveTests.o               ASMTestCode\MoveTests.a65:7
+
