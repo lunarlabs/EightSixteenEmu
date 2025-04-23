@@ -13,7 +13,7 @@
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
 using EightSixteenEmu.MPU;
-using System.Runtime.CompilerServices;
+using System.Collections.Immutable;
 using System.Text;
 using static EightSixteenEmu.W65C816;
 using Addr = System.UInt32;
@@ -27,7 +27,8 @@ namespace EightSixteenEmu
     public class Microprocessor
     {
         private int _cycles;
-        private bool _threadRunning;
+        private CancellationTokenSource? _cancellationTokenSource;
+        private volatile bool _threadRunning;
         private Thread? _runThread;
         private bool _verbose;
         private static readonly AutoResetEvent _clockEvent = new(false);
@@ -35,9 +36,10 @@ namespace EightSixteenEmu
         private readonly StringBuilder _lastInstruction;
         internal bool IRQ => _core.Mapper.DeviceInterrupting;
         internal bool NMICalled;
-        internal readonly Dictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
-        internal readonly Dictionary<W65C816.OpCode, OpcodeCommand> _operations;
+        internal readonly ImmutableDictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
+        internal readonly ImmutableDictionary<W65C816.OpCode, OpcodeCommand> _operations;
         private readonly ProcessorContext context;
+        private readonly Lock @lock = new();
 
         internal W65C816.OpCode CurrentOpCode { get; private set; }
         internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
@@ -64,8 +66,21 @@ namespace EightSixteenEmu
 
         public int Cycles
         {
-            get => _cycles;
-            internal set => _cycles = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _cycles;
+                }
+            }
+
+            internal set
+            {
+                lock (@lock)
+                {
+                    _cycles = value;
+                }
+            }
         }
 
         public string ExecutionState => context.StateName;
@@ -83,7 +98,7 @@ namespace EightSixteenEmu
             V = 0x40,   // overflow
             N = 0x80,   // negative
         }
-         internal enum InterruptType : byte
+        internal enum InterruptType : byte
         {
             Reset,
             Abort,
@@ -121,115 +136,235 @@ namespace EightSixteenEmu
 
         public Word RegA
         {
-            get => _regA;
-            internal set => _regA = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regA;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regA = value;
+                }
+            }
         }
 
         public Word RegX
         {
-            get => _regX;
-            internal set => _regX = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regX;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regX = value;
+                }
+            }
         }
 
         public Word RegY
         {
-            get => _regY;
-            internal set => _regY = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regY;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regY = value;
+                }
+            }
         }
 
         public Word RegDP
         {
-            get => _regDP;
-            internal set => _regDP = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regDP;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regDP = value;
+                }
+            }
         }
 
         public Word RegSP
         {
-            get => _regSP;
-            internal set => _regSP = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regSP;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regSP = value;
+                }
+            }
         }
 
         public byte RegDB
         {
-            get => _regDB;
-            internal set => _regDB = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regDB;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regDB = value;
+                }
+            }
         }
 
         public byte RegPB
         {
-            get => _regPB;
-            internal set => _regPB = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regPB;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regPB = value;
+                }
+            }
         }
 
         public Word RegPC
         {
-            get => _regPC;
-            internal set => _regPC = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regPC;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regPC = value;
+                }
+            }
         }
 
         public StatusFlags RegSR
         {
-            get => _regSR;
-            internal set => _regSR = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regSR;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _regSR = value;
+                }
+            }
         }
 
         public bool FlagE
         {
-            get => _flagE;
-            internal set => _flagE = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _flagE;
+                }
+            }
+            internal set
+            {
+                lock (@lock)
+                {
+                    _flagE = value;
+                }
+            }
         }
 
         public byte RegAH // high byte of accumulator
         {
-            get => HighByte(_regA);
-            internal set => _regA = Join(LowByte(_regA), value);
+            get => HighByte(RegA);
+            internal set => RegA = Join(LowByte(RegA), value);
         }
         public byte RegAL // low byte of accumulator
         {
-            get => LowByte(_regA);
-            internal set => _regA = Join(value, HighByte(_regA));
+            get => LowByte(RegA);
+            internal set => RegA = Join(value, HighByte(RegA));
         }
         public byte RegXH // high byte of X register
         {
-            get => HighByte(_regX);
-            internal set => _regX = Join(LowByte(_regX), value);
+            get => HighByte(RegX);
+            internal set => RegX = Join(LowByte(RegX), value);
         }
         public byte RegXL // low byte of X register
         {
-            get => LowByte(_regX);
-            internal set => _regX = Join(value, HighByte(_regX));
+            get => LowByte(RegX);
+            internal set => RegX = Join(value, HighByte(RegX));
         }
         public byte RegYH // high byte of Y register
         {
-            get => HighByte(_regY);
-            internal set => _regY = Join(LowByte(_regY), value);
+            get => HighByte(RegY);
+            internal set => RegY = Join(LowByte(RegY), value);
         }
         public byte RegYL // low byte of Y register
         {
-            get => LowByte(_regY);
-            internal set => _regY = Join(value, HighByte(_regY));
+            get => LowByte(RegY);
+            internal set => RegY = Join(value, HighByte(RegY));
         }
         public byte RegSH // high byte of stack pointer
         {
-            get => HighByte(_regSP);
-            internal set => _regSP = Join(LowByte(_regSP), value);
+            get => HighByte(RegSP);
+            internal set => RegSP = Join(LowByte(RegSP), value);
         }
         public byte RegSL // low byte of stack pointer
         {
-            get => LowByte(_regSP);
-            internal set => _regSP = Join(value, HighByte(_regSP));
+            get => LowByte(RegSP);
+            internal set => RegSP = Join(value, HighByte(RegSP));
         }
 
         public byte RegDH //high byte of direct pointer
         {
-            get => HighByte(_regDP);
-            internal set => _regDP = Join(LowByte(_regDP), value);
+            get => HighByte(RegDP);
+            internal set => RegDP = Join(LowByte(RegDP), value);
         }
 
         public byte RegDL //low byte of direct pointer
         {
-            get => LowByte(_regDP);
-            internal set => _regDP = Join(value, HighByte(_regDP));
+            get => LowByte(RegDP);
+            internal set => RegDP = Join(value, HighByte(RegDP));
         }
 
         public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
@@ -242,8 +377,21 @@ namespace EightSixteenEmu
 
         internal byte RegMD
         {
-            get => _regMD;
-            set => _regMD = value;
+            get
+            {
+                lock (@lock)
+                {
+                    return _regMD;
+                }
+            }
+
+            set
+            {
+                lock (@lock)
+                {
+                    _regMD = value;
+                }
+            }
         }
 
         /// <summary>
@@ -252,7 +400,6 @@ namespace EightSixteenEmu
         public Microprocessor(EmuCore core)
         {
             _core = core;
-            ColdReset();
 
             _threadRunning = false;
 #if DEBUG
@@ -266,7 +413,7 @@ namespace EightSixteenEmu
 
             // the house of pain
             #region Dictionary Initialization
-            _addressingModes = new Dictionary<W65C816.AddressingMode, AddressingModeStrategy>
+            var tempAddressingModes = new Dictionary<W65C816.AddressingMode, AddressingModeStrategy>
             {
                 { W65C816.AddressingMode.Immediate, new AM_Immediate() },
                 { W65C816.AddressingMode.Accumulator, new AM_Accumulator() },
@@ -294,7 +441,7 @@ namespace EightSixteenEmu
                 { W65C816.AddressingMode.AbsoluteIndexedIndirect, new AM_AbsoluteIndexedIndirect() },
                 { W65C816.AddressingMode.BlockMove, new AM_BlockMove() },
             };
-            _operations = new Dictionary<W65C816.OpCode, OpcodeCommand>
+            var tempOperations = new Dictionary<W65C816.OpCode, OpcodeCommand>
             {
                 { W65C816.OpCode.ADC, new OP_ADC() },
                 { W65C816.OpCode.AND, new OP_AND() },
@@ -388,24 +535,10 @@ namespace EightSixteenEmu
                 { W65C816.OpCode.TDC, new OP_TDC() },
                 { W65C816.OpCode.JSL, new OP_JSL() },
             };
+            _addressingModes = tempAddressingModes.ToImmutableDictionary();
+            _operations = tempOperations.ToImmutableDictionary();
             #endregion
             context = new ProcessorContext(this);
-        }
-
-        private void ColdReset()
-        {
-            _regA = 0x0000;
-            _regX = 0x0000;
-            _regY = 0x0000;
-            _regDP = 0x0000;
-            _regSP = 0x0100;
-            _regDB = 0x00;
-            _regPB = 0x00;
-            _regPC = 0x0000;
-            _regSR = (StatusFlags)0x34;
-            _flagE = true;
-            _regMD = 0x00;
-            _cycles = 0;
         }
 
         public void Reset() => context.Reset();
@@ -477,7 +610,7 @@ namespace EightSixteenEmu
             }
             catch (ThreadInterruptedException ex)
             {
-                if(_verbose) Console.WriteLine(ex.Message);
+                if (_verbose) Console.WriteLine(ex.Message);
                 _threadRunning = false;
                 _runThread?.Join();
             }
@@ -536,8 +669,8 @@ namespace EightSixteenEmu
         }
 
         // to avoid headaches when adding offsets to Words
-        static Addr Address(byte bank, int address) 
-        { 
+        static Addr Address(byte bank, int address)
+        {
             return Address(bank, (Word)address);
         }
         static Word Swap(Word w)
@@ -575,7 +708,7 @@ namespace EightSixteenEmu
             if (!isByte)
             {
                 WriteWord(value, address);
-            } 
+            }
             else
             {
                 WriteByte((byte)value, address);
@@ -590,7 +723,7 @@ namespace EightSixteenEmu
             {
                 _regMD = (byte)result;
             }
-            
+
             OnNewCycle(_cycles, new Cycle(CycleType.Read, address, _regMD), Status);
             HandleClockCycle();
             return _regMD;
@@ -677,8 +810,8 @@ namespace EightSixteenEmu
                 result = ReadByte(++_regSP);
             }
             else
-            { 
-                result = _flagE ? ReadByte((uint)(0x0100 | ++RegSL)) : ReadByte(++_regSP); 
+            {
+                result = _flagE ? ReadByte((uint)(0x0100 | ++RegSL)) : ReadByte(++_regSP);
             }
             return result;
         }
@@ -696,14 +829,14 @@ namespace EightSixteenEmu
         #region Status Register Manipulation
         internal void SetStatusFlag(StatusFlags flag, bool value)
         {
-                if (value)
-                {
-                    _regSR |= flag;
-                }
-                else
-                {
-                    _regSR &= ~flag;
-                }
+            if (value)
+            {
+                _regSR |= flag;
+            }
+            else
+            {
+                _regSR &= ~flag;
+            }
         }
         internal bool AccumulatorIs8Bit { get { return _flagE || ReadStatusFlag(StatusFlags.M); } }
         // in emulation, flag M should always be set, but we'll check both just in case
@@ -838,9 +971,9 @@ namespace EightSixteenEmu
 
         public void ExecuteInstruction()
         {
-            if (_runThread == null || !_threadRunning) 
+            if (_runThread == null || !_threadRunning)
             {
-                NextInstruction(); 
+                NextInstruction();
             }
             else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
         }

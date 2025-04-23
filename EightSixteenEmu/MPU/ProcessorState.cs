@@ -77,6 +77,7 @@ namespace EightSixteenEmu.MPU
     {
         private ProcessorState _state;
         internal Microprocessor mpu;
+        private readonly Lock @lock = new();
 
         public ProcessorContext(Microprocessor mpu, ProcessorState? state = null)
         {
@@ -100,59 +101,65 @@ namespace EightSixteenEmu.MPU
 
         internal void TransitionTo(ProcessorState state)
         {
-            _state = state;
-            _state.SetContext(this);
-            Console.WriteLine($"Transitioning to state: {state.GetType().Name}");
+            lock (@lock) {
+                 _state = state;
+                _state.SetContext(this);
+                Console.WriteLine($"Transitioning to state: {state.GetType().Name}");
+            }
         }
 
         internal void Reset()
         {
-            _state.Reset();
+            lock (@lock) _state.Reset();
+            
         }
 
         internal void NextInstruction()
         {
-            _state.NextInstruction();
+            lock (@lock) _state.NextInstruction();
+            
         }
 
         internal void Interrupt(InterruptType type)
         {
-            _state.Interrupt(type);
+            lock (@lock) _state.Interrupt(type);
+            
         }
 
         internal void Stop()
         {
-            _state.Stop();
+            lock (@lock) _state.Stop();
+            
         }
 
         internal void Wait()
         {
-            _state.Wait();
+            lock (@lock) _state.Wait();
         }
 
         internal void BusRequest()
         {
-            _state.BusRequest();
+            lock (@lock) _state.BusRequest();
         }
 
         internal void BusRelease()
         {
-            _state.BusRelease();
+            lock (@lock) _state.BusRelease();
         }
 
         internal void Disable()
         {
-            _state.Disable();
+            lock (@lock) _state.Disable();
         }
 
         internal void Enable()
         {
-            _state.Enable();
+            lock (@lock) _state.Enable();
         }
 
         internal void SetProcessorState(MicroprocessorState state)
         {
-            _state.SetProcessorState(state);
+            lock (@lock) _state.SetProcessorState(state);
         }
     }
 
