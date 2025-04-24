@@ -38,7 +38,7 @@ namespace EmuXTesting
             // TODO: make rom file
             // Act
             // Assert
-            Assert.Fail("I didn't code the interrupts ROM yet!");
+            Assert.Fail("Not ready yet!");
         }
 
         /* As for the other hardware interrupts, their mechanics are quite like the COP and BRK instructions, so much so
@@ -70,6 +70,32 @@ namespace EmuXTesting
          * 
          * TODO: check to see how to export symbols from ca65/ld65 so we can check PC register
          */
+
+        [Fact]
+        public void NativeNMI_ShouldJumpProperly()
+        {
+            Assert.Fail("Not ready yet!");
+        }
+
+        [Fact]
+        public void EmulatedNMI_ShouldJumpProperly()
+        {
+            Assert.Fail("Not ready yet!");
+        }
+
+        [Theory]
+        [InlineData(false, false, false)]
+        [InlineData(false, false, true)]
+        [InlineData(false, true, false)]
+        [InlineData(false, true, true)]
+        [InlineData(true, false, false)]
+        [InlineData(true, false, true)]
+        [InlineData(true, true, false)]
+        [InlineData(true, true, true)]
+        public void IRQ_ShouldBehaveProperly(bool emulated, bool interruptsDisabled, bool isWaiting)
+        {
+            Assert.Fail("Not ready yet!");
+        }
 
         /*
          * Finally, we have the dreaded free-running clock. This will be a headache, since threads will be involved and
