@@ -13,7 +13,7 @@ namespace EmuXTesting
          * basically turns the current operation into a NOP in most cases). 
          */
 
-        const string romFile = "interruptTests.rom";
+        const string romFilePrefix = "interruptTests";
         [Fact]
         public void Reset_ShouldLoadProperVector()
         {
@@ -94,6 +94,19 @@ namespace EmuXTesting
         [InlineData(true, true, true)]
         public void IRQ_ShouldBehaveProperly(bool emulated, bool interruptsDisabled, bool isWaiting)
         {
+            //Arrange
+            byte signature = (byte)((emulated ? (byte)0x80 : (byte)0x00) 
+                | (interruptsDisabled ? (byte)0x40 : (byte)0x00) 
+                | (isWaiting ? (byte)0x20 : (byte)0x00));
+            EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            var ram = new DevRAM(0x8000);
+            ram[0] = signature;
+            emu.Mapper.AddDevice(ram, 0x0000);
+            var rom = new DevROM(romFilePrefix + ".rom");
+            emu.Mapper.AddDevice(rom, 0x8000);
+
             Assert.Fail("Not ready yet!");
         }
 
