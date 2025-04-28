@@ -26,20 +26,75 @@ namespace EightSixteenEmu
     /// </summary>
     public class Microprocessor
     {
+        #region Fields
+        #region Registers
         private int _cycles;
-        private CancellationTokenSource? _cancellationTokenSource;
-        private volatile bool _threadRunning;
-        private Thread? _runThread;
-        private bool _verbose;
-        private static readonly AutoResetEvent _clockEvent = new(false);
-        private readonly EmuCore _core;
-        private readonly StringBuilder _lastInstruction;
-        internal bool IRQ => _core.Mapper.DeviceInterrupting;
+        // accessible registers
+        private Word _regA;  // accumulator
+        private Word _regX;  // index register X
+        private Word _regY;  // index register Y
+        private Word _regDP; // direct page pointer
+        private Word _regSP; // stack pointer
+        private byte _regDB; // data bank
+        private byte _regPB; // program bank
+        private Word _regPC; // program counter
+        private StatusFlags _regSR;  // status flags register
+        private bool _flagE; // emulation flag
+
+        // non-accessible registers
+        private byte _regMD; // memory data register
+        private Addr _lastAddress; // last address accessed
+        internal byte _regIR; // instruction register
+        #endregion
+
+        #region Microprocessor State
+        private readonly ProcessorContext context;
         internal bool NMICalled;
+        #endregion
+
+        #region Threading and API Integration
+        private readonly EmuCore _core;
+        private bool _verbose;
+        private Thread? _runThread;
+        private volatile bool _threadRunning;
+        private CancellationTokenSource? _cancellationTokenSource;
+        private readonly Lock @lock = new();
+        private static readonly AutoResetEvent _clockEvent = new(false);
+        #endregion
+
+        #region Addressing Modes and Operations
         internal readonly ImmutableDictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
         internal readonly ImmutableDictionary<W65C816.OpCode, OpcodeCommand> _operations;
-        private readonly ProcessorContext context;
-        private readonly Lock @lock = new();
+        #endregion
+
+        #endregion
+
+        #region Properties
+        #region Register Access
+        public int Cycles
+        {
+            get
+            {
+                lock (@lock)
+                {
+                    return _cycles;
+                }
+            }
+
+            internal set
+            {
+                lock (@lock)
+                {
+                    _cycles = value;
+                }
+            }
+        }
+
+        #endregion
+
+
+        #endregion
+        internal bool IRQ => _core.Mapper.DeviceInterrupting;
 
         internal W65C816.OpCode CurrentOpCode { get; private set; }
         internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
@@ -64,24 +119,6 @@ namespace EightSixteenEmu
             NewCycle?.Invoke(cycles, details, state);
         }
 
-        public int Cycles
-        {
-            get
-            {
-                lock (@lock)
-                {
-                    return _cycles;
-                }
-            }
-
-            internal set
-            {
-                lock (@lock)
-                {
-                    _cycles = value;
-                }
-            }
-        }
 
         public string ExecutionState => context.StateName;
 
@@ -122,17 +159,6 @@ namespace EightSixteenEmu
             Read,
         }
 
-        // accessible registers
-        private Word _regA;  // accumulator
-        private Word _regX;  // index register X
-        private Word _regY;  // index register Y
-        private Word _regDP; // direct page pointer
-        private Word _regSP; // stack pointer
-        private byte _regDB; // data bank
-        private byte _regPB; // program bank
-        private Word _regPC; // program counter
-        private StatusFlags _regSR;  // status flags register
-        private bool _flagE; // emulation flag
 
         public Word RegA
         {
@@ -370,10 +396,6 @@ namespace EightSixteenEmu
         public bool FlagM { get => ReadStatusFlag(StatusFlags.M); }
         public bool FlagX { get => ReadStatusFlag(StatusFlags.X); }
 
-        // non-accessible registers
-        internal byte _regIR; // instruction register
-        private byte _regMD; // memory data register
-        private Addr _lastAddress; // last address accessed
 
         internal byte RegMD
         {
@@ -406,9 +428,6 @@ namespace EightSixteenEmu
             _verbose = true;
 #endif
             _core.ClockTick += OnClockTick;
-            _core.Reset += OnReset;
-            _core.NMI += OnNMI;
-            _lastInstruction = new StringBuilder();
             var implied = new AM_Implied(); // this one pulls double duty
 
             // the house of pain
@@ -570,6 +589,11 @@ namespace EightSixteenEmu
             Reset();
         }
 
+        public void SetNMI()
+        {
+            NMICalled = true;
+        }
+
         internal void OnNMI(object? sender, EventArgs e)
         {
             NMICalled = true;
@@ -681,40 +705,6 @@ namespace EightSixteenEmu
         #endregion
 
         #region Memory Access
-
-        internal Word ReadValue(bool isByte, Addr address)
-        {
-            return isByte switch
-            {
-                false => ReadWord(address),
-                true => ReadByte(address),
-            };
-        }
-
-        internal Word ReadImmediate(bool isByte)
-        {
-            Word result = isByte switch
-            {
-                false => ReadWord(),
-                true => ReadByte(),
-            };
-            string arg = isByte ? $"#${result:x2}" : $"#${result:x4}";
-            _lastInstruction.Append(arg);
-            return result;
-        }
-
-        internal void WriteValue(Word value, bool isByte, Addr address)
-        {
-            if (!isByte)
-            {
-                WriteWord(value, address);
-            }
-            else
-            {
-                WriteByte((byte)value, address);
-            }
-        }
-
         internal byte ReadByte(Addr address)
         {
             _lastAddress = address;
@@ -729,6 +719,15 @@ namespace EightSixteenEmu
             return _regMD;
         }
 
+        internal void WriteByte(byte value, Addr address)
+        {
+            _lastAddress = address;
+            _regMD = value;
+            _core.Mapper[address] = value;
+            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD), Status);
+            HandleClockCycle();
+        }
+
         internal Word ReadWord(Addr address, bool wrapping = false)
         {
             if (!wrapping) return Join(ReadByte(address), ReadByte(address + 1));
@@ -738,6 +737,12 @@ namespace EightSixteenEmu
                 Word a = (Word)address;
                 return Join(ReadByte(Address(b, a)), ReadByte(Address(b, (Word)(a + 1))));
             }
+        }
+
+        internal void WriteWord(Word value, Addr address)
+        {
+            WriteByte(HighByte(value), address + 1);
+            WriteByte(LowByte(value), address);
         }
 
         internal Addr ReadAddr(Addr address, bool wrapping = false)
@@ -772,19 +777,25 @@ namespace EightSixteenEmu
             return result;
         }
 
-        internal void WriteByte(byte value, Addr address)
+        internal Word ReadValue(bool isByte, Addr address)
         {
-            _lastAddress = address;
-            _regMD = value;
-            _core.Mapper[address] = value;
-            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD), Status);
-            HandleClockCycle();
+            return isByte switch
+            {
+                false => ReadWord(address),
+                true => ReadByte(address),
+            };
         }
 
-        internal void WriteWord(Word value, Addr address)
+        internal void WriteValue(Word value, bool isByte, Addr address)
         {
-            WriteByte(HighByte(value), address + 1);
-            WriteByte(LowByte(value), address);
+            if (!isByte)
+            {
+                WriteWord(value, address);
+            }
+            else
+            {
+                WriteByte((byte)value, address);
+            }
         }
 
         internal void PushByte(byte value)

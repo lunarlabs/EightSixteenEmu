@@ -34,8 +34,9 @@ namespace EightSixteenEmu.MPU
                 _context.mpu.RegPB = 0;
                 _context.mpu.RegDB = 0;
                 _context.mpu.RegDP = 0;
-                _context.mpu.RegSP = 0x0100;
-                _context.mpu.RegSR = (StatusFlags)0x34;
+                _context.mpu.SetEmulationMode(true);
+                _context.mpu.SetStatusFlag(StatusFlags.I, true);
+                _context.mpu.SetStatusFlag(StatusFlags.D, false);
                 _context.mpu.LoadInterruptVector(W65C816.Vector.Reset);
                 if (this is not ProcessorStateRunning)
                     _context.TransitionTo(new ProcessorStateRunning());
@@ -205,9 +206,16 @@ namespace EightSixteenEmu.MPU
                 ushort addressToPush = _context.mpu.RegPC;
                 if (!_context.mpu.FlagE) _context.mpu.PushByte(_context.mpu.RegPB);
                 _context.mpu.PushWord(addressToPush);
-                if(_context.mpu.FlagE && type == InterruptType.BRK)
+                if(_context.mpu.FlagE)
                 {
+                    if (type == InterruptType.BRK)
+                    {
                     _context.mpu.PushByte((byte)(_context.mpu.RegSR | StatusFlags.X));
+                    }
+                    else
+                    {
+                        _context.mpu.PushByte((byte)(_context.mpu.RegSR & ~StatusFlags.X));
+                    }
                 }
                 else
                 {
@@ -319,7 +327,36 @@ namespace EightSixteenEmu.MPU
     {
         internal override void NextInstruction()
         {
-            throw new InvalidOperationException("Processor is waiting");
+            if (_context != null)
+            {
+                // When interrupting, the microprocessor finishes its current instruction
+                // IRQ is level triggered, NMI is edge triggered
+                if (_context.mpu.NMICalled)
+                {
+                    _context.TransitionTo(new ProcessorStateRunning());
+                    _context.Interrupt(InterruptType.NMI);
+                }
+                else if (_context.mpu.IRQ)
+                {
+                    _context.TransitionTo(new ProcessorStateRunning());
+                    if (!_context.mpu.ReadStatusFlag(StatusFlags.I)) 
+                    {
+                        _context.Interrupt(InterruptType.IRQ); 
+                    }
+                    else
+                    {
+                        _context.NextInstruction();
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Processor is waiting for interrupt");
+                }
+            }
+            else
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
         }
         internal override void Interrupt(InterruptType type)
         {
