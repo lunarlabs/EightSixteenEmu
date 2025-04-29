@@ -34,8 +34,9 @@ namespace EightSixteenEmu.MPU
                 _context.mpu.RegPB = 0;
                 _context.mpu.RegDB = 0;
                 _context.mpu.RegDP = 0;
-                _context.mpu.RegSP = 0x0100;
-                _context.mpu.RegSR = (StatusFlags)0x34;
+                _context.mpu.SetEmulationMode(true);
+                _context.mpu.SetStatusFlag(StatusFlags.I, true);
+                _context.mpu.SetStatusFlag(StatusFlags.D, false);
                 _context.mpu.LoadInterruptVector(W65C816.Vector.Reset);
                 if (this is not ProcessorStateRunning)
                     _context.TransitionTo(new ProcessorStateRunning());
@@ -77,6 +78,7 @@ namespace EightSixteenEmu.MPU
     {
         private ProcessorState _state;
         internal Microprocessor mpu;
+        private readonly Lock @lock = new();
 
         public ProcessorContext(Microprocessor mpu, ProcessorState? state = null)
         {
@@ -100,59 +102,65 @@ namespace EightSixteenEmu.MPU
 
         internal void TransitionTo(ProcessorState state)
         {
-            _state = state;
-            _state.SetContext(this);
-            Console.WriteLine($"Transitioning to state: {state.GetType().Name}");
+            lock (@lock) {
+                 _state = state;
+                _state.SetContext(this);
+                Console.WriteLine($"Transitioning to state: {state.GetType().Name}");
+            }
         }
 
         internal void Reset()
         {
-            _state.Reset();
+            lock (@lock) _state.Reset();
+            
         }
 
         internal void NextInstruction()
         {
-            _state.NextInstruction();
+            lock (@lock) _state.NextInstruction();
+            
         }
 
         internal void Interrupt(InterruptType type)
         {
-            _state.Interrupt(type);
+            lock (@lock) _state.Interrupt(type);
+            
         }
 
         internal void Stop()
         {
-            _state.Stop();
+            lock (@lock) _state.Stop();
+            
         }
 
         internal void Wait()
         {
-            _state.Wait();
+            lock (@lock) _state.Wait();
         }
 
         internal void BusRequest()
         {
-            _state.BusRequest();
+            lock (@lock) _state.BusRequest();
         }
 
         internal void BusRelease()
         {
-            _state.BusRelease();
+            lock (@lock) _state.BusRelease();
         }
 
         internal void Disable()
         {
-            _state.Disable();
+            lock (@lock) _state.Disable();
         }
 
         internal void Enable()
         {
-            _state.Enable();
+            lock (@lock) _state.Enable();
         }
 
         internal void SetProcessorState(MicroprocessorState state)
         {
-            _state.SetProcessorState(state);
+            lock (@lock) _state.SetProcessorState(state);
         }
     }
 
@@ -198,9 +206,16 @@ namespace EightSixteenEmu.MPU
                 ushort addressToPush = _context.mpu.RegPC;
                 if (!_context.mpu.FlagE) _context.mpu.PushByte(_context.mpu.RegPB);
                 _context.mpu.PushWord(addressToPush);
-                if(_context.mpu.FlagE && type == InterruptType.BRK)
+                if(_context.mpu.FlagE)
                 {
+                    if (type == InterruptType.BRK)
+                    {
                     _context.mpu.PushByte((byte)(_context.mpu.RegSR | StatusFlags.X));
+                    }
+                    else
+                    {
+                        _context.mpu.PushByte((byte)(_context.mpu.RegSR & ~StatusFlags.X));
+                    }
                 }
                 else
                 {
@@ -300,7 +315,7 @@ namespace EightSixteenEmu.MPU
         {
             if (_context != null)
             {
-                _context.mpu.SetStatus(state);
+                _context.mpu.Status = state;
             }
             else
             {
@@ -312,7 +327,36 @@ namespace EightSixteenEmu.MPU
     {
         internal override void NextInstruction()
         {
-            throw new InvalidOperationException("Processor is waiting");
+            if (_context != null)
+            {
+                // When interrupting, the microprocessor finishes its current instruction
+                // IRQ is level triggered, NMI is edge triggered
+                if (_context.mpu.NMICalled)
+                {
+                    _context.TransitionTo(new ProcessorStateRunning());
+                    _context.Interrupt(InterruptType.NMI);
+                }
+                else if (_context.mpu.IRQ)
+                {
+                    _context.TransitionTo(new ProcessorStateRunning());
+                    if (!_context.mpu.ReadStatusFlag(StatusFlags.I)) 
+                    {
+                        _context.Interrupt(InterruptType.IRQ); 
+                    }
+                    else
+                    {
+                        _context.NextInstruction();
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Processor is waiting for interrupt");
+                }
+            }
+            else
+            {
+                throw new NullReferenceException(nameof(_context));
+            }
         }
         internal override void Interrupt(InterruptType type)
         {

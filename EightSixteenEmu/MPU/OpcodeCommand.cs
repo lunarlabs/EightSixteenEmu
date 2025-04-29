@@ -40,8 +40,8 @@ namespace EightSixteenEmu.MPU
             mpu.RegDB = destination;
             byte source = (byte)operand;
             mpu.WriteByte(mpu.ReadByte((uint)(source << 16) | mpu.RegX), (uint)(destination << 16) | mpu.RegY);
-            //mpu.InternalCycle();
-            //mpu.InternalCycle();
+            mpu.InternalCycle();
+            mpu.InternalCycle();
             if (--mpu.RegA != 0xffff) mpu.RegPC -= 3; // jump back to the move instruction
         }
     }
@@ -192,11 +192,11 @@ namespace EightSixteenEmu.MPU
                     {
                         byte digitA = (byte)((mpu.RegA >> (4 * i)) & 0x0F);
                         byte digitB = (byte)((subtrahend >> (4 * i)) & 0x0F);
-                        byte digit = (byte)(digitA - digitB - borrow);
+                        int digit = (digitA - digitB - borrow);
 
-                        if ((digit & 0x10) != 0) // Borrow occurred
+                        if (digit < 0) // Borrow occurred
                         {
-                            digit -= 0x0A;
+                            digit += 10;
                             borrow = 1;
                         }
                         else

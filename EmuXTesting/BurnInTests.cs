@@ -10,11 +10,13 @@ namespace EmuXTesting
     {
         private readonly ITestOutputHelper _output;
         List<Microprocessor.Cycle> executionCycles;
+        List<Microprocessor.MicroprocessorState> microprocessorStates;
 
         public BurnInTests(ITestOutputHelper output)
         {
             _output = output;
             executionCycles = [];
+            microprocessorStates = [];
         }
 
         /*
@@ -127,11 +129,91 @@ namespace EmuXTesting
         //    Assert.True(test.Cycles.Count == executionCycles.Count, "Operation did not run in the expected amount of cycles.");
         //}
 
-        private void OnNewCycle(int cycles, Microprocessor.Cycle details)
-        {
-            executionCycles.Add(details);
-        }
+        
 
+        [Fact]
+        public void MvnMvpInstructions_WorkProperly()
+        {
+            // Arrange
+            byte[] data =
+            {
+                0x0f, 0xf0, 0xf0, 0xf0, 0x0f, 0xf0, 0xf0, 0xf0,
+                0x34, 0x12, 0x78, 0x56, 0xbc, 0x9a, 0xf0, 0xde,
+                0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
+                0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
+            };
+            // d'oh! forgot about the endianess...
+
+            EmuCore emu = new();
+            emu.MPU.NewCycle += OnNewCycle;
+            emu.MPU.NewInstruction += OnNewInstruction;
+            var rom = new DevROM("MoveTests.rom");
+            emu.Mapper.AddDevice(rom, 0x8000);
+            var ram = new DevRAM(0x1000000);
+            emu.Mapper.AddDevice(ram, 0, 0, 0x8000);
+            emu.Mapper.AddDevice(ram, 0x10000, 0x10000, 0x40000);
+
+            string s = "";
+            _output.WriteLine("ROM data:");
+            for (int i = 0; i < data.Length; i++)
+            {
+                s += $"{emu.Mapper[(uint)(0x8100 + i)]:X2} ";
+            }
+            _output.WriteLine(s);
+
+            // Act
+            _output.WriteLine("");
+            _output.WriteLine("Resetting MPU...");
+            emu.MPU.Reset();
+            while (emu.MPU.ExecutionState == "ProcessorStateRunning")
+            {
+                emu.MPU.ExecuteInstruction();
+                if (emu.MPU.Status.Cycles > 2500)
+                {
+                    _output.WriteLine("Execution timed out.");
+                    break;
+                }
+            }
+            _output.WriteLine("End of execution.");
+
+            // Assert
+            _output.WriteLine("Final State:");
+            s = "MVN: ";
+            byte[] mvnRange = new byte[data.Length];
+            for (int i = 0; i < data.Length; i++)
+            {
+                mvnRange[i] = emu.Mapper[(uint)(0x0200 + i)] ?? 0xFF;
+                s += $"{mvnRange[i]:X2} ";
+            }
+            _output.WriteLine(s);
+
+            s = "MVP: ";
+            byte[] mvpRange = new byte[data.Length];
+            for (int i = 0; i < data.Length; i++)
+            {
+                mvpRange[i] = emu.Mapper[(uint)(0x010000 + i)] ?? 0xFF;
+                s += $"{mvpRange[i]:X2} ";
+            }
+            _output.WriteLine(s);
+
+            Assert.Equal(data, mvnRange);
+            Assert.Equal(data, mvpRange);
+            _output.WriteLine("MVN and MVP instructions executed correctly. Check cycle counts.");
+
+            void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
+            {
+                executionCycles.Add(details);
+                microprocessorStates.Add(state);
+                _output.WriteLine($"  Cycle {cycles}: {details.Address:X6} {details.Value:X2} {details.Type}");
+                _output.WriteLine($"   PB PC: {state.PB:X2} {state.PC:X4} SP: {state.SP:X4} A: {state.A:X4} X: {state.X:X4} Y: {state.Y:X4} DB: {state.DB:X2} DP: {state.DP:X2}");
+                _output.WriteLine($"   Flags: {state.Flags()}");
+            }
+             void OnNewInstruction(W65C816.OpCode opCode, string operand)
+            {
+                _output.WriteLine("");
+                _output.WriteLine($"Instruction: {opCode} {operand}");
+            }
+        }
 
         [Theory]
         [ClassData(typeof(FullBurnInFile))]
@@ -174,7 +256,7 @@ namespace EmuXTesting
                     try
                     {
                         emu.MPU.ExecuteInstruction();
-                        var mpuState = emu.MPU.GetStatus();
+                        var mpuState = emu.MPU.Status;
 
                         bool registersEqual = true;
                         foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)
@@ -278,6 +360,12 @@ namespace EmuXTesting
                 _output.WriteLine("PASS");
             }
             doc.Dispose();
+
+            void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
+            {
+                executionCycles.Add(details);
+                microprocessorStates.Add(state);
+            }
         }
 
     }

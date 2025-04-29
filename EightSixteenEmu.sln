@@ -5,8 +5,6 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EightSixteenEmu", "EightSixteenEmu\EightSixteenEmu.csproj", "{A1068BFF-8FB3-4945-BADE-4C33E427D214}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinEmu", "WinEmu\WinEmu.csproj", "{1CA216DD-1B00-4187-8EE9-8699F0A301CB}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmuXTesting", "EmuXTesting\EmuXTesting.csproj", "{FD50D4AC-8366-4494-8A4E-87CA24B3A787}"
 EndProject
 Global
@@ -25,12 +23,6 @@ Global
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.ReleaseGui|Any CPU.ActiveCfg = ReleaseGui|Any CPU
 		{A1068BFF-8FB3-4945-BADE-4C33E427D214}.ReleaseGui|Any CPU.Build.0 = ReleaseGui|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.DebugGui|Any CPU.ActiveCfg = DebugGui|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.DebugGui|Any CPU.Build.0 = DebugGui|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.ReleaseGui|Any CPU.ActiveCfg = ReleaseGui|Any CPU
-		{1CA216DD-1B00-4187-8EE9-8699F0A301CB}.ReleaseGui|Any CPU.Build.0 = ReleaseGui|Any CPU
 		{FD50D4AC-8366-4494-8A4E-87CA24B3A787}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FD50D4AC-8366-4494-8A4E-87CA24B3A787}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD50D4AC-8366-4494-8A4E-87CA24B3A787}.DebugGui|Any CPU.ActiveCfg = Debug|Any CPU

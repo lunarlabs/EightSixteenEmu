@@ -31,9 +31,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-	<ItemGroup>
-	  <Folder Include="ASMTestCode\" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<None Include="ASMTestCode\*.a65" />
@@ -44,9 +41,11 @@
 		<ItemGroup>
 			<A65TestFiles Include="ASMTestCode\*.a65" />
 		</ItemGroup>
-		<Exec Command="ca65 %(A65TestFiles.Identity) -o %(A65TestFiles.Filename).o" />
-		<Exec Command="ld65 -C ASMTestCode/TestCodeConfig.cfg -o %(A65TestFiles.Filename).rom %(A65TestFiles.Filename).o -m mapfile.txt" />
+		<Exec Command="ca65 %(A65TestFiles.Identity) -o %(A65TestFiles.Filename).o -l %(A65TestFiles.Filename).listing.txt" />
+		<Exec Command="ld65 -C ASMTestCode/TestCodeConfig.cfg -o %(A65TestFiles.Filename).rom %(A65TestFiles.Filename).o -m %(A65TestFiles.Filename).mapfile.txt" />
 		<Copy SourceFiles="%(A65TestFiles.Filename).rom" DestinationFolder="$(OutputPath)" />
+		<Copy SourceFiles="%(A65TestFiles.Filename).mapfile.txt" DestinationFolder="$(OutputPath)" />
+		<Copy SourceFiles="%(A65TestFiles.Filename).listing.txt" DestinationFolder="$(OutputPath)" />
 		<Message Text="Assembled %(A65TestFiles.Identity) to %(A65TestFiles.Filename).rom" Importance="high" />
 	</Target>
 
