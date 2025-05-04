@@ -20,7 +20,7 @@ namespace EightSixteenEmu
         private readonly MemoryMapper _mapper;
         public Microprocessor MPU { get { return _mpu; } }
         public MemoryMapper Mapper { get { return _mapper; } }
-        private readonly List<IInterruptingMappableDevice> interruptingMappableDevices = [];
+        private readonly List<IInterruptingDevice> interruptingMappableDevices = [];
 
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
@@ -40,12 +40,12 @@ namespace EightSixteenEmu
 
         #region Device Management
 
-        internal void RegisterInterruptingDevice(IInterruptingMappableDevice device)
+        internal void RegisterInterruptingDevice(IInterruptingDevice device)
         {
             interruptingMappableDevices.Add(device);
         }
 
-        internal void UnregisterInterruptingDevice(IInterruptingMappableDevice device)
+        internal void UnregisterInterruptingDevice(IInterruptingDevice device)
         {
             interruptingMappableDevices.Remove(device);
         }

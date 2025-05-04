@@ -16,10 +16,10 @@ using System.Security.AccessControl;
 
 namespace EightSixteenEmu.MemoryMapping
 {
-    public class MemoryMapper()
+    public class MemoryMapper() : IInterruptListener
     {
         private readonly List<IMappableDevice> _devices = [];
-        private readonly List<IInterruptingMappableDevice> _interruptingMappableDevices = [];
+        private readonly List<IInterruptingDevice> _interruptingDevices = [];
         private readonly SortedList<uint, (uint length, IMappableDevice dev, uint offset)> _memmap = [];
 
         // So I don't end up confusing myself when documenting this, here are the definitions I'll use:
@@ -28,7 +28,10 @@ namespace EightSixteenEmu.MemoryMapping
         // Think of it like connecting the address lines to non-corresponding pins on the device.
         // Also, ONE device address can be mapped to MULTIPLE bus addresses, but not vice versa. This means mirroring is easy to implement.
 
+        public bool DeviceInterrupting => _interruptingDevices.Count > 0;
+
         public static bool CheckOverlap(uint start1, uint end1, uint start2, uint end2) => (start1 < end2 && start2 < end1);
+
 
         public byte? this[uint index]
         {
@@ -141,11 +144,6 @@ namespace EightSixteenEmu.MemoryMapping
                 _devices.Add(device);
             }
 
-            if (device is IInterruptingMappableDevice idv && !_interruptingMappableDevices.Contains(device))
-            {
-                _interruptingMappableDevices.Add(idv);
-            }
-
             _memmap.Add(mapLocation, ((uint)length, device, offset));
         }
 
@@ -229,16 +227,29 @@ namespace EightSixteenEmu.MemoryMapping
             }
         }
 
-        internal bool DeviceInterrupting
+        public void OnInterruptChange(object? sender, bool value)
         {
-            get
+            if (sender is IInterruptingDevice device)
             {
-                foreach (var device in _interruptingMappableDevices)
+                if (value)
                 {
-                    if (device.Interrupting) return true;
+                    _interruptingDevices.Add(device);
                 }
-                return false;
+                else
+                {
+                    _interruptingDevices.Remove(device);
+                }
             }
+        }
+
+        public void AddInterruptingDevice(IInterruptingDevice device)
+        {
+            device.InterruptStatusChanged += OnInterruptChange;
+        }
+
+        public void RemoveInterruptingDevice(IInterruptingDevice device)
+        {
+            device.InterruptStatusChanged -= OnInterruptChange;
         }
     }
 }

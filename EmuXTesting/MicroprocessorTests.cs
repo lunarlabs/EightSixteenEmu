@@ -254,7 +254,7 @@ namespace EmuXTesting
             emu.Mapper.AddDevice(ram, 0x0000);
             var rom = new DevROM(romFilePrefix + ".rom");
             var dummyDevice = new DummyInterruptingDevice();
-            emu.Mapper.AddDevice(dummyDevice, 0x10000);
+            emu.Mapper.AddInterruptingDevice(dummyDevice);
             emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
@@ -266,14 +266,14 @@ namespace EmuXTesting
                 if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
             } while (isWaiting ? emu.MPU.ExecutionState != "ProcessorStateWaiting": (emu.MPU.Status.X == 0x00));
             var currentX = emu.MPU.Status.X;
-            dummyDevice.Interrupt();
+            dummyDevice.Interrupting = true;
             _output.WriteLine("\n!IRQ!");
             emu.MPU.ExecuteInstruction(); // fires the interrupt handler OR loads the magic number if I is set
             var actualPC = emu.MPU.Status.PC;
             var actualSP = emu.MPU.Status.SP;
             var actualI = emu.MPU.Status.FlagI;
             var actualD = emu.MPU.Status.FlagD;
-            dummyDevice.Interrupt(false);
+            dummyDevice.Interrupting = false;
             _output.WriteLine(emu.MPU.Status.ToString());
             do
             {
@@ -304,25 +304,25 @@ namespace EmuXTesting
             _output.WriteLine($"  Cycle {cycles}: {details.Address:X6} {details.Value:X2} {details.Type}");
         }
 
-        class DummyInterruptingDevice : IInterruptingMappableDevice
+        class DummyInterruptingDevice : IInterruptingDevice
         {
+            public event EventHandler<bool>? InterruptStatusChanged;
             private bool _interrupting;
-            public bool Interrupting => _interrupting;
+            public bool Interrupting
+            {
+                get => _interrupting;
+                set
+                {
+                    if (_interrupting != value) InterruptStatusChanged?.Invoke(this, value);
+                    _interrupting = value;
+                }
+            }
             public uint Size => 1;
             public void Reset()
             {
                 // Dummy implementation for testing
             }
 
-            void IMappableDevice.Init()
-            {
-                // Dummy implementation for testing
-            }
-
-            public void Interrupt(bool v = true)
-            {
-                _interrupting = v;
-            }
         }
 
         /*
