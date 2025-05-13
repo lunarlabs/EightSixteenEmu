@@ -15,7 +15,11 @@ namespace EightSixteenEmu.Devices
         internal override byte this[uint index] { get => data[index]; }
 
         public DevROM(string path, long length = -1) : base((uint)(length == -1 ? new FileInfo(path).Length : length), AccessMode.Read)
-        { 
+        {
+            if (length == -1)
+            {
+                length = new FileInfo(path).Length;
+            }
             if (length <= 0 || length > new FileInfo(path).Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(length), "Length must be greater than 0 and less than the file size.");
