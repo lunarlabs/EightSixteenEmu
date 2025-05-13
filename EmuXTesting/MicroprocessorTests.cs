@@ -177,7 +177,7 @@ namespace EmuXTesting
             emu.MPU.NewCycle += OnNewCycle;
             emu.MPU.NewInstruction += OnNewInstruction;
             var ram = new DevRAM(0x8000);
-            ram[0] = 0x80; // set emulation mode
+            ram.Write(0x0000, 0x80); // set emulation mode
             emu.Mapper.AddDevice(ram, 0x0000);
             var rom = new DevROM(romFilePrefix + ".rom");
             emu.Mapper.AddDevice(rom, 0x8000);
@@ -250,7 +250,7 @@ namespace EmuXTesting
             emu.MPU.NewCycle += OnNewCycle;
             emu.MPU.NewInstruction += OnNewInstruction;
             var ram = new DevRAM(0x8000);
-            ram[0] = signature;
+            ram.Write(0x0000, signature); // set emulation mode, I flag, and waiting state
             emu.Mapper.AddDevice(ram, 0x0000);
             var rom = new DevROM(romFilePrefix + ".rom");
             var dummyDevice = new DummyInterruptingDevice();

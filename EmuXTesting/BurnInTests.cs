@@ -248,9 +248,10 @@ namespace EmuXTesting
                     Dictionary<string, ushort> goalStateRegisters = test.Goal.State.RegistersAsDictionary;
                     foreach (var kvp in test.Start.RamValues)
                     {
-                        ram[kvp.Key] = (byte)kvp.Value;
+                        ram.Write(kvp.Key, kvp.Value);
                     }
-                    byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
+                    //byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
+                    byte instruction = ram.Read((uint)((test.Start.State.PB << 16) + test.Start.State.PC));
                     emu.MPU.SetProcessorState(test.Start.State);
                     emu.Activate(false);
                     try
@@ -313,7 +314,7 @@ namespace EmuXTesting
                             {
                                 string s = $"{kvp.Key,7:X6}  ";
                                 s += test.Start.RamValues.TryGetValue(kvp.Key, out byte value) ? $"{value:X2}  " : "XX  ";
-                                s += $"{kvp.Value:X2}  {ram[kvp.Key]:X2}";
+                                s += $"{kvp.Value:X2}  {ram.Read(kvp.Key):X2}";
                                 _output.WriteLine(s);
                             }
                             _output.WriteLine("");
