@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace EightSixteenEmu.Devices
 {
-    public interface IDMAMappableDevice : IMappableDevice
+    public interface IDMAMappableDevice
     {
         private static EmuCore EmuCore { get; }
         public event EventHandler? DMAStart;
