@@ -18,9 +18,9 @@ namespace EightSixteenEmu.MemoryMapping
 {
     public class MemoryMapper() : IInterruptListener
     {
-        private readonly List<IMappableDevice> _devices = [];
+        private readonly List<MappableDevice> _devices = [];
         private readonly List<IInterruptingDevice> _interruptingDevices = [];
-        private readonly SortedList<uint, (uint length, IMappableDevice dev, uint offset)> _memmap = [];
+        private readonly SortedList<uint, (uint length, MappableDevice dev, uint offset)> _memmap = [];
 
         // So I don't end up confusing myself when documenting this, here are the definitions I'll use:
         // The BUS ADDRESS SPACE is the 24-bit address space that the 65C816 can address.
@@ -42,9 +42,9 @@ namespace EightSixteenEmu.MemoryMapping
                     var kvp = SeekDevice(index);
                     if (kvp is not null)
                     {
-                        if (kvp.Value.Value is IMappedReadDevice readDev)
+                        if (kvp.Value.Value.Access != MappableDevice.AccessMode.Write)
                         {
-                            return readDev[TranslateAddress(kvp.Value, index)];
+                            return kvp.Value.Value[TranslateAddress(kvp.Value, index)];
                         }
                         else
                         {
@@ -67,15 +67,15 @@ namespace EightSixteenEmu.MemoryMapping
                 var kvp = SeekDevice(index);
                 if (kvp is not null)
                 {
-                    if (kvp.Value.Value is IMappedWriteDevice writeDev)
+                    if (kvp.Value.Value.Access != MappableDevice.AccessMode.Read)
                     {
-                        writeDev[TranslateAddress(kvp.Value, index)] = (byte)value;
+                        kvp.Value.Value[TranslateAddress(kvp.Value, index)] = (byte)value;
                     }
                 }
             }
         }
 
-        public void AddDevice(IMappableDevice device, uint mapLocation, uint offset = 0, long length = -1)
+        public void AddDevice(MappableDevice device, uint mapLocation, uint offset = 0, long length = -1)
         {
             ArgumentNullException.ThrowIfNull(device);
 
@@ -147,14 +147,14 @@ namespace EightSixteenEmu.MemoryMapping
             _memmap.Add(mapLocation, ((uint)length, device, offset));
         }
 
-        private KeyValuePair<uint, IMappableDevice>? SeekDevice(uint address)
+        private KeyValuePair<uint, MappableDevice>? SeekDevice(uint address)
         {
-            KeyValuePair<uint, IMappableDevice>? result = null;
+            KeyValuePair<uint, MappableDevice>? result = null;
             List<uint> locations = [.. _memmap.Keys];
             int index = locations.BinarySearch(address);
             if (index >= 0) // Hit the first byte of an entry
             {
-                result = new KeyValuePair<uint, IMappableDevice>(locations[index], _memmap[locations[index]].dev);
+                result = new KeyValuePair<uint, MappableDevice>(locations[index], _memmap[locations[index]].dev);
             }
             else if (index < 0) index = ~index; // Get insertion point if exact match not found
 
@@ -164,7 +164,7 @@ namespace EightSixteenEmu.MemoryMapping
                 var prev = _memmap.ElementAt(index - 1);
                 if (address >= prev.Key && address < prev.Key + prev.Value.length)
                 {
-                    result = new KeyValuePair<uint, IMappableDevice>(prev.Key, prev.Value.dev);
+                    result = new KeyValuePair<uint, MappableDevice>(prev.Key, prev.Value.dev);
                 }
             }
 
@@ -172,12 +172,12 @@ namespace EightSixteenEmu.MemoryMapping
             return result;
         }
 
-        private uint TranslateAddress(KeyValuePair<uint, IMappableDevice> entry, uint address)
+        private uint TranslateAddress(KeyValuePair<uint, MappableDevice> entry, uint address)
         {
             return address - entry.Key + _memmap[entry.Key].offset;
         }
 
-        public void RemoveDevice(IMappableDevice device)
+        public void RemoveDevice(MappableDevice device)
         {
             if (_devices.Contains(device))
             {
@@ -195,7 +195,7 @@ namespace EightSixteenEmu.MemoryMapping
 
         public void RemoveMapping(uint address)
         {
-            KeyValuePair<uint, IMappableDevice>? entry = SeekDevice(address);
+            KeyValuePair<uint, MappableDevice>? entry = SeekDevice(address);
             if (entry is not null)
             {
                 var device = entry.Value.Value;
@@ -204,7 +204,7 @@ namespace EightSixteenEmu.MemoryMapping
             }
         }
 
-        private bool IsDeviceMapped(IMappableDevice device)
+        private bool IsDeviceMapped(MappableDevice device)
         {
             foreach (var entry in _memmap)
             {

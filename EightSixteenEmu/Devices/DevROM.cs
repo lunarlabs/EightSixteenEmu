@@ -2,35 +2,42 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace EightSixteenEmu.Devices
 {
-    public class DevROM : IMappedReadDevice
+    public class DevROM : MappableDevice
     {
-        private uint size;
         private byte[] data;
         private string romPath;
 
-        uint IMappableDevice.Size => size;
-        public byte this[uint index] { get => data[index]; }
+        internal override byte this[uint index] { get => data[index]; }
 
-        public DevROM(string path, long length = -1)
-        {
-            romPath = path;
-            if (length == -1)
+        public DevROM(string path, long length = -1) : base((uint)(length == -1 ? new FileInfo(path).Length : length), AccessMode.Read)
+        { 
+            if (length <= 0 || length > new FileInfo(path).Length)
             {
-                length = new System.IO.FileInfo(path).Length;
+                throw new ArgumentOutOfRangeException(nameof(length), "Length must be greater than 0 and less than the file size.");
             }
-            size = (uint)length;
+            romPath = path;
             data = System.IO.File.ReadAllBytes(path);
         }
-
-        void IMappableDevice.Init() { }
 
         public void Reload()
         {
             data = System.IO.File.ReadAllBytes(romPath);
+        }
+
+        public override JsonObject ToJson()
+        {
+            JsonObject result = base.ToJson();
+            result["params"] = new JsonObject
+            {
+                { "path", romPath },
+                { "size", Size }
+            };
+            return result;
         }
 
         public override string ToString() => $"ROM ({romPath})";
