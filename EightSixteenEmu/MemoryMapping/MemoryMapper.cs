@@ -12,7 +12,9 @@
  */
 
 using EightSixteenEmu.Devices;
+using EightSixteenEmu.Factories;
 using System.Security.AccessControl;
+using System.Text.Json.Nodes;
 
 namespace EightSixteenEmu.MemoryMapping
 {
@@ -38,24 +40,24 @@ namespace EightSixteenEmu.MemoryMapping
             get
             {
                 index &= 0xffffff;
-                
-                    var kvp = SeekDevice(index);
-                    if (kvp is not null)
+
+                var kvp = SeekDevice(index);
+                if (kvp is not null)
+                {
+                    if (kvp.Value.Value.Access != MappableDevice.AccessMode.Write)
                     {
-                        if (kvp.Value.Value.Access != MappableDevice.AccessMode.Write)
-                        {
-                            return kvp.Value.Value[TranslateAddress(kvp.Value, index)];
-                        }
-                        else
-                        {
-                            return null;
-                        }
+                        return kvp.Value.Value[TranslateAddress(kvp.Value, index)];
                     }
                     else
                     {
                         return null;
                     }
-                
+                }
+                else
+                {
+                    return null;
+                }
+
             }
             set
             {
@@ -113,7 +115,7 @@ namespace EightSixteenEmu.MemoryMapping
             {
                 throw new ArgumentException($"Requested device address range for {device} ${mapLocation:x8} - ${mapEnd:x8} out of range (highest valid address: ${device.Size:x8})", nameof(length));
             }
-            
+
             // Efficient overlap check using SortedList
             List<uint> locations = [.. _memmap.Keys];
             int index = locations.BinarySearch(mapLocation);
@@ -249,7 +251,84 @@ namespace EightSixteenEmu.MemoryMapping
 
         public void RemoveInterruptingDevice(IInterruptingDevice device)
         {
+            _interruptingDevices.Remove(device);
             device.InterruptStatusChanged -= OnInterruptChange;
+        }
+
+        private JsonArray GetDeviceList()
+        {
+            JsonArray result = new();
+            foreach (var device in _devices)
+            {
+                result.Add(device.GetDefinition);
+            }
+            return result;
+        }
+
+        private JsonArray GetMapList()
+        {
+            JsonArray result = new();
+            foreach (var entry in _memmap)
+            {
+                JsonObject mapEntry = new()
+                {
+                    { "address", entry.Key },
+                    { "length", entry.Value.length },
+                    { "device", entry.Value.dev.guid.ToString() },
+                    { "offset", entry.Value.offset }
+                };
+                result.Add(mapEntry);
+            }
+            return result;
+        }
+
+        public JsonObject ToJson()
+        {
+            JsonObject result = new()
+            {
+                { "devices", GetDeviceList() },
+                { "mappings", GetMapList() }
+            };
+            return result;
+        }
+
+        public void FromJson(JsonObject obj)
+        {
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj), "Params object cannot be null.");
+            else
+            {
+                if (obj["devices"] == null)
+                    throw new ArgumentNullException(nameof(obj), "Devices parameter is required.");
+                else
+                {
+                    Dictionary<Guid, MappableDevice> devices = new();
+                    foreach (var deviceDef in obj["devices"].AsArray())
+                    {
+                        var dev = DeviceFactory.CreateFromJson(deviceDef.AsObject());
+                        if (dev is MappableDevice mappableDev)
+                        {
+                            devices.Add(mappableDev.guid, mappableDev);
+                        }
+                    }
+                    if (obj["mappings"] == null)
+                        throw new ArgumentNullException(nameof(obj), "Mappings parameter is required.");
+                    else
+                    {
+                        foreach (var mapDef in obj["mappings"].AsArray())
+                        {
+                            uint address = mapDef["address"].GetValue<uint>();
+                            uint length = mapDef["length"].GetValue<uint>();
+                            Guid guid = Guid.Parse(mapDef["device"].GetValue<string>());
+                            uint offset = mapDef["offset"].GetValue<uint>();
+                            if (devices.TryGetValue(guid, out MappableDevice device))
+                            {
+                                AddDevice(device, address, offset, length);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

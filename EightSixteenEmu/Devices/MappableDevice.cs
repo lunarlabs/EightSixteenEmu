@@ -14,12 +14,27 @@ namespace EightSixteenEmu.Devices
             ReadWrite
         }
 
-        internal MappableDevice(uint size, AccessMode access)
+        internal MappableDevice(uint size, AccessMode access, Guid? guid = null) : base(guid)
         {
             if (size == 0)
                 throw new ArgumentOutOfRangeException(nameof(size), "Size must be greater than 0.");
             Size = size;
             Access = access;
+        }
+
+        internal MappableDevice(JsonObject paramsObj, AccessMode access, Guid? guid = null) : base(guid)
+        {
+            if (paramsObj == null)
+                throw new ArgumentNullException(nameof(paramsObj), "Params object cannot be null.");
+            else
+            {
+                if (paramsObj["size"] == null)
+                    throw new ArgumentNullException(nameof(paramsObj), "Size parameter is required.");
+                else if (paramsObj["size"].GetValue<uint>() == 0)
+                    throw new ArgumentOutOfRangeException(nameof(paramsObj), "Size must be greater than 0.");
+                else Size = paramsObj["size"].GetValue<uint>();
+            }
+
         }
 
         internal virtual byte this[uint index]
@@ -40,14 +55,13 @@ namespace EightSixteenEmu.Devices
             }
         }
 
-        public override JsonObject ToJson()
+        public override JsonObject? GetParams()
         {
-            JsonObject result = base.ToJson();
-            result["params"] = new JsonObject
+            JsonObject result = new()
             {
                 { "size", Size },
             };
             return result;
-        }
+        } 
     }
 }

@@ -5,6 +5,13 @@ namespace EightSixteenEmu.Devices
 {
     public abstract class Device
     {
+        public readonly Guid guid;
+
+        public Device(Guid? guid = null)
+        {
+            this.guid = guid ?? Guid.NewGuid();
+        }
+
         public virtual void Init()
         {
             // Default implementation does nothing
@@ -15,15 +22,37 @@ namespace EightSixteenEmu.Devices
             // Default implementation does nothing
         }
 
-        public virtual JsonObject ToJson()
+        public virtual JsonObject? GetParams()
+        {
+            // Default implementation returns null
+            return null;
+        }
+        public virtual void SetParams(JsonObject? json)
+        {
+            // Default implementation does nothing
+        }
+
+        public JsonObject GetDefinition()
         {
             JsonObject result = new()
             {
+                { "guid", guid.ToString() },
                 { "type", GetType().Name },
-                { "modulefile", Assembly.GetExecutingAssembly().Location },
-                { "params", null }
+                { "modulefile", GetType().Assembly.Location },
+                { "params", GetParams() }
             };
             return result;
+        }
+
+        public virtual JsonObject? GetState()
+        {
+            // Default implementation returns null
+            return null;
+        }
+
+        public virtual void SetState(JsonObject? json)
+        {
+            // Default implementation does nothing
         }
     }
 }

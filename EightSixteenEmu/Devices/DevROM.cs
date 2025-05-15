@@ -14,7 +14,7 @@ namespace EightSixteenEmu.Devices
 
         internal override byte this[uint index] { get => data[index]; }
 
-        public DevROM(string path, long length = -1) : base((uint)(length == -1 ? new FileInfo(path).Length : length), AccessMode.Read)
+        public DevROM(string path, long length = -1, Guid? guid = null) : base((uint)(length == -1 ? new FileInfo(path).Length : length), AccessMode.Read, guid)
         {
             if (length == -1)
             {
@@ -28,19 +28,29 @@ namespace EightSixteenEmu.Devices
             data = System.IO.File.ReadAllBytes(path);
         }
 
+        public DevROM(JsonObject paramsObj, Guid? guid = null) : base(paramsObj, AccessMode.Read, guid)
+        {
+            if (paramsObj == null)
+                throw new ArgumentNullException(nameof(paramsObj), "Params object cannot be null.");
+            else
+            {
+                if (paramsObj["romPath"] == null)
+                    throw new ArgumentNullException(nameof(paramsObj), "ROM path parameter is required.");
+                else
+                    romPath = paramsObj["romPath"].GetValue<string>();
+            }
+            data = System.IO.File.ReadAllBytes(romPath);
+        }
+
         public void Reload()
         {
             data = System.IO.File.ReadAllBytes(romPath);
         }
 
-        public override JsonObject ToJson()
+        public override JsonObject? GetParams()
         {
-            JsonObject result = base.ToJson();
-            result["params"] = new JsonObject
-            {
-                { "path", romPath },
-                { "size", Size }
-            };
+            JsonObject result = base.GetParams() ?? new() { { "size", Size } }; // redundancy because MappableDevice.GetParams() never returns null
+            result["romPath"] = romPath;
             return result;
         }
 
