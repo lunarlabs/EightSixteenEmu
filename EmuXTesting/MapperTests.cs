@@ -53,7 +53,7 @@ namespace EmuXTesting
 
             var devDef = devices[0]!.AsObject();
             Assert.Equal(device.guid.ToString(), devDef["guid"]!.GetValue<string>());
-            Assert.Equal("DevRAM", devDef["type"]!.GetValue<string>());
+            Assert.Equal("EightSixteenEmu.Devices.DevRAM", devDef["type"]!.GetValue<string>());
 
             var mapDef = mappings[0]!.AsObject();
             Assert.Equal(0x2000u, mapDef["address"]!.GetValue<uint>());
