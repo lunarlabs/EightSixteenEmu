@@ -77,6 +77,29 @@ namespace EightSixteenEmu.MemoryMapping
             }
         }
 
+        /// <summary>
+        /// Adds a <see cref="MappableDevice"/> to the memory map at the specified bus address.
+        /// </summary>
+        /// <param name="device">The device to map into the address space.</param>
+        /// <param name="mapLocation">The 24-bit bus address where the device will be mapped.</param>
+        /// <param name="offset">The offset into the device's address space to start mapping from. Defaults to 0.</param>
+        /// <param name="length">
+        /// The number of bytes to map from the device. If set to -1 (default), the mapping will extend from <paramref name="offset"/> to the end of the device.
+        /// </param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="device"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown if <paramref name="mapLocation"/> is outside the 24-bit address space,
+        /// if <paramref name="offset"/> is greater than the device size,
+        /// if <paramref name="offset"/> equals the device size and <paramref name="length"/> is -1,
+        /// if <paramref name="length"/> is zero,
+        /// or if the mapped address range exceeds the 24-bit address space.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown if the requested device address range exceeds the device's size.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the requested mapping overlaps with an existing device mapping.
+        /// </exception>
         public void AddDevice(MappableDevice device, uint mapLocation, uint offset = 0, long length = -1)
         {
             ArgumentNullException.ThrowIfNull(device);
@@ -174,11 +197,28 @@ namespace EightSixteenEmu.MemoryMapping
             return result;
         }
 
+        public MappableDevice? GetDeviceAt(uint address)
+        {
+            KeyValuePair<uint, MappableDevice>? entry = SeekDevice(address);
+            if (entry is not null)
+            {
+                return entry.Value.Value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         private uint TranslateAddress(KeyValuePair<uint, MappableDevice> entry, uint address)
         {
             return address - entry.Key + _memmap[entry.Key].offset;
         }
 
+        /// <summary>
+        /// Removes a device and all its mappings from the memory map.
+        /// </summary>
+        /// <param name="device">The device to remove</param>
         public void RemoveDevice(MappableDevice device)
         {
             if (_devices.Contains(device))
@@ -195,6 +235,13 @@ namespace EightSixteenEmu.MemoryMapping
             }
         }
 
+        /// <summary>
+        /// Removes a mapping from the memory map.
+        /// </summary>
+        /// <remarks>
+        /// If there are no other mappings for the device, it will be removed from the device list as well.
+        /// </remarks>
+        /// <param name="address">The address of the mapping to remove.</param>
         public void RemoveMapping(uint address)
         {
             KeyValuePair<uint, MappableDevice>? entry = SeekDevice(address);
@@ -260,7 +307,7 @@ namespace EightSixteenEmu.MemoryMapping
             JsonArray result = new();
             foreach (var device in _devices)
             {
-                result.Add(device.GetDefinition);
+                result.Add(device.GetDefinition());
             }
             return result;
         }
@@ -282,6 +329,14 @@ namespace EightSixteenEmu.MemoryMapping
             return result;
         }
 
+        /// <summary>
+        /// Serializes the memory map to a JSON object, including all device definitions and mappings.
+        /// </summary>
+        /// <returns>
+        /// A JSON object containing:
+        /// devices: a list of device definitions,
+        /// mappings: a list of mappings.
+        /// </returns>
         public JsonObject ToJson()
         {
             JsonObject result = new()
@@ -329,6 +384,20 @@ namespace EightSixteenEmu.MemoryMapping
                     }
                 }
             }
+        }
+
+        public JsonArray GetState()
+        {
+            JsonArray result = new();
+            foreach (var device in _devices)
+            {
+                JsonObject entry = new()
+                {
+                    { "guid", device.guid.ToString() },
+                    { "state", device.GetState() }
+                };
+            }
+            return result;
         }
     }
 }

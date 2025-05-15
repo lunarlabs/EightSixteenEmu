@@ -2,9 +2,27 @@
 
 namespace EightSixteenEmu.Devices
 {
-    public class DevRAM(uint len, Guid? guid = null) : MappableDevice(len, AccessMode.ReadWrite, guid)
+    /// <summary>
+    /// A basic RAM device that encapsulates a byte array.
+    /// </summary>
+    public class DevRAM : MappableDevice
     {
-        private byte[] data = new byte[len];
+
+        private byte[] data;
+        /// <param name="len">The size of the RAM.</param>
+        /// <param name="guid">The GUID of the device, used in serialization.</param>
+        public DevRAM(uint len, Guid? guid = null) : base(len, AccessMode.ReadWrite, guid)
+        {
+            if (len == 0)
+                throw new ArgumentOutOfRangeException(nameof(len), "Size must be greater than 0.");
+            data = new byte[len];
+        }
+
+        public DevRAM(JsonObject? paramsObj, Guid? guid = null) : base(paramsObj, AccessMode.ReadWrite, guid)
+        {
+            // base constructor will throw if paramsObj is null or size is 0
+            data = new byte[Size];
+        }
 
         internal override byte this[uint index] { get => data[index]; set => data[index] = value; }
 

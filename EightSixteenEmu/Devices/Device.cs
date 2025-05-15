@@ -3,6 +3,9 @@ using System.Text.Json.Nodes;
 
 namespace EightSixteenEmu.Devices
 {
+    /// <summary>
+    /// Base class for all devices.
+    /// </summary>
     public abstract class Device
     {
         public readonly Guid guid;
@@ -31,13 +34,22 @@ namespace EightSixteenEmu.Devices
         {
             // Default implementation does nothing
         }
-
+        /// <summary>
+        /// Get the definition of the device.
+        /// </summary>
+        /// <returns>
+        /// A JSON object containing the device definition, consisting of:
+        /// guid: the device's GUID,
+        /// type: the device's type name,
+        /// modulefile: the assembly location of the device,
+        /// params: the device's parameters.
+        /// </returns>
         public JsonObject GetDefinition()
         {
             JsonObject result = new()
             {
                 { "guid", guid.ToString() },
-                { "type", GetType().Name },
+                { "type", GetType().FullName },
                 { "modulefile", GetType().Assembly.Location },
                 { "params", GetParams() }
             };

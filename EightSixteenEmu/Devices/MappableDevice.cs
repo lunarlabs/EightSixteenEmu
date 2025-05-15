@@ -2,9 +2,15 @@
 
 namespace EightSixteenEmu.Devices
 {
+    /// <summary>
+    /// Base class for all devices that can be mapped to memory.
+    /// </summary>
+    /// <remarks>
+    /// If a device is mappable, it means that it can be accessed directly in memory.
+    /// For devices that don't have address lines, use a length of 1.
+    /// </remarks>
     public abstract class MappableDevice : Device
     {
-
         public uint Size { get; }
         public AccessMode Access { get; }
         public enum AccessMode

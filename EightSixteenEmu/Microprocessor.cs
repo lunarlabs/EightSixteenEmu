@@ -14,7 +14,6 @@
  */
 using EightSixteenEmu.MPU;
 using System.Collections.Immutable;
-using System.Text;
 using static EightSixteenEmu.W65C816;
 using Addr = System.UInt32;
 using Word = System.UInt16;
@@ -1091,6 +1090,25 @@ namespace EightSixteenEmu
                     { "PC", PC },
                     { "DB", DB },
                     { "PB", PB }
+                };
+                    return result;
+                }
+            }
+            public Dictionary<string, bool> FlagsAsDictionary
+            {
+                get
+                {
+                    var result = new Dictionary<string, bool>
+                {
+                    { "N", FlagN },
+                    { "V", FlagV },
+                    { "M", FlagM },
+                    { "X", FlagX },
+                    { "D", FlagD },
+                    { "I", FlagI },
+                    { "Z", FlagZ },
+                    { "C", FlagC },
+                    { "E", FlagE }
                 };
                     return result;
                 }
