@@ -18,6 +18,9 @@ using System.Text.Json.Nodes;
 
 namespace EightSixteenEmu.MemoryMapping
 {
+    /// <summary>
+    /// Manages the mapping of <see cref="MappableDevice"/> instances into the 24-bit bus address space of the emulated 65C816 system.
+    /// </summary>
     public class MemoryMapper() : IInterruptListener
     {
         private readonly List<MappableDevice> _devices = [];
