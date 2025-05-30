@@ -16,7 +16,8 @@ namespace EightSixteenEmu.Devices
     public class DevVirtualTerm : MappableDevice
     {
         const int WatchdogCount = 64; //64 cycles of CPU clock
-        private readonly byte[] fillThreshold = [1, 8, 12, 16];
+        private readonly byte[] ReadFillThreshold = [1, 8, 12, 16];
+        private readonly byte[] WriteFillThreshold = [0, 8, 4, 15];
 
         private readonly Queue<byte> _transmitQueue = new(16);
         private readonly Queue<byte> _receiveQueue = new(16);
@@ -144,6 +145,11 @@ namespace EightSixteenEmu.Devices
             }
         }
 
+        public void Write(char data)
+        {
+            Write((byte)data);
+        }
+
         public byte[] GetBytes()
         {
             byte[] data = new byte[_hostRecieved.Count];
@@ -153,6 +159,11 @@ namespace EightSixteenEmu.Devices
             }
             return data;
         }
+        private void MoveTransmitted()
+        {
+            _hostRecieved.Enqueue(_transmitQueue.Dequeue());
+        }
+
         #endregion
 
         #region emulator-side methods
@@ -160,19 +171,43 @@ namespace EightSixteenEmu.Devices
         {
             get
             {
-                return base[index];
+                switch ((ModeSelect)index)
+                {
+                    case ModeSelect.Data:
+                        if (_transmitQueue.Count > 0)
+                        {
+                            MoveTransmitted();
+                            return _txHold;
+                        }
+                        else
+                            return 0;
+                    case ModeSelect.Command:
+                        return 0;
+                    case ModeSelect.Status:
+                        return (byte)GetVTStatus();
+                    case ModeSelect.Interrupt:
+                        byte status = (byte)(_interruptStatus & _interruptMask);
+                        return status;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(index), "Invalid index for VT device.");
+                }
             }
             set => base[index] = value;
         }
         #endregion
 
         private VTStatus GetVTStatus() => ((_transmitQueue.Count == 0) ? VTStatus.TransmitEmpty : 0)
-                | ((_transmitQueue.Count == _transmitQueue.Capacity) ? 0 : VTStatus.TransmitReady)
+                | (((_transmitQueue.Count == _transmitQueue.Capacity) && _txEnable) ? 0 : VTStatus.TransmitReady)
                 | ((_receiveQueue.Count > 0) ? VTStatus.ReceiveReady : 0)
                 | ((_receiveQueue.Count == _receiveQueue.Capacity) ? VTStatus.ReceiveFull : 0)
                 | (_overrun ? VTStatus.OverrunError : 0)
                 | (_hostBreak ? VTStatus.BreakReceived : 0)
                 | (_clearToSend ? VTStatus.ClearToSend : 0);
+
+        private void UpdateInterrupts()
+        {
+
+        }
 
         private void DoMiscCommand(VTMiscCommands command)
         {
@@ -209,9 +244,5 @@ namespace EightSixteenEmu.Devices
             }
         }
 
-        private void MoveTransmitted()
-        {
-            _hostRecieved.Enqueue(_transmitQueue.Dequeue());
-        }
     }
 }
