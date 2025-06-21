@@ -10,6 +10,7 @@
  */
 using EightSixteenEmu.Devices;
 using EightSixteenEmu.MemoryMapping;
+using EightSixteenEmu.MPU;
 
 namespace EightSixteenEmu
 {

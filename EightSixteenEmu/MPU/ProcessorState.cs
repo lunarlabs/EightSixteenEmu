@@ -10,7 +10,7 @@
  *  
  *  Microprocessor state handling
  */
-using static EightSixteenEmu.Microprocessor;
+using static EightSixteenEmu.MPU.Microprocessor;
 
 namespace EightSixteenEmu.MPU
 {
@@ -43,6 +43,7 @@ namespace EightSixteenEmu.MPU
             }
         }
         internal virtual void NextInstruction() => throw new InvalidOperationException($"Processor must be in running state to execute instructions. Current state: {GetType().Name}");
+        internal virtual void Tick() => throw new InvalidOperationException($"Processor must be in running state to process ticks. Current state: {GetType().Name}");
         internal virtual void Interrupt(InterruptType type) => throw new InvalidOperationException($"Processor must be in running or waiting state to handle interrupts. Current state: {GetType().Name}");
         internal virtual void Stop() => throw new InvalidOperationException("Stopped state can only be entered via STP opcode (did you mean to use Disable()?)"); // this emulates the processor being halted by STP
         internal virtual void Wait() => throw new InvalidOperationException("Waiting state can only be entered via WAI opcode"); // this emulates the processor being halted by WAI

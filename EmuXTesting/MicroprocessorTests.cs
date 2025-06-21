@@ -1,5 +1,6 @@
 ﻿using EightSixteenEmu;
 using EightSixteenEmu.Devices;
+using EightSixteenEmu.MPU;
 using Microsoft.VisualStudio.TestPlatform.Utilities;
 using Xunit.Abstractions;
 
@@ -77,24 +78,25 @@ namespace EmuXTesting
             _output.WriteLine($"Start state: {emu.MPU.Status}");
 
             // Act
-            emu.Activate(false);
-            emu.MPU.Reset();
-            var mpuState = emu.MPU.Status;
+            //emu.Activate(false);
+            //emu.MPU.Reset();
+            //var mpuState = emu.MPU.Status;
 
             // Assert
-            _output.WriteLine($"Reset state: {emu.MPU.Status}");
-            Assert.Equal(0x01, emu.MPU.RegSH);
-            Assert.Equal(0x00, emu.MPU.RegXH);
-            Assert.Equal(0x00, emu.MPU.RegYH);
-            Assert.Equal(0x00, emu.MPU.RegPB);
-            Assert.Equal(0x00, emu.MPU.RegDB);
-            Assert.Equal(0x0000, emu.MPU.RegDP);
-            Assert.Equal(0x8000, emu.MPU.RegPC);
-            Assert.True(mpuState.FlagM);
-            Assert.True(mpuState.FlagX);
-            Assert.True(mpuState.FlagI);
-            Assert.True(mpuState.FlagE);
-            Assert.False(mpuState.FlagD);
+            //_output.WriteLine($"Reset state: {emu.MPU.Status}");
+            //Assert.Equal(0x01, emu.MPU.RegSH);
+            //Assert.Equal(0x00, emu.MPU.RegXH);
+            //Assert.Equal(0x00, emu.MPU.RegYH);
+            //Assert.Equal(0x00, emu.MPU.RegPB);
+            //Assert.Equal(0x00, emu.MPU.RegDB);
+            //Assert.Equal(0x0000, emu.MPU.RegDP);
+            //Assert.Equal(0x8000, emu.MPU.RegPC);
+            //Assert.True(mpuState.FlagM);
+            //Assert.True(mpuState.FlagX);
+            //Assert.True(mpuState.FlagI);
+            //Assert.True(mpuState.FlagE);
+            //Assert.False(mpuState.FlagD);
+            Assert.Fail("New interrupt methods not yet implemented");
         }
 
         /* As for the other hardware interrupts, their mechanics are quite like the COP and BRK instructions, so much so
@@ -143,26 +145,27 @@ namespace EmuXTesting
             emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
-            emu.Activate();
-            do {
-                emu.MPU.ExecuteInstruction();
-                _output.WriteLine(emu.MPU.Status.ToString());
-                if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
-            } while (emu.MPU.Status.X == 0x00);
-            emu.MPU.SetNMI();
-            _output.WriteLine("\n!NMI!");
-            emu.MPU.ExecuteInstruction(); // fires the interrupt handler
-            var actualPC = emu.MPU.Status.PC;
-            _output.WriteLine(emu.MPU.Status.ToString());
-            emu.MPU.ExecuteInstruction();
-            _output.WriteLine(emu.MPU.Status.ToString());
+            //emu.Activate();
+            //do {
+            //    emu.MPU.ExecuteInstruction();
+            //    _output.WriteLine(emu.MPU.Status.ToString());
+            //    if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
+            //} while (emu.MPU.Status.X == 0x00);
+            //emu.MPU.SetNMI();
+            //_output.WriteLine("\n!NMI!");
+            //emu.MPU.ExecuteInstruction(); // fires the interrupt handler
+            //var actualPC = emu.MPU.Status.PC;
+            //_output.WriteLine(emu.MPU.Status.ToString());
+            //emu.MPU.ExecuteInstruction();
+            //_output.WriteLine(emu.MPU.Status.ToString());
 
             // Assert
-            Assert.Equal(expectedPC, actualPC);
-            Assert.Equal(expectedA, emu.MPU.Status.A);
-            Assert.Equal(goalNativeStackPointer, emu.MPU.Status.SP);
-            Assert.True(emu.MPU.Status.FlagI);
-            Assert.False(emu.MPU.Status.FlagD);
+            //Assert.Equal(expectedPC, actualPC);
+            //Assert.Equal(expectedA, emu.MPU.Status.A);
+            //Assert.Equal(goalNativeStackPointer, emu.MPU.Status.SP);
+            //Assert.True(emu.MPU.Status.FlagI);
+            //Assert.False(emu.MPU.Status.FlagD);
+            Assert.Fail("New interrupt methods not yet implemented");
 
         }
 
@@ -183,27 +186,28 @@ namespace EmuXTesting
             emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
-            emu.Activate();
-            do
-            {
-                emu.MPU.ExecuteInstruction();
-                _output.WriteLine(emu.MPU.Status.ToString());
-                if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
-            } while (emu.MPU.Status.X == 0x00);
-            emu.MPU.SetNMI();
-            _output.WriteLine("\n!NMI!");
-            emu.MPU.ExecuteInstruction(); // fires the interrupt handler
-            var actualPC = emu.MPU.Status.PC;
-            _output.WriteLine(emu.MPU.Status.ToString());
-            emu.MPU.ExecuteInstruction();
-            _output.WriteLine(emu.MPU.Status.ToString());
+            //emu.Activate();
+            //do
+            //{
+            //    emu.MPU.ExecuteInstruction();
+            //    _output.WriteLine(emu.MPU.Status.ToString());
+            //    if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
+            //} while (emu.MPU.Status.X == 0x00);
+            //emu.MPU.SetNMI();
+            //_output.WriteLine("\n!NMI!");
+            //emu.MPU.ExecuteInstruction(); // fires the interrupt handler
+            //var actualPC = emu.MPU.Status.PC;
+            //_output.WriteLine(emu.MPU.Status.ToString());
+            //emu.MPU.ExecuteInstruction();
+            //_output.WriteLine(emu.MPU.Status.ToString());
 
             // Assert
-            Assert.Equal(expectedPC, actualPC);
-            Assert.Equal(expectedA, emu.MPU.Status.A);
-            Assert.Equal(goalEmulatedStackPointer, emu.MPU.Status.SP);
-            Assert.True(emu.MPU.Status.FlagI);
-            Assert.False(emu.MPU.Status.FlagD);
+            //Assert.Equal(expectedPC, actualPC);
+            //Assert.Equal(expectedA, emu.MPU.Status.A);
+            //Assert.Equal(goalEmulatedStackPointer, emu.MPU.Status.SP);
+            //Assert.True(emu.MPU.Status.FlagI);
+            //Assert.False(emu.MPU.Status.FlagD);
+            Assert.Fail("New interrupt methods not yet implemented");
         }
 
         [Theory]
@@ -258,37 +262,41 @@ namespace EmuXTesting
             emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
-            emu.Activate();
-            do
-            {
-                emu.MPU.ExecuteInstruction();
-                _output.WriteLine(emu.MPU.Status.ToString());
-                if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
-            } while (isWaiting ? emu.MPU.ExecutionState != "ProcessorStateWaiting": (emu.MPU.Status.X == 0x00));
-            var currentX = emu.MPU.Status.X;
-            dummyDevice.Interrupting = true;
-            _output.WriteLine("\n!IRQ!");
-            emu.MPU.ExecuteInstruction(); // fires the interrupt handler OR loads the magic number if I is set
-            var actualPC = emu.MPU.Status.PC;
-            var actualSP = emu.MPU.Status.SP;
-            var actualI = emu.MPU.Status.FlagI;
-            var actualD = emu.MPU.Status.FlagD;
-            dummyDevice.Interrupting = false;
-            _output.WriteLine(emu.MPU.Status.ToString());
-            do
-            {
-                emu.MPU.ExecuteInstruction();
-                _output.WriteLine(emu.MPU.Status.ToString());
-                if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
-            } while (emu.MPU.Status.X == currentX);
+            // TODO: Use the new system!!
+
+            //emu.Activate();
+            //do
+            //{
+            //    emu.MPU.ExecuteInstruction();
+            //    _output.WriteLine(emu.MPU.Status.ToString());
+            //    if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
+            //} while (isWaiting ? emu.MPU.ExecutionState != "ProcessorStateWaiting": (emu.MPU.Status.X == 0x00));
+            //var currentX = emu.MPU.Status.X;
+            //dummyDevice.Interrupting = true;
+            //_output.WriteLine("\n!IRQ!");
+            //emu.MPU.ExecuteInstruction(); // fires the interrupt handler OR loads the magic number if I is set
+            //var actualPC = emu.MPU.Status.PC;
+            //var actualSP = emu.MPU.Status.SP;
+            //var actualI = emu.MPU.Status.FlagI;
+            //var actualD = emu.MPU.Status.FlagD;
+            //dummyDevice.Interrupting = false;
+            //_output.WriteLine(emu.MPU.Status.ToString());
+            //do
+            //{
+            //    emu.MPU.ExecuteInstruction();
+            //    _output.WriteLine(emu.MPU.Status.ToString());
+            //    if (emu.MPU.Cycles >= 1000) Assert.Fail("Timeout!");
+            //} while (emu.MPU.Status.X == currentX);
 
             // Assert
-            Assert.Equal(expectedPC, actualPC);
-            Assert.Equal(expectedSP, actualSP);
-            Assert.Equal(expectedA, emu.MPU.Status.A);
-            Assert.Equal(expectedY, emu.MPU.Status.Y);
-            Assert.True(actualI);
-            Assert.False(actualD);
+
+            //Assert.Equal(expectedPC, actualPC);
+            //Assert.Equal(expectedSP, actualSP);
+            //Assert.Equal(expectedA, emu.MPU.Status.A);
+            //Assert.Equal(expectedY, emu.MPU.Status.Y);
+            //Assert.True(actualI);
+            //Assert.False(actualD);
+            Assert.Fail("New interrupt methods not yet implemented");
         }
 
         private void OnNewInstruction(W65C816.OpCode opCode, string operand)

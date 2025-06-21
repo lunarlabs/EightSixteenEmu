@@ -17,7 +17,7 @@
 
 using System.Net;
 using System.Text.RegularExpressions;
-using static EightSixteenEmu.Microprocessor;
+using static EightSixteenEmu.MPU.Microprocessor;
 
 namespace EightSixteenEmu.MPU
 {

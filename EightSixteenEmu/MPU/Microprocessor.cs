@@ -12,14 +12,13 @@
  *  and manufactured by Western Design Center (https://wdc65xx.com)
  *  Most opcode info courtesy of http://6502.org/tutorials/65c816opcodes.html
  */
-using EightSixteenEmu.MPU;
 using System.Collections.Immutable;
 using static EightSixteenEmu.MPU.MicroOpCode;
 using static EightSixteenEmu.W65C816;
 using Addr = System.UInt32;
 using Word = System.UInt16;
 
-namespace EightSixteenEmu
+namespace EightSixteenEmu.MPU
 {
     /// <summary>
     /// A class representing the W65C816 microprocessor.
@@ -67,8 +66,8 @@ namespace EightSixteenEmu
         #endregion
 
         #region Addressing Modes and Operations
-        internal readonly ImmutableDictionary<W65C816.AddressingMode, AddressingModeStrategy> _addressingModes;
-        internal readonly ImmutableDictionary<W65C816.OpCode, OpcodeCommand> _operations;
+        internal readonly ImmutableDictionary<AddressingMode, AddressingModeStrategy> _addressingModes;
+        internal readonly ImmutableDictionary<OpCode, OpcodeCommand> _operations;
         #endregion
 
         #endregion
@@ -149,14 +148,17 @@ namespace EightSixteenEmu
             COP,
         }
 
-        internal enum HWInterruptType : byte
+        [Flags]
+        public enum HWInterrupts : byte
         {
-            None,
-            IRQ,
-            NMI,
+            None = 0x00,
+            Reset = 0x01,
+            Abort = 0x02,
+            NMI = 0x04,
+            IRQ = 0x08,
         }
 
-        public enum CycleType : Byte
+        public enum CycleType : byte
         {
             Internal,
             Write,
@@ -436,7 +438,7 @@ namespace EightSixteenEmu
 
             // the house of pain
             #region Dictionary Initialization
-            var tempAddressingModes = new Dictionary<W65C816.AddressingMode, AddressingModeStrategy>
+            var tempAddressingModes = new Dictionary<AddressingMode, AddressingModeStrategy>
             {
                 { W65C816.AddressingMode.Immediate, new AM_Immediate() },
                 { W65C816.AddressingMode.Accumulator, new AM_Accumulator() },
@@ -464,99 +466,99 @@ namespace EightSixteenEmu
                 { W65C816.AddressingMode.AbsoluteIndexedIndirect, new AM_AbsoluteIndexedIndirect() },
                 { W65C816.AddressingMode.BlockMove, new AM_BlockMove() },
             };
-            var tempOperations = new Dictionary<W65C816.OpCode, OpcodeCommand>
+            var tempOperations = new Dictionary<OpCode, OpcodeCommand>
             {
-                { W65C816.OpCode.ADC, new OP_ADC() },
-                { W65C816.OpCode.AND, new OP_AND() },
-                { W65C816.OpCode.ASL, new OP_ASL() },
-                { W65C816.OpCode.BCC, new OP_BCC() },
-                { W65C816.OpCode.BCS, new OP_BCS() },
-                { W65C816.OpCode.BEQ, new OP_BEQ() },
-                { W65C816.OpCode.BIT, new OP_BIT() },
-                { W65C816.OpCode.BMI, new OP_BMI() },
-                { W65C816.OpCode.BNE, new OP_BNE() },
-                { W65C816.OpCode.BPL, new OP_BPL() },
-                { W65C816.OpCode.BRK, new OP_BRK() },
-                { W65C816.OpCode.CLC, new OP_CLC() },
-                { W65C816.OpCode.CLD, new OP_CLD() },
-                { W65C816.OpCode.CLI, new OP_CLI() },
-                { W65C816.OpCode.CLV, new OP_CLV() },
-                { W65C816.OpCode.CPX, new OP_CPX() },
-                { W65C816.OpCode.CPY, new OP_CPY() },
-                { W65C816.OpCode.CMP, new OP_CMP() },
-                { W65C816.OpCode.COP, new OP_COP() },
-                { W65C816.OpCode.DEC, new OP_DEC() },
-                { W65C816.OpCode.DEX, new OP_DEX() },
-                { W65C816.OpCode.DEY, new OP_DEY() },
-                { W65C816.OpCode.EOR, new OP_EOR() },
-                { W65C816.OpCode.INC, new OP_INC() },
-                { W65C816.OpCode.INX, new OP_INX() },
-                { W65C816.OpCode.INY, new OP_INY() },
-                { W65C816.OpCode.JMP, new OP_JMP() },
-                { W65C816.OpCode.JSR, new OP_JSR() },
-                { W65C816.OpCode.LDA, new OP_LDA() },
-                { W65C816.OpCode.LDX, new OP_LDX() },
-                { W65C816.OpCode.LDY, new OP_LDY() },
-                { W65C816.OpCode.LSR, new OP_LSR() },
-                { W65C816.OpCode.NOP, new OP_NOP() },
-                { W65C816.OpCode.ORA, new OP_ORA() },
-                { W65C816.OpCode.PHA, new OP_PHA() },
-                { W65C816.OpCode.PHP, new OP_PHP() },
-                { W65C816.OpCode.PLA, new OP_PLA() },
-                { W65C816.OpCode.PLP, new OP_PLP() },
-                { W65C816.OpCode.PHD, new OP_PHD() },
-                { W65C816.OpCode.PHX, new OP_PHX() },
-                { W65C816.OpCode.PHY, new OP_PHY() },
-                { W65C816.OpCode.REP, new OP_REP() },
-                { W65C816.OpCode.ROL, new OP_ROL() },
-                { W65C816.OpCode.ROR, new OP_ROR() },
-                { W65C816.OpCode.RTI, new OP_RTI() },
-                { W65C816.OpCode.RTS, new OP_RTS() },
-                { W65C816.OpCode.SBC, new OP_SBC() },
-                { W65C816.OpCode.SEC, new OP_SEC() },
-                { W65C816.OpCode.SED, new OP_SED() },
-                { W65C816.OpCode.SEI, new OP_SEI() },
-                { W65C816.OpCode.STA, new OP_STA() },
-                { W65C816.OpCode.STX, new OP_STX() },
-                { W65C816.OpCode.STY, new OP_STY() },
-                { W65C816.OpCode.STP, new OP_STP() },
-                { W65C816.OpCode.TAX, new OP_TAX() },
-                { W65C816.OpCode.TAY, new OP_TAY() },
-                { W65C816.OpCode.TRB, new OP_TRB() },
-                { W65C816.OpCode.TSB, new OP_TSB() },
-                { W65C816.OpCode.TSX, new OP_TSX() },
-                { W65C816.OpCode.TXA, new OP_TXA() },
-                { W65C816.OpCode.TXS, new OP_TXS() },
-                { W65C816.OpCode.TYA, new OP_TYA() },
-                { W65C816.OpCode.TYX, new OP_TYX() },
-                { W65C816.OpCode.WAI, new OP_WAI() },
-                { W65C816.OpCode.WDM, new OP_WDM() },
-                { W65C816.OpCode.XBA, new OP_XBA() },
-                { W65C816.OpCode.XCE, new OP_XCE() },
-                { W65C816.OpCode.TCS, new OP_TCS() },
-                { W65C816.OpCode.PLD, new OP_PLD() },
-                { W65C816.OpCode.MVP, new OP_MVP() },
-                { W65C816.OpCode.PHK, new OP_PHK() },
-                { W65C816.OpCode.BVC, new OP_BVC() },
-                { W65C816.OpCode.MVN, new OP_MVN() },
-                { W65C816.OpCode.PER, new OP_PER() },
-                { W65C816.OpCode.STZ, new OP_STZ() },
-                { W65C816.OpCode.RTL, new OP_RTL() },
-                { W65C816.OpCode.BVS, new OP_BVS() },
-                { W65C816.OpCode.PLY, new OP_PLY() },
-                { W65C816.OpCode.BRA, new OP_BRA() },
-                { W65C816.OpCode.BRL, new OP_BRL() },
-                { W65C816.OpCode.PHB, new OP_PHB() },
-                { W65C816.OpCode.TXY, new OP_TXY() },
-                { W65C816.OpCode.PLB, new OP_PLB() },
-                { W65C816.OpCode.PEI, new OP_PEI() },
-                { W65C816.OpCode.SEP, new OP_SEP() },
-                { W65C816.OpCode.PEA, new OP_PEA() },
-                { W65C816.OpCode.PLX, new OP_PLX() },
-                { W65C816.OpCode.TSC, new OP_TSC() },
-                { W65C816.OpCode.TCD, new OP_TCD() },
-                { W65C816.OpCode.TDC, new OP_TDC() },
-                { W65C816.OpCode.JSL, new OP_JSL() },
+                { OpCode.ADC, new OP_ADC() },
+                { OpCode.AND, new OP_AND() },
+                { OpCode.ASL, new OP_ASL() },
+                { OpCode.BCC, new OP_BCC() },
+                { OpCode.BCS, new OP_BCS() },
+                { OpCode.BEQ, new OP_BEQ() },
+                { OpCode.BIT, new OP_BIT() },
+                { OpCode.BMI, new OP_BMI() },
+                { OpCode.BNE, new OP_BNE() },
+                { OpCode.BPL, new OP_BPL() },
+                { OpCode.BRK, new OP_BRK() },
+                { OpCode.CLC, new OP_CLC() },
+                { OpCode.CLD, new OP_CLD() },
+                { OpCode.CLI, new OP_CLI() },
+                { OpCode.CLV, new OP_CLV() },
+                { OpCode.CPX, new OP_CPX() },
+                { OpCode.CPY, new OP_CPY() },
+                { OpCode.CMP, new OP_CMP() },
+                { OpCode.COP, new OP_COP() },
+                { OpCode.DEC, new OP_DEC() },
+                { OpCode.DEX, new OP_DEX() },
+                { OpCode.DEY, new OP_DEY() },
+                { OpCode.EOR, new OP_EOR() },
+                { OpCode.INC, new OP_INC() },
+                { OpCode.INX, new OP_INX() },
+                { OpCode.INY, new OP_INY() },
+                { OpCode.JMP, new OP_JMP() },
+                { OpCode.JSR, new OP_JSR() },
+                { OpCode.LDA, new OP_LDA() },
+                { OpCode.LDX, new OP_LDX() },
+                { OpCode.LDY, new OP_LDY() },
+                { OpCode.LSR, new OP_LSR() },
+                { OpCode.NOP, new OP_NOP() },
+                { OpCode.ORA, new OP_ORA() },
+                { OpCode.PHA, new OP_PHA() },
+                { OpCode.PHP, new OP_PHP() },
+                { OpCode.PLA, new OP_PLA() },
+                { OpCode.PLP, new OP_PLP() },
+                { OpCode.PHD, new OP_PHD() },
+                { OpCode.PHX, new OP_PHX() },
+                { OpCode.PHY, new OP_PHY() },
+                { OpCode.REP, new OP_REP() },
+                { OpCode.ROL, new OP_ROL() },
+                { OpCode.ROR, new OP_ROR() },
+                { OpCode.RTI, new OP_RTI() },
+                { OpCode.RTS, new OP_RTS() },
+                { OpCode.SBC, new OP_SBC() },
+                { OpCode.SEC, new OP_SEC() },
+                { OpCode.SED, new OP_SED() },
+                { OpCode.SEI, new OP_SEI() },
+                { OpCode.STA, new OP_STA() },
+                { OpCode.STX, new OP_STX() },
+                { OpCode.STY, new OP_STY() },
+                { OpCode.STP, new OP_STP() },
+                { OpCode.TAX, new OP_TAX() },
+                { OpCode.TAY, new OP_TAY() },
+                { OpCode.TRB, new OP_TRB() },
+                { OpCode.TSB, new OP_TSB() },
+                { OpCode.TSX, new OP_TSX() },
+                { OpCode.TXA, new OP_TXA() },
+                { OpCode.TXS, new OP_TXS() },
+                { OpCode.TYA, new OP_TYA() },
+                { OpCode.TYX, new OP_TYX() },
+                { OpCode.WAI, new OP_WAI() },
+                { OpCode.WDM, new OP_WDM() },
+                { OpCode.XBA, new OP_XBA() },
+                { OpCode.XCE, new OP_XCE() },
+                { OpCode.TCS, new OP_TCS() },
+                { OpCode.PLD, new OP_PLD() },
+                { OpCode.MVP, new OP_MVP() },
+                { OpCode.PHK, new OP_PHK() },
+                { OpCode.BVC, new OP_BVC() },
+                { OpCode.MVN, new OP_MVN() },
+                { OpCode.PER, new OP_PER() },
+                { OpCode.STZ, new OP_STZ() },
+                { OpCode.RTL, new OP_RTL() },
+                { OpCode.BVS, new OP_BVS() },
+                { OpCode.PLY, new OP_PLY() },
+                { OpCode.BRA, new OP_BRA() },
+                { OpCode.BRL, new OP_BRL() },
+                { OpCode.PHB, new OP_PHB() },
+                { OpCode.TXY, new OP_TXY() },
+                { OpCode.PLB, new OP_PLB() },
+                { OpCode.PEI, new OP_PEI() },
+                { OpCode.SEP, new OP_SEP() },
+                { OpCode.PEA, new OP_PEA() },
+                { OpCode.PLX, new OP_PLX() },
+                { OpCode.TSC, new OP_TSC() },
+                { OpCode.TCD, new OP_TCD() },
+                { OpCode.TDC, new OP_TDC() },
+                { OpCode.JSL, new OP_JSL() },
             };
             _addressingModes = tempAddressingModes.ToImmutableDictionary();
             _operations = tempOperations.ToImmutableDictionary();
@@ -691,15 +693,15 @@ namespace EightSixteenEmu
                 }
                 _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.P)); // push status register
                 _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.I, StatusFlags.D)); // Mask interrupt on, clear decimal mode
-                W65C816.Vector vector;
+                Vector vector;
                 if (_flagE)
                 {
                     vector = type switch
                     {
-                        InterruptType.BRK => W65C816.Vector.EmulationIRQ,
-                        InterruptType.COP => W65C816.Vector.EmulationCOP,
-                        InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
-                        InterruptType.NMI => W65C816.Vector.EmulationNMI,
+                        InterruptType.BRK => Vector.EmulationIRQ,
+                        InterruptType.COP => Vector.EmulationCOP,
+                        InterruptType.IRQ => Vector.EmulationIRQ,
+                        InterruptType.NMI => Vector.EmulationNMI,
                         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
                     };
                 }
@@ -707,10 +709,10 @@ namespace EightSixteenEmu
                 {
                     vector = type switch
                     {
-                        InterruptType.BRK => W65C816.Vector.NativeBRK,
-                        InterruptType.COP => W65C816.Vector.NativeCOP,
-                        InterruptType.IRQ => W65C816.Vector.NativeIRQ,
-                        InterruptType.NMI => W65C816.Vector.NativeNMI,
+                        InterruptType.BRK => Vector.NativeBRK,
+                        InterruptType.COP => Vector.NativeCOP,
+                        InterruptType.IRQ => Vector.NativeIRQ,
+                        InterruptType.NMI => Vector.NativeNMI,
                         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
                     };
                 }
@@ -729,11 +731,11 @@ namespace EightSixteenEmu
         #region Data Manipulation
         static byte LowByte(Word word)
         {
-            return (byte)(word);
+            return (byte)word;
         }
         static byte HighByte(Word word)
         {
-            return ((byte)(word >> 8));
+            return (byte)(word >> 8);
         }
         static Addr Bank(byte b)
         {
@@ -745,11 +747,11 @@ namespace EightSixteenEmu
         }
         static Word Join(byte l, byte h)
         {
-            return (Word)(l | (h << 8));
+            return (Word)(l | h << 8);
         }
         static Addr Address(byte bank, Word address)
         {
-            return (Bank(bank) | address);
+            return Bank(bank) | address;
         }
         static Addr Address(byte bank, byte page, byte loc)
         {
@@ -763,7 +765,7 @@ namespace EightSixteenEmu
         }
         static Word Swap(Word w)
         {
-            return (Word)((w >> 8) | (w << 8));
+            return (Word)(w >> 8 | w << 8);
         }
         private Addr _longPC { get => Address(_regPB, _regPC); }
         #endregion
@@ -988,7 +990,7 @@ namespace EightSixteenEmu
         }
         #endregion
 
-        internal void LoadInterruptVector(W65C816.Vector vector)
+        internal void LoadInterruptVector(Vector vector)
         {
             _regPC = ReadWord((Addr)vector);
             _regPB = 0x00;
@@ -998,7 +1000,7 @@ namespace EightSixteenEmu
         internal void DecodeInstruction(byte inst = 0xEA) // NOP by default
         {
             // peek ahead for the event
-            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(inst);
+            (CurrentOpCode, CurrentAddressingMode) = OpCodeLookup(inst);
             //OnNewInstruction(CurrentOpCode, AddressModeNotation(CurrentAddressingMode));
 
             // now have the actual read to fire off the cycle event
@@ -1008,7 +1010,7 @@ namespace EightSixteenEmu
         internal void DecodeInstruction()
         {
             // the instruction byte should already be in RegIR
-            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(RegIR);
+            (CurrentOpCode, CurrentAddressingMode) = OpCodeLookup(RegIR);
         }
 
         internal void ClearInstruction()
@@ -1177,19 +1179,19 @@ namespace EightSixteenEmu
         public class MicroprocessorState
         {
             public int Cycles;
-            public UInt16 A, X, Y, DP, SP, PC;
-            public Byte DB, PB;
+            public Word A, X, Y, DP, SP, PC;
+            public byte DB, PB;
             public bool FlagN, FlagV, FlagM, FlagX, FlagD, FlagI, FlagZ, FlagC, FlagE;
 
             public override string ToString()
             {
-                string flags = $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
+                string flags = $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? "." : FlagM ? "M" : "-")}{(FlagX ? FlagE ? "B" : "X" : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
                 return $"Cycles: {Cycles}, A: 0x{A:x4}, X: 0x{X:x4}, Y: 0x{Y:x4}, DP: 0x{DP:x4}, SP: 0x{SP:x4}, DB: 0x{DB:x2}, PB: 0x{PB:x2} PC: 0x{PC:x4}, Flags: {flags}";
             }
 
             public string Flags()
             {
-                return $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? (FlagM ? "." : "!") : (FlagM ? "M" : "-"))}{(FlagX ? (FlagE ? "B" : "X") : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
+                return $"{(FlagN ? "N" : "-")}{(FlagV ? "V" : "-")}{(FlagE ? FlagM ? "." : "!" : FlagM ? "M" : "-")}{(FlagX ? FlagE ? "B" : "X" : "-")}{(FlagD ? "D" : "-")}{(FlagI ? "I" : "-")}{(FlagZ ? "Z" : "-")}{(FlagC ? "C" : "-")} {(FlagE ? "E" : "-")}";
             }
 
             public Dictionary<string, ushort> RegistersAsDictionary

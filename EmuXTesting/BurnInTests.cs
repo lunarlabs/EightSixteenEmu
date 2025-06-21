@@ -1,5 +1,6 @@
 ﻿using EightSixteenEmu;
 using EightSixteenEmu.Devices;
+using EightSixteenEmu.MPU;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Xunit.Abstractions;
