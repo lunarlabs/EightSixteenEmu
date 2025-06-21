@@ -51,8 +51,7 @@ namespace EightSixteenEmu.MPU
         #region Microprocessor State
         private Queue<MicroOpCode> _microOps = new();
         private readonly ProcessorContext context;
-        private bool HandlingInterrupt = false; // used to prevent re-entrant interrupts
-        internal bool NMICalled;
+        private bool HandlingAbort = false; // used to prevent re-entrant interrupts
         #endregion
 
         #region Threading and API Integration
@@ -99,6 +98,8 @@ namespace EightSixteenEmu.MPU
         #endregion
         internal bool IRQ => _core.Mapper.DeviceInterrupting;
         internal int QueueCount => _microOps.Count;
+        internal HWInterrupts HardwareInterrupts { get; private set; }
+        internal Word LastInstructionAddress { get; private set; }
         internal OpCode? CurrentOpCode { get; private set; }
         internal AddressingMode? CurrentAddressingMode { get; private set; }
         internal OpcodeCommand? Instruction => CurrentOpCode != null ? _operations.TryGetValue(CurrentOpCode.Value, out OpcodeCommand? op) ? op : null : null;
@@ -117,7 +118,7 @@ namespace EightSixteenEmu.MPU
 
         public event CycleHandler? NewCycle;
 
-        protected virtual void OnNewCycle(int cycles, Cycle details, MicroprocessorState state)
+        protected virtual void OnCycle(int cycles, Cycle details, MicroprocessorState state)
         {
             NewCycle?.Invoke(cycles, details, state);
         }
@@ -155,7 +156,6 @@ namespace EightSixteenEmu.MPU
             Reset = 0x01,
             Abort = 0x02,
             NMI = 0x04,
-            IRQ = 0x08,
         }
 
         public enum CycleType : byte
@@ -422,6 +422,8 @@ namespace EightSixteenEmu.MPU
             }
         }
 
+        internal bool DeviceInterrupting => _core.Mapper.DeviceInterrupting;
+
         /// <summary>
         /// Creates a new instance of the W65C816 microprocessor.
         /// </summary>
@@ -567,8 +569,6 @@ namespace EightSixteenEmu.MPU
         }
 
         public void Reset() => context.Reset();
-        private void NextInstruction() => context.NextInstruction();
-        internal void Interrupt(InterruptType source) => context.Interrupt(source);
         internal void Stop() => context.Stop();
         internal void Wait() => context.Wait();
         public void BusRequest() => context.BusRequest();
@@ -586,23 +586,27 @@ namespace EightSixteenEmu.MPU
             }
         }
 
-        internal void OnReset(object? sender, EventArgs e)
+        public void ClearReset()
         {
-            // TODO: Right now, if the Reset event is fired, the current operation will complete
-            // which means memory and registers will be altered before the reset starts.
-            // The '816 treats the reset signal as immediate, don't change anything
-            // Use a cancellation token or Thread.Interrupt?
-            Reset();
+            HardwareInterrupts &= ~HWInterrupts.Reset;
+            if (_verbose) Console.WriteLine("Reset cleared.");
+        }
+        internal void SetReset(bool state = true)
+        {
+            if (state)
+            {
+                HardwareInterrupts |= HWInterrupts.Reset;
+            }
+            else
+            {
+                HardwareInterrupts &= ~HWInterrupts.Reset;
+            }
         }
 
-        public void SetNMI()
+        internal void IssueNMI()
         {
-            NMICalled = true;
-        }
-
-        internal void OnNMI(object? sender, EventArgs e)
-        {
-            NMICalled = true;
+            HardwareInterrupts |= HWInterrupts.NMI;
+            if (_verbose) Console.WriteLine("NMI issued.");
         }
 
         internal void EnqueueMicroOp(MicroOpCode microOp)
@@ -612,111 +616,128 @@ namespace EightSixteenEmu.MPU
                 _microOps.Enqueue(microOp);
             }
         }
-        internal void StartThread()
-        {
-            if (!_threadRunning)
-            {
-                _runThread = new Thread(Run);
-                _runThread.Start();
-            }
-        }
 
-        internal void StopThread()
-        {
-            if (_runThread != null && _threadRunning)
-            {
-                _threadRunning = false;
-                _clockEvent.Set();
-                _runThread.Join();
-            }
-        }
-
-        private void Run()
-        {
-            if (_verbose)
-            {
-                Console.WriteLine("Starting W65C816 microprocessor thread.");
-            }
-            _threadRunning = true;
-            try
-            {
-                while (_threadRunning)
-                {
-                    NextInstruction();
-                }
-            }
-            catch (ThreadInterruptedException ex)
-            {
-                if (_verbose) Console.WriteLine(ex.Message);
-                _threadRunning = false;
-                _runThread?.Join();
-            }
-            finally
-            {
-                if (_verbose)
-                {
-                    Console.WriteLine("Stopping W65C816 microprocessor thread.");
-                }
-            }
-        }
 
         [Obsolete("Will not be used in new queue-based system, which will handle cycles automatically.")]
         internal void InternalCycle()
         {
-            OnNewCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);
+            OnCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);
             HandleClockCycle();
         }
 
-        private void DoCycle()
+        internal void DoCycle()
         {
-            if (_microOps.Count == 0)
+            // reset signal overrides everything else
+            if (HardwareInterrupts.HasFlag(HWInterrupts.Reset))
             {
-                // no current operation, fetch the next
-                _microOps.Enqueue(new MicroOpFetchAndDecode()); 
+                _microOps.Clear();
+                HardwareInterrupts &= ~HWInterrupts.NMI; // clear NMI pending
+                Reset();
             }
-            MicroOpCode microOp = _microOps.Dequeue(); // get the first micro-operation of the cycle
-            OpCycleType fullCycleType = microOp.CycleType; // for debugging purposes
-            _cycles++;
+            else
+            {
+                if (_microOps.Count == 0)
+                {
+                    if (HardwareInterrupts.HasFlag(HWInterrupts.NMI))
+                    {
+                        // NMI is a special case, it doesn't use the queue
+                        HardwareInterrupts &= ~HWInterrupts.NMI; // clear the NMI flag
+                        EnqueueInterrupt(InterruptType.NMI);
+                    }
+                    else if (DeviceInterrupting & !ReadStatusFlag(StatusFlags.I))
+                    {
+                        EnqueueInterrupt(InterruptType.IRQ);
+                    }
+                    else
+                    {
+                        // no current operation, fetch the next
+                        LastInstructionAddress = _regPC;
+                        _microOps.Enqueue(new MicroOpFetchAndDecode());
+                        if ((CurrentOpCode != null) && (CurrentAddressingMode != null))
+                        {
+                            OnNewInstruction(CurrentOpCode ?? OpCode.NOP, AddressModeNotation(CurrentAddressingMode ?? W65C816.AddressingMode.Implied));
+                        }
+                        else throw new Exception("Null opcode or addressing mode (bug in MicroOpFetchAndDecode?)");
+                    }
+                }
+                // Abort's not going to be implemented in the forseeable future, so we'll just ignore it for now.
+                //else
+                //{
+                //    if (HardwareInterrupts.HasFlag(HWInterrupts.Abort))
+                //    {
+                //        Word vector = (ushort)(_flagE ? 0xFFF8 : 0xFFE8);
+                //        // TODO: go through the queue and remove any operations that write to memory or registers
+                //        InternalAddress = LastInstructionAddress;
+                //        if (!_flagE) _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.K)); // push PB if not in emulation mode
+                //        _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.IAL)); // push current instruction locations's low byte
+                //        _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.IAH)); // push current instruction locations's low byte
+                //        if (_flagE)
+                //        {
+                //            _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.None, StatusFlags.X));
+                //        }
+                //        _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.P)); // push status register
+                //        _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.I, StatusFlags.D)); // Mask interrupt on, clear decimal mode
+                //        _microOps.Enqueue(new MicroOpMoveByte(RegByteLocation.Zero, RegByteLocation.K)); // in bank zero
+                //        _microOps.Enqueue(new MicroOpReadTo(vector, RegByteLocation.PCL)); // read PC low byte from vector
+                //        _microOps.Enqueue(new MicroOpReadTo((Addr)(vector + 1), RegByteLocation.PCH)); // read PC high byte from vector
+                //    }
+                //}
+                MicroOpCode microOp = _microOps.Dequeue(); // get the first micro-operation of the cycle
+                OpCycleType fullCycleType = microOp.CycleType; // for debugging purposes
+                do
+                {
+                    microOp.Execute(this); // execute the micro-operation
+                } while (_microOps.Count > 0 && _microOps.Peek().CycleType == OpCycleType.NoCycle); // execute all micro-operations that don't require a cycle
+                _cycles++;
+                CycleType cycleType = microOp.CycleType switch
+                {
+                    OpCycleType.Internal => CycleType.Internal,
+                    OpCycleType.Read => CycleType.Read,
+                    OpCycleType.Write => CycleType.Write,
+                    _ => throw new InvalidOperationException($"Unknown cycle type: {microOp.CycleType}"),
+                };
+                OnCycle(_cycles, new Cycle(cycleType, _lastAddress, _regMD), Status); // notify listeners of the cycle completion
+            }
         }
 
-        private void EnqueueInterrupt(InterruptType type)
+        internal void EnqueueInterrupt(InterruptType type)
         {
-            if (!HandlingInterrupt)
+
+            if (!_flagE) _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.K)); // push PB if not in emulation mode
+            _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCL)); // push PC low byte
+            _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCH)); // push PC high byte
+            if (_flagE)
             {
-                if (!_flagE) _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.K)); // push PB if not in emulation mode
-                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCL)); // push PC low byte
-                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCH)); // push PC high byte
-                if (_flagE)
-                {
-                    if (type == InterruptType.BRK) _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.X, StatusFlags.None));
-                    else _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.None, StatusFlags.X));
-                }
-                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.P)); // push status register
-                _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.I, StatusFlags.D)); // Mask interrupt on, clear decimal mode
-                Vector vector;
-                if (_flagE)
-                {
-                    vector = type switch
-                    {
-                        InterruptType.BRK => Vector.EmulationIRQ,
-                        InterruptType.COP => Vector.EmulationCOP,
-                        InterruptType.IRQ => Vector.EmulationIRQ,
-                        InterruptType.NMI => Vector.EmulationNMI,
-                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
-                    };
-                }
-                else
-                {
-                    vector = type switch
-                    {
-                        InterruptType.BRK => Vector.NativeBRK,
-                        InterruptType.COP => Vector.NativeCOP,
-                        InterruptType.IRQ => Vector.NativeIRQ,
-                        InterruptType.NMI => Vector.NativeNMI,
-                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
-                    };
-                }
+                if (type == InterruptType.BRK) _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.X, StatusFlags.None));
+                else _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.None, StatusFlags.X));
             }
+            _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.P)); // push status register
+            _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.I, StatusFlags.D)); // Mask interrupt on, clear decimal mode
+            Vector vector;
+            if (_flagE)
+            {
+                vector = type switch
+                {
+                    InterruptType.BRK => Vector.EmulationIRQ,
+                    InterruptType.COP => Vector.EmulationCOP,
+                    InterruptType.IRQ => Vector.EmulationIRQ,
+                    InterruptType.NMI => Vector.EmulationNMI,
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                };
+            }
+            else
+            {
+                vector = type switch
+                {
+                    InterruptType.BRK => Vector.NativeBRK,
+                    InterruptType.COP => Vector.NativeCOP,
+                    InterruptType.IRQ => Vector.NativeIRQ,
+                    InterruptType.NMI => Vector.NativeNMI,
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                };
+            }
+            _microOps.Enqueue(new MicroOpReadTo((Word)vector, RegByteLocation.PCL)); // read PC low byte from vector
+            _microOps.Enqueue(new MicroOpReadTo((Word)(vector + 1), RegByteLocation.PCH)); // read PC high byte from vector
         }
 
         private void HandleClockCycle()
@@ -790,7 +811,7 @@ namespace EightSixteenEmu.MPU
 
         internal void EnqueueWordRead(RegWordLocation destination, Addr address)
         {
-            (RegByteLocation high, RegByteLocation low ) = ByteLocationsFromWordLocations(destination);
+            (RegByteLocation high, RegByteLocation low) = ByteLocationsFromWordLocations(destination);
             EnqueueMicroOp(new MicroOpReadTo(address, low));
             EnqueueMicroOp(new MicroOpReadTo(address + 1, high));
         }
@@ -818,7 +839,7 @@ namespace EightSixteenEmu.MPU
                 _regMD = (byte)result;
             }
 
-            OnNewCycle(_cycles, new Cycle(CycleType.Read, address, _regMD), Status);
+            OnCycle(_cycles, new Cycle(CycleType.Read, address, _regMD), Status);
             HandleClockCycle();
             return _regMD;
         }
@@ -828,7 +849,7 @@ namespace EightSixteenEmu.MPU
             _lastAddress = address;
             _regMD = value;
             _core.Mapper[address] = value;
-            OnNewCycle(_cycles, new Cycle(CycleType.Write, address, _regMD), Status);
+            OnCycle(_cycles, new Cycle(CycleType.Write, address, _regMD), Status);
             HandleClockCycle();
         }
 
@@ -1079,8 +1100,8 @@ namespace EightSixteenEmu.MPU
                 case W65C816.AddressingMode.AbsoluteIndexedIndirect:
                     return $"(${(ushort)ReadOperand(2):X4}, X)";
                 case W65C816.AddressingMode.BlockMove:
-                    byte source = _core.Mapper[_longPC + 1] ?? _regMD;
-                    byte dest = _core.Mapper[_longPC + 2] ?? _regMD;
+                    byte source = _core.Mapper[_longPC] ?? _regMD;
+                    byte dest = _core.Mapper[_longPC + 1] ?? _regMD;
                     return $"${source:X2}, ${dest:X2}";
                 default:
                     throw new ArgumentException("invalid addressing mode", nameof(mode));
@@ -1091,19 +1112,10 @@ namespace EightSixteenEmu.MPU
                 int result = 0;
                 for (byte i = 0; i < bytes; i++)
                 {
-                    result |= (_core.Mapper[_longPC + i + 1] ?? _regMD) << i * 8;
+                    result |= (_core.Mapper[_longPC + i] ?? _regMD) << i * 8;
                 }
                 return result;
             }
-        }
-
-        public void ExecuteInstruction()
-        {
-            if (_runThread == null || !_threadRunning)
-            {
-                NextInstruction();
-            }
-            else throw new InvalidOperationException("Cannot advance operation manually while thread is running.");
         }
 
 
