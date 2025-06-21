@@ -19,20 +19,20 @@ namespace EightSixteenEmu.MPU
 {
     // WARN: When using one of these in an opcode command, only use GetAddress or GetOperand, not both.
     // Otherwise, you'll cause the addressing mode to run again, and you'll mess up the program counter.
+
+    // INFO: In most cases, using QueueAddress will put the calculated address in InternalAddress.
     internal abstract class AddressingModeStrategy
     {
+        [Obsolete("Use QueueAddress instead. This method will be removed in a future version.")]
         internal virtual uint GetAddress(Microprocessor mpu) => throw new InvalidOperationException("This addressing mode does not support GetAddress.");
+        [Obsolete("Use QueueOperand instead. This method will be removed in a future version.")]
         internal virtual ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => isByte ? mpu.ReadByte(GetAddress(mpu)) : mpu.ReadWord(GetAddress(mpu), wrap);
+        internal virtual void QueueAddress(Microprocessor mpu) => throw new InvalidOperationException("This addressing mode does not support QueueAddress.");
+        internal virtual void QueueOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support QueueOperand.");
         internal ushort GetOperand(Microprocessor mpu, out uint fetchedAddress, bool isByte = true, bool wrap = false)
         {
             fetchedAddress = GetAddress(mpu);
             return isByte ? mpu.ReadByte(fetchedAddress) : mpu.ReadWord(fetchedAddress, wrap);
-        }
-        internal string _notation = "";
-
-        public virtual string Notation
-        {
-            get => _notation;
         }
 
         internal static uint FullAddress(byte bank, int address) => (uint)((bank << 16) | (ushort)address);
@@ -62,17 +62,26 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_Immediate : AddressingModeStrategy
     {
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             ushort result = isByte ? mpu.ReadByte() : mpu.ReadWord();
-            _notation = isByte ? $"#${result:x2}" : $"#${result:x4}";
             return result;
+        }
+        internal override void QueueOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
+        {
+            mpu.EnqueueMicroOp(new MicroOpReadToAndAdvancePC(MicroOpCode.RegByteLocation.IDL));
+            if (!isByte)
+            {
+                mpu.EnqueueMicroOp(new MicroOpReadToAndAdvancePC(MicroOpCode.RegByteLocation.IDH));
+            }
         }
     }
 
     internal class AM_Accumulator : AddressingModeStrategy
     {
-        public override string Notation => "A";
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             mpu.InternalCycle();
@@ -82,38 +91,43 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_ProgramCounterRelative : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             sbyte offset = (sbyte)mpu.ReadByte();
-            _notation = $"{offset:+0,-#}";
             return FullAddress(mpu.RegPB, mpu.RegPC + offset);
         }
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_ProgramCounterRelativeLong : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort offset = mpu.ReadWord();
-            _notation = $"{offset:+0,-#}";
             return FullAddress(mpu.RegPB, mpu.RegPC + offset);
         }
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_Implied : AddressingModeStrategy
     {
         // this also covers the "stack" addressing mode used by PLA, PLP, etc.
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_Direct : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"${offset:x2}";
             if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return FullAddress(0, mpu.RegDP + offset);
         }
@@ -121,10 +135,10 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedX : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"${offset:x2},X";
             mpu.InternalCycle();
             return CalculateDirectAddress(mpu, offset, mpu.RegX);
         }
@@ -132,10 +146,10 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedY : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"${offset:x2},Y";
             if (mpu.RegDL != 0x00
                 || mpu.CurrentOpCode == W65C816.OpCode.STX
                 || mpu.CurrentOpCode == W65C816.OpCode.LDX) mpu.InternalCycle();
@@ -145,10 +159,10 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndirect : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"(${offset:x2})";
             uint pointer = CalculateDirectAddress(mpu, offset);
             return FullAddress(mpu.RegDB, mpu.ReadWord(pointer, true));
         }
@@ -156,11 +170,11 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedIndirect : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
             mpu.InternalCycle();
-            _notation = $"(${offset:x2},X)";
             uint pointer = CalculateDirectAddress(mpu, offset, mpu.RegX);
             return FullAddress(mpu.RegDB, mpu.ReadWord(pointer, true));
         }
@@ -168,10 +182,10 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndirectIndexed : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"(${offset:x2}),Y";
             uint pointer = CalculateDirectAddress(mpu, offset);
             uint destination = (uint)((mpu.RegDB << 16) + mpu.ReadWord(pointer, true) + mpu.RegY);
             if (!mpu.FlagX 
@@ -182,39 +196,39 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_DirectIndirectLong : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
             if (mpu.RegDL != 0x00) mpu.InternalCycle();
-            _notation = $"[${offset:x2}]";
             return mpu.ReadAddr(FullAddress(0, mpu.RegDP + offset), true);
         }
     }
     internal class AM_DirectIndirectLongIndexedY : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"[${offset:x2}],Y";
             if (mpu.RegDL != 0x00) mpu.InternalCycle();
             return mpu.ReadAddr(FullAddress(0, mpu.RegDP + offset), true) + mpu.RegY;
         }
     }
     internal class AM_Absolute : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"${address:x4}";
             return FullAddress(mpu.RegDB, address);
         }
     }
     internal class AM_AbsoluteIndexedX : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"${address:x4}, X";
             // return FullAddress(mpu.RegDB, address + mpu.RegX);
             uint destination = FullAddress(mpu.RegDB, address) + mpu.RegX;
             if (!mpu.FlagX
@@ -233,10 +247,10 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_AbsoluteIndexedY : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"${address:x4}, Y";
             uint destination = FullAddress(mpu.RegDB, address) + mpu.RegY;
             if (!mpu.FlagX
                 || mpu.CurrentOpCode == W65C816.OpCode.ASL
@@ -253,39 +267,39 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_AbsoluteLong : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             uint address = mpu.ReadAddr();
-            _notation = $"${address:x6}";
             return address;
         }
     }
     internal class AM_AbsoluteLongIndexedX : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             uint address = mpu.ReadAddr();
-            _notation = $"${address:x6}, X";
             return address + mpu.RegX;
         }
     }
     internal class AM_StackRelative : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
-            _notation = $"${offset:x2}, S";
             mpu.InternalCycle();
             return FullAddress(0, mpu.RegSP + offset);
         }
     }
     internal class AM_StackRelativeIndirectIndexedY : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
             mpu.InternalCycle();
-            _notation = $"(${offset:x2}, S), Y";
             uint pointer = FullAddress(0, mpu.RegSP + offset);
             uint destination = FullAddress(mpu.RegDB, mpu.ReadWord(pointer, true)) + mpu.RegY;
             mpu.InternalCycle();
@@ -294,41 +308,47 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteIndirect : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"(${address:x4})";
             return FullAddress(mpu.RegPB, mpu.ReadWord(FullAddress(0, address), true));
         }
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
     internal class AM_AbsoluteIndirectLong : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"[${address:x4}]";
             return mpu.ReadAddr(FullAddress(0, address), true);
         }
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
     internal class AM_AbsoluteIndexedIndirect : AddressingModeStrategy
     {
+        [Obsolete]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
-            _notation = $"(${address:x4}, X)";
             return FullAddress(mpu.RegPB, mpu.ReadWord(FullAddress(mpu.RegPB, address + mpu.RegX), true));
         }
+
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
     internal class AM_BlockMove : AddressingModeStrategy
     {
+        [Obsolete]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             byte source = mpu.ReadByte();
             byte dest = mpu.ReadByte();
-            _notation = $"${source:x2},${dest:x2}";
             return (ushort)((source << 8) | dest);
             // remember to split this into two bytes when using it
         }

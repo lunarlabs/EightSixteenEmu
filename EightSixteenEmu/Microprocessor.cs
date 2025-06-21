@@ -14,6 +14,7 @@
  */
 using EightSixteenEmu.MPU;
 using System.Collections.Immutable;
+using static EightSixteenEmu.MPU.MicroOpCode;
 using static EightSixteenEmu.W65C816;
 using Addr = System.UInt32;
 using Word = System.UInt16;
@@ -43,11 +44,15 @@ namespace EightSixteenEmu
         // non-accessible registers
         private byte _regMD; // memory data register
         private Addr _lastAddress; // last address accessed
-        internal byte _regIR; // instruction register
+        internal ushort InternalAddress; // temporary address register for various operations
+        internal ushort InternalData; // temporary data register for various operations
+        internal byte RegIR; // instruction register
         #endregion
 
         #region Microprocessor State
+        private Queue<MicroOpCode> _microOps = new();
         private readonly ProcessorContext context;
+        private bool HandlingInterrupt = false; // used to prevent re-entrant interrupts
         internal bool NMICalled;
         #endregion
 
@@ -94,13 +99,13 @@ namespace EightSixteenEmu
 
         #endregion
         internal bool IRQ => _core.Mapper.DeviceInterrupting;
+        internal int QueueCount => _microOps.Count;
+        internal OpCode? CurrentOpCode { get; private set; }
+        internal AddressingMode? CurrentAddressingMode { get; private set; }
+        internal OpcodeCommand? Instruction => CurrentOpCode != null ? _operations.TryGetValue(CurrentOpCode.Value, out OpcodeCommand? op) ? op : null : null;
+        internal AddressingModeStrategy? AddressingMode => CurrentAddressingMode != null ? _addressingModes.TryGetValue(CurrentAddressingMode.Value, out AddressingModeStrategy? mode) ? mode : null : null;
 
-        internal W65C816.OpCode CurrentOpCode { get; private set; }
-        internal W65C816.AddressingMode CurrentAddressingMode { get; private set; }
-        internal OpcodeCommand Instruction { get => _operations[CurrentOpCode]; }
-        internal AddressingModeStrategy AddressingMode { get => _addressingModes[CurrentAddressingMode]; }
-
-        public delegate void InstructionHandler(W65C816.OpCode opCode, string operand);
+        public delegate void InstructionHandler(OpCode opCode, string operand);
 
         public event InstructionHandler? NewInstruction;
 
@@ -598,7 +603,14 @@ namespace EightSixteenEmu
             NMICalled = true;
         }
 
-        public void StartThread()
+        internal void EnqueueMicroOp(MicroOpCode microOp)
+        {
+            lock (@lock)
+            {
+                _microOps.Enqueue(microOp);
+            }
+        }
+        internal void StartThread()
         {
             if (!_threadRunning)
             {
@@ -607,7 +619,7 @@ namespace EightSixteenEmu
             }
         }
 
-        public void StopThread()
+        internal void StopThread()
         {
             if (_runThread != null && _threadRunning)
             {
@@ -646,10 +658,63 @@ namespace EightSixteenEmu
             }
         }
 
+        [Obsolete("Will not be used in new queue-based system, which will handle cycles automatically.")]
         internal void InternalCycle()
         {
             OnNewCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);
             HandleClockCycle();
+        }
+
+        private void DoCycle()
+        {
+            if (_microOps.Count == 0)
+            {
+                // no current operation, fetch the next
+                _microOps.Enqueue(new MicroOpFetchAndDecode()); 
+            }
+            MicroOpCode microOp = _microOps.Dequeue(); // get the first micro-operation of the cycle
+            OpCycleType fullCycleType = microOp.CycleType; // for debugging purposes
+            _cycles++;
+        }
+
+        private void EnqueueInterrupt(InterruptType type)
+        {
+            if (!HandlingInterrupt)
+            {
+                if (!_flagE) _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.K)); // push PB if not in emulation mode
+                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCL)); // push PC low byte
+                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.PCH)); // push PC high byte
+                if (_flagE)
+                {
+                    if (type == InterruptType.BRK) _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.X, StatusFlags.None));
+                    else _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.None, StatusFlags.X));
+                }
+                _microOps.Enqueue(new MicroOpPushByteFrom(RegByteLocation.P)); // push status register
+                _microOps.Enqueue(new MicroOpChangeFlags(StatusFlags.I, StatusFlags.D)); // Mask interrupt on, clear decimal mode
+                W65C816.Vector vector;
+                if (_flagE)
+                {
+                    vector = type switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.EmulationIRQ,
+                        InterruptType.COP => W65C816.Vector.EmulationCOP,
+                        InterruptType.IRQ => W65C816.Vector.EmulationIRQ,
+                        InterruptType.NMI => W65C816.Vector.EmulationNMI,
+                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                    };
+                }
+                else
+                {
+                    vector = type switch
+                    {
+                        InterruptType.BRK => W65C816.Vector.NativeBRK,
+                        InterruptType.COP => W65C816.Vector.NativeCOP,
+                        InterruptType.IRQ => W65C816.Vector.NativeIRQ,
+                        InterruptType.NMI => W65C816.Vector.NativeNMI,
+                        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+                    };
+                }
+            }
         }
 
         private void HandleClockCycle()
@@ -704,6 +769,44 @@ namespace EightSixteenEmu
         #endregion
 
         #region Memory Access
+
+        internal void ByteRead(Addr address)
+        {
+            _lastAddress = address;
+            byte? result = _core.Mapper[address];
+            if (result != null)
+            {
+                _regMD = (byte)result;
+            }
+        }
+
+        internal void ByteWrite(Addr address)
+        {
+            _lastAddress = address;
+            _core.Mapper[address] = _regMD;
+        }
+
+        internal void EnqueueWordRead(RegWordLocation destination, Addr address)
+        {
+            (RegByteLocation high, RegByteLocation low ) = ByteLocationsFromWordLocations(destination);
+            EnqueueMicroOp(new MicroOpReadTo(address, low));
+            EnqueueMicroOp(new MicroOpReadTo(address + 1, high));
+        }
+
+        internal void EnqueueWordRead(RegWordLocation destination)
+        {
+            (RegByteLocation high, RegByteLocation low) = ByteLocationsFromWordLocations(destination);
+            EnqueueMicroOp(new MicroOpReadToAndAdvancePC(low));
+            EnqueueMicroOp(new MicroOpReadToAndAdvancePC(high));
+        }
+
+        internal void EnqueueWordWrite(RegWordLocation source, Addr address)
+        {
+            (RegByteLocation high, RegByteLocation low) = ByteLocationsFromWordLocations(source);
+            EnqueueMicroOp(new MicroOpWriteFrom(address, low));
+            EnqueueMicroOp(new MicroOpWriteFrom(address + 1, high));
+        }
+
         internal byte ReadByte(Addr address)
         {
             _lastAddress = address;
@@ -755,6 +858,7 @@ namespace EightSixteenEmu
             }
         }
 
+        [Obsolete("This is covered by MicroOpCodeReadToAndAdvancePC, which handles the cycles and PC increment automatically.")]
         internal byte ReadByte()
         {
             byte result = ReadByte(_longPC);
@@ -890,92 +994,104 @@ namespace EightSixteenEmu
             _regPB = 0x00;
         }
 
-        internal void DecodeInstruction()
+        [Obsolete("This is not used in the new queue-based system. Use the version without parameters.")]
+        internal void DecodeInstruction(byte inst = 0xEA) // NOP by default
         {
             // peek ahead for the event
-            byte inst = _core.Mapper[_longPC] ?? _regMD;
             (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(inst);
-            OnNewInstruction(CurrentOpCode, AddressModeNotation(CurrentAddressingMode));
+            //OnNewInstruction(CurrentOpCode, AddressModeNotation(CurrentAddressingMode));
 
             // now have the actual read to fire off the cycle event
-            _regIR = ReadByte();
+            RegIR = ReadByte();
+        }
 
-            string AddressModeNotation(W65C816.AddressingMode mode)
+        internal void DecodeInstruction()
+        {
+            // the instruction byte should already be in RegIR
+            (CurrentOpCode, CurrentAddressingMode) = W65C816.OpCodeLookup(RegIR);
+        }
+
+        internal void ClearInstruction()
+        {
+            CurrentOpCode = null;
+            CurrentAddressingMode = null;
+        }
+
+        private string AddressModeNotation(AddressingMode mode)
+        {
+            switch (mode)
             {
-                switch (mode)
-                {
-                    case W65C816.AddressingMode.Immediate:
-                        if (AccumulatorIs8Bit)
-                        {
-                            return $"#${(byte)ReadOperand():X2}";
-                        }
-                        else
-                        {
-                            return $"#${(ushort)ReadOperand(2):X4}";
-                        }
-                    case W65C816.AddressingMode.Accumulator:
-                        return "A";
-                    case W65C816.AddressingMode.ProgramCounterRelative:
-                        return $"{(sbyte)ReadOperand():+0;-0}";
-                    case W65C816.AddressingMode.ProgramCounterRelativeLong:
-                        return $"+{(short)ReadOperand(2)}";
-                    case W65C816.AddressingMode.Implied:
-                        return "";
-                    case W65C816.AddressingMode.Stack:
-                        return "";
-                    case W65C816.AddressingMode.Direct:
-                        return $"${(byte)ReadOperand():X2}";
-                    case W65C816.AddressingMode.DirectIndexedWithX:
-                        return $"${(byte)ReadOperand():X2}, X";
-                    case W65C816.AddressingMode.DirectIndexedWithY:
-                        return $"${(byte)ReadOperand():X2}, Y";
-                    case W65C816.AddressingMode.DirectIndirect:
-                        return $"(${(byte)ReadOperand():X2})";
-                    case W65C816.AddressingMode.DirectIndexedIndirect:
-                        return $"(${(byte)ReadOperand():X2}, X)";
-                    case W65C816.AddressingMode.DirectIndirectIndexed:
-                        return $"(${(byte)ReadOperand():X2}), Y";
-                    case W65C816.AddressingMode.DirectIndirectLong:
-                        return $"[${(byte)ReadOperand():X2}]";
-                    case W65C816.AddressingMode.DirectIndirectLongIndexed:
-                        return $"[${(byte)ReadOperand():X2}], Y";
-                    case W65C816.AddressingMode.Absolute:
-                        return $"${(ushort)ReadOperand(2):X4}";
-                    case W65C816.AddressingMode.AbsoluteIndexedWithX:
-                        return $"${(ushort)ReadOperand(2):X4}, X";
-                    case W65C816.AddressingMode.AbsoluteIndexedWithY:
-                        return $"${(ushort)ReadOperand(2):X4}, Y";
-                    case W65C816.AddressingMode.AbsoluteLong:
-                        return $"${ReadOperand(3):X6}";
-                    case W65C816.AddressingMode.AbsoluteLongIndexed:
-                        return $"${ReadOperand(3):X6}, X";
-                    case W65C816.AddressingMode.StackRelative:
-                        return $"${(byte)ReadOperand():X2}, S";
-                    case W65C816.AddressingMode.StackRelativeIndirectIndexed:
-                        return $"$({(byte)ReadOperand():X2}, S), Y";
-                    case W65C816.AddressingMode.AbsoluteIndirect:
-                        return $"(${(ushort)ReadOperand(2):X4})";
-                    case W65C816.AddressingMode.AbsoluteIndirectLong:
-                        return $"[${(ushort)ReadOperand(2):X4}]";
-                    case W65C816.AddressingMode.AbsoluteIndexedIndirect:
-                        return $"(${(ushort)ReadOperand(2):X4}, X)";
-                    case W65C816.AddressingMode.BlockMove:
-                        byte source = _core.Mapper[_longPC + 1] ?? _regMD;
-                        byte dest = _core.Mapper[_longPC + 2] ?? _regMD;
-                        return $"${source:X2}, ${dest:X2}";
-                    default:
-                        throw new ArgumentException("invalid addressing mode", nameof(mode));
-                }
-
-                int ReadOperand(int bytes = 1)
-                {
-                    int result = 0;
-                    for (byte i = 0; i < bytes; i++)
+                case W65C816.AddressingMode.Immediate:
+                    if (AccumulatorIs8Bit)
                     {
-                        result |= (_core.Mapper[_longPC + i + 1] ?? _regMD) << i * 8;
+                        return $"#${(byte)ReadOperand():X2}";
                     }
-                    return result;
+                    else
+                    {
+                        return $"#${(ushort)ReadOperand(2):X4}";
+                    }
+                case W65C816.AddressingMode.Accumulator:
+                    return "A";
+                case W65C816.AddressingMode.ProgramCounterRelative:
+                    return $"{(sbyte)ReadOperand():+0;-0}";
+                case W65C816.AddressingMode.ProgramCounterRelativeLong:
+                    return $"+{(short)ReadOperand(2)}";
+                case W65C816.AddressingMode.Implied:
+                    return "";
+                case W65C816.AddressingMode.Stack:
+                    return "";
+                case W65C816.AddressingMode.Direct:
+                    return $"${(byte)ReadOperand():X2}";
+                case W65C816.AddressingMode.DirectIndexedWithX:
+                    return $"${(byte)ReadOperand():X2}, X";
+                case W65C816.AddressingMode.DirectIndexedWithY:
+                    return $"${(byte)ReadOperand():X2}, Y";
+                case W65C816.AddressingMode.DirectIndirect:
+                    return $"(${(byte)ReadOperand():X2})";
+                case W65C816.AddressingMode.DirectIndexedIndirect:
+                    return $"(${(byte)ReadOperand():X2}, X)";
+                case W65C816.AddressingMode.DirectIndirectIndexed:
+                    return $"(${(byte)ReadOperand():X2}), Y";
+                case W65C816.AddressingMode.DirectIndirectLong:
+                    return $"[${(byte)ReadOperand():X2}]";
+                case W65C816.AddressingMode.DirectIndirectLongIndexed:
+                    return $"[${(byte)ReadOperand():X2}], Y";
+                case W65C816.AddressingMode.Absolute:
+                    return $"${(ushort)ReadOperand(2):X4}";
+                case W65C816.AddressingMode.AbsoluteIndexedWithX:
+                    return $"${(ushort)ReadOperand(2):X4}, X";
+                case W65C816.AddressingMode.AbsoluteIndexedWithY:
+                    return $"${(ushort)ReadOperand(2):X4}, Y";
+                case W65C816.AddressingMode.AbsoluteLong:
+                    return $"${ReadOperand(3):X6}";
+                case W65C816.AddressingMode.AbsoluteLongIndexed:
+                    return $"${ReadOperand(3):X6}, X";
+                case W65C816.AddressingMode.StackRelative:
+                    return $"${(byte)ReadOperand():X2}, S";
+                case W65C816.AddressingMode.StackRelativeIndirectIndexed:
+                    return $"$({(byte)ReadOperand():X2}, S), Y";
+                case W65C816.AddressingMode.AbsoluteIndirect:
+                    return $"(${(ushort)ReadOperand(2):X4})";
+                case W65C816.AddressingMode.AbsoluteIndirectLong:
+                    return $"[${(ushort)ReadOperand(2):X4}]";
+                case W65C816.AddressingMode.AbsoluteIndexedIndirect:
+                    return $"(${(ushort)ReadOperand(2):X4}, X)";
+                case W65C816.AddressingMode.BlockMove:
+                    byte source = _core.Mapper[_longPC + 1] ?? _regMD;
+                    byte dest = _core.Mapper[_longPC + 2] ?? _regMD;
+                    return $"${source:X2}, ${dest:X2}";
+                default:
+                    throw new ArgumentException("invalid addressing mode", nameof(mode));
+            }
+
+            int ReadOperand(int bytes = 1)
+            {
+                int result = 0;
+                for (byte i = 0; i < bytes; i++)
+                {
+                    result |= (_core.Mapper[_longPC + i + 1] ?? _regMD) << i * 8;
                 }
+                return result;
             }
         }
 

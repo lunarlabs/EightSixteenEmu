@@ -18,9 +18,33 @@ namespace EightSixteenEmu
 
         private readonly Microprocessor _mpu;
         private readonly MemoryMapper _mapper;
+        private bool _enabled = false;
+        private TimingMode _timingMode = TimingMode.ManualStep;
+        private TimeSpan _clockPeriod = TimeSpan.FromMilliseconds(1); // Default to 1ms clock frequency
+        private readonly List<IInterruptingDevice> interruptingMappableDevices = [];
         public Microprocessor MPU { get { return _mpu; } }
         public MemoryMapper Mapper { get { return _mapper; } }
-        private readonly List<IInterruptingDevice> interruptingMappableDevices = [];
+        public TimeSpan ClockPeriod { get { return _clockPeriod; } }
+        public double ClockFrequency
+        {
+            get
+            {
+                if (_clockPeriod == TimeSpan.Zero) return double.MaxValue;
+                return 1.0 / _clockPeriod.TotalSeconds;
+            }
+        }
+        public TimingMode CurrentTimingMode
+        {
+            get { return _timingMode; }
+            set
+            {
+                if (_timingMode != value)
+                {
+                    ChangeTimingMode(value);
+                    _timingMode = value;
+                }
+            }
+        }
 
         public event EventHandler? ClockTick;
         public event EventHandler? Reset;
@@ -78,6 +102,40 @@ namespace EightSixteenEmu
 
         #region Clock Management
 
+        public enum TimingMode
+        {
+            ManualStep, // manual step mode, clock ticks only on request, instruction or cycle step
+            Frequency, // active clock, runs at a fixed frequency
+            FreeRunning, // active clock, runs as fast as possible
+        }
+
+        public void SetClockPeriod(TimeSpan period)
+        {
+            if (period <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(period), "Clock period must be greater than zero.");
+            _clockPeriod = period;
+        }
+
+        public void SetClockFrequency(double frequency)
+        {
+            if (frequency <= 0) throw new ArgumentOutOfRangeException(nameof(frequency), "Clock frequency must be greater than zero.");
+            _clockPeriod = TimeSpan.FromSeconds(1.0 / frequency);
+        }
+
+        private void ChangeTimingMode(TimingMode mode)
+        {
+            if (_timingMode == mode) return;
+            switch (mode)
+            {
+                case TimingMode.ManualStep:
+                    throw new NotImplementedException();
+                case TimingMode.Frequency:
+                    throw new NotImplementedException();
+                case TimingMode.FreeRunning:
+                    throw new NotImplementedException();
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode));
+            }
+        }
         #endregion
     }
 }
