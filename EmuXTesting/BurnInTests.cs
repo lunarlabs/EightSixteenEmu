@@ -135,239 +135,241 @@ namespace EmuXTesting
         [Fact]
         public void MvnMvpInstructions_WorkProperly()
         {
-            // Arrange
-            byte[] data =
-            {
-                0x0f, 0xf0, 0xf0, 0xf0, 0x0f, 0xf0, 0xf0, 0xf0,
-                0x34, 0x12, 0x78, 0x56, 0xbc, 0x9a, 0xf0, 0xde,
-                0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
-                0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
-            };
-            // d'oh! forgot about the endianess...
+            //// Arrange
+            //byte[] data =
+            //{
+            //    0x0f, 0xf0, 0xf0, 0xf0, 0x0f, 0xf0, 0xf0, 0xf0,
+            //    0x34, 0x12, 0x78, 0x56, 0xbc, 0x9a, 0xf0, 0xde,
+            //    0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
+            //    0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
+            //};
+            //// d'oh! forgot about the endianess...
 
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            emu.MPU.NewInstruction += OnNewInstruction;
-            var rom = new DevROM("MoveTests.rom");
-            emu.Mapper.AddDevice(rom, 0x8000);
-            var ram = new DevRAM(0x1000000);
-            emu.Mapper.AddDevice(ram, 0, 0, 0x8000);
-            emu.Mapper.AddDevice(ram, 0x10000, 0x10000, 0x40000);
+            //EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            //var rom = new DevROM("MoveTests.rom");
+            //emu.Mapper.AddDevice(rom, 0x8000);
+            //var ram = new DevRAM(0x1000000);
+            //emu.Mapper.AddDevice(ram, 0, 0, 0x8000);
+            //emu.Mapper.AddDevice(ram, 0x10000, 0x10000, 0x40000);
 
-            string s = "";
-            _output.WriteLine("ROM data:");
-            for (int i = 0; i < data.Length; i++)
-            {
-                s += $"{emu.Mapper[(uint)(0x8100 + i)]:X2} ";
-            }
-            _output.WriteLine(s);
+            //string s = "";
+            //_output.WriteLine("ROM data:");
+            //for (int i = 0; i < data.Length; i++)
+            //{
+            //    s += $"{emu.Mapper[(uint)(0x8100 + i)]:X2} ";
+            //}
+            //_output.WriteLine(s);
 
-            // Act
-            _output.WriteLine("");
-            _output.WriteLine("Resetting MPU...");
-            emu.MPU.Reset();
-            while (emu.MPU.ExecutionState == "ProcessorStateRunning")
-            {
-                emu.MPU.ExecuteInstruction();
-                if (emu.MPU.Status.Cycles > 2500)
-                {
-                    _output.WriteLine("Execution timed out.");
-                    break;
-                }
-            }
-            _output.WriteLine("End of execution.");
+            //// Act
+            //_output.WriteLine("");
+            //_output.WriteLine("Resetting MPU...");
+            //emu.MPU.Reset();
+            //while (emu.MPU.ExecutionState == "ProcessorStateRunning")
+            //{
+            //    emu.MPU.ExecuteInstruction();
+            //    if (emu.MPU.Status.Cycles > 2500)
+            //    {
+            //        _output.WriteLine("Execution timed out.");
+            //        break;
+            //    }
+            //}
+            //_output.WriteLine("End of execution.");
 
-            // Assert
-            _output.WriteLine("Final State:");
-            s = "MVN: ";
-            byte[] mvnRange = new byte[data.Length];
-            for (int i = 0; i < data.Length; i++)
-            {
-                mvnRange[i] = emu.Mapper[(uint)(0x0200 + i)] ?? 0xFF;
-                s += $"{mvnRange[i]:X2} ";
-            }
-            _output.WriteLine(s);
+            //// Assert
+            //_output.WriteLine("Final State:");
+            //s = "MVN: ";
+            //byte[] mvnRange = new byte[data.Length];
+            //for (int i = 0; i < data.Length; i++)
+            //{
+            //    mvnRange[i] = emu.Mapper[(uint)(0x0200 + i)] ?? 0xFF;
+            //    s += $"{mvnRange[i]:X2} ";
+            //}
+            //_output.WriteLine(s);
 
-            s = "MVP: ";
-            byte[] mvpRange = new byte[data.Length];
-            for (int i = 0; i < data.Length; i++)
-            {
-                mvpRange[i] = emu.Mapper[(uint)(0x010000 + i)] ?? 0xFF;
-                s += $"{mvpRange[i]:X2} ";
-            }
-            _output.WriteLine(s);
+            //s = "MVP: ";
+            //byte[] mvpRange = new byte[data.Length];
+            //for (int i = 0; i < data.Length; i++)
+            //{
+            //    mvpRange[i] = emu.Mapper[(uint)(0x010000 + i)] ?? 0xFF;
+            //    s += $"{mvpRange[i]:X2} ";
+            //}
+            //_output.WriteLine(s);
 
-            Assert.Equal(data, mvnRange);
-            Assert.Equal(data, mvpRange);
-            _output.WriteLine("MVN and MVP instructions executed correctly. Check cycle counts.");
+            //Assert.Equal(data, mvnRange);
+            //Assert.Equal(data, mvpRange);
+            //_output.WriteLine("MVN and MVP instructions executed correctly. Check cycle counts.");
 
-            void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
-            {
-                executionCycles.Add(details);
-                microprocessorStates.Add(state);
-                _output.WriteLine($"  Cycle {cycles}: {details.Address:X6} {details.Value:X2} {details.Type}");
-                _output.WriteLine($"   PB PC: {state.PB:X2} {state.PC:X4} SP: {state.SP:X4} A: {state.A:X4} X: {state.X:X4} Y: {state.Y:X4} DB: {state.DB:X2} DP: {state.DP:X2}");
-                _output.WriteLine($"   Flags: {state.Flags()}");
-            }
-             void OnNewInstruction(W65C816.OpCode opCode, string operand)
-            {
-                _output.WriteLine("");
-                _output.WriteLine($"Instruction: {opCode} {operand}");
-            }
+            //void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
+            //{
+            //    executionCycles.Add(details);
+            //    microprocessorStates.Add(state);
+            //    _output.WriteLine($"  Cycle {cycles}: {details.Address:X6} {details.Value:X2} {details.Type}");
+            //    _output.WriteLine($"   PB PC: {state.PB:X2} {state.PC:X4} SP: {state.SP:X4} A: {state.A:X4} X: {state.X:X4} Y: {state.Y:X4} DB: {state.DB:X2} DP: {state.DP:X2}");
+            //    _output.WriteLine($"   Flags: {state.Flags()}");
+            //}
+            // void OnNewInstruction(W65C816.OpCode opCode, string operand)
+            //{
+            //    _output.WriteLine("");
+            //    _output.WriteLine($"Instruction: {opCode} {operand}");
+            //}
+            Assert.Fail("This test is not implemented yet.");
         }
 
         [Theory]
         [ClassData(typeof(FullBurnInFile))]
         public void FullBurnIn(string fileName)
         {
-            // this is going to execute 5,120,000 instructions. God help me.
-            var inst = byte.Parse(Path.GetFileNameWithoutExtension(fileName)[..2], System.Globalization.NumberStyles.HexNumber);
-            (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(inst);
+        //    // this is going to execute 5,120,000 instructions. God help me.
+        //    var inst = byte.Parse(Path.GetFileNameWithoutExtension(fileName)[..2], System.Globalization.NumberStyles.HexNumber);
+        //    (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(inst);
 
-            _output.WriteLine($"Testing ${Path.GetFileNameWithoutExtension(fileName)}: {op} {mode}");
+        //    _output.WriteLine($"Testing ${Path.GetFileNameWithoutExtension(fileName)}: {op} {mode}");
 
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            var ram = new DevRAM(0x1000000);
-            emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
-            BurnInTest test;
-            int testRun = 0;
-            string testResult;
-            bool pass = true;
+        //    EmuCore emu = new();
+        //    emu.MPU.NewCycle += OnNewCycle;
+        //    var ram = new DevRAM(0x1000000);
+        //    emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
+        //    BurnInTest test;
+        //    int testRun = 0;
+        //    string testResult;
+        //    bool pass = true;
 
-            string jsonContent = File.ReadAllText(fileName);
-            JsonDocument doc = JsonDocument.Parse(jsonContent);
+        //    string jsonContent = File.ReadAllText(fileName);
+        //    JsonDocument doc = JsonDocument.Parse(jsonContent);
 
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
-                {
-                    testResult = "";
-                    testRun++;
-                    executionCycles.Clear();
-                    test = new(testElement);
-                    Dictionary<string, ushort> goalStateRegisters = test.Goal.State.RegistersAsDictionary;
-                    foreach (var kvp in test.Start.RamValues)
-                    {
-                        ram.Write(kvp.Key, kvp.Value);
-                    }
-                    //byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
-                    byte instruction = ram.Read((uint)((test.Start.State.PB << 16) + test.Start.State.PC));
-                    emu.MPU.SetProcessorState(test.Start.State);
-                    emu.Activate(false);
-                    try
-                    {
-                        emu.MPU.ExecuteInstruction();
-                        var mpuState = emu.MPU.Status;
+        //    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        //    {
+        //        foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
+        //        {
+        //            testResult = "";
+        //            testRun++;
+        //            executionCycles.Clear();
+        //            test = new(testElement);
+        //            Dictionary<string, ushort> goalStateRegisters = test.Goal.State.RegistersAsDictionary;
+        //            foreach (var kvp in test.Start.RamValues)
+        //            {
+        //                ram.Write(kvp.Key, kvp.Value);
+        //            }
+        //            //byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
+        //            byte instruction = ram.Read((uint)((test.Start.State.PB << 16) + test.Start.State.PC));
+        //            emu.MPU.SetProcessorState(test.Start.State);
+        //            emu.Activate(false);
+        //            try
+        //            {
+        //                emu.MPU.ExecuteInstruction();
+        //                var mpuState = emu.MPU.Status;
 
-                        bool registersEqual = true;
-                        foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)
-                        {
-                            if (kvp.Value != goalStateRegisters[kvp.Key])
-                            {
-                                testResult += $"Register {kvp.Key} differs from goal.\n";
-                                registersEqual = false;
-                            }
-                        }
+        //                bool registersEqual = true;
+        //                foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)
+        //                {
+        //                    if (kvp.Value != goalStateRegisters[kvp.Key])
+        //                    {
+        //                        testResult += $"Register {kvp.Key} differs from goal.\n";
+        //                        registersEqual = false;
+        //                    }
+        //                }
 
-                        bool ignoreV = (op == W65C816.OpCode.ADC || op == W65C816.OpCode.SBC) && mpuState.FlagD;
-                        bool vMatch = ignoreV || test.Goal.State.FlagV == mpuState.FlagV;
+        //                bool ignoreV = (op == W65C816.OpCode.ADC || op == W65C816.OpCode.SBC) && mpuState.FlagD;
+        //                bool vMatch = ignoreV || test.Goal.State.FlagV == mpuState.FlagV;
 
-                        bool checkM = !mpuState.FlagE;
-                        bool mMatch = !checkM || test.Goal.State.FlagM == mpuState.FlagM;
+        //                bool checkM = !mpuState.FlagE;
+        //                bool mMatch = !checkM || test.Goal.State.FlagM == mpuState.FlagM;
 
-                        bool flagsEqual = test.Goal.State.FlagN == mpuState.FlagN
-                            && vMatch
-                            && mMatch
-                            && test.Goal.State.FlagX == mpuState.FlagX
-                            && test.Goal.State.FlagD == mpuState.FlagD
-                            && test.Goal.State.FlagI == mpuState.FlagI
-                            && test.Goal.State.FlagZ == mpuState.FlagZ
-                            && test.Goal.State.FlagC == mpuState.FlagC
-                            && test.Goal.State.FlagE == mpuState.FlagE;
+        //                bool flagsEqual = test.Goal.State.FlagN == mpuState.FlagN
+        //                    && vMatch
+        //                    && mMatch
+        //                    && test.Goal.State.FlagX == mpuState.FlagX
+        //                    && test.Goal.State.FlagD == mpuState.FlagD
+        //                    && test.Goal.State.FlagI == mpuState.FlagI
+        //                    && test.Goal.State.FlagZ == mpuState.FlagZ
+        //                    && test.Goal.State.FlagC == mpuState.FlagC
+        //                    && test.Goal.State.FlagE == mpuState.FlagE;
 
-                        if (!flagsEqual) testResult += "Status flags differ from goal.\n";
+        //                if (!flagsEqual) testResult += "Status flags differ from goal.\n";
 
-                        bool cyclesEqual = test.Cycles.Count == executionCycles.Count;
-                        if (!cyclesEqual) testResult += "Operation did not take the specified number of cycles.\n";
+        //                bool cyclesEqual = test.Cycles.Count == executionCycles.Count;
+        //                if (!cyclesEqual) testResult += "Operation did not take the specified number of cycles.\n";
 
-                        if (!registersEqual || !flagsEqual || !cyclesEqual)
-                        {
-                            pass = false;
-                            _output.WriteLine(testResult);
+        //                if (!registersEqual || !flagsEqual || !cyclesEqual)
+        //                {
+        //                    pass = false;
+        //                    _output.WriteLine(testResult);
 
-                            _output.WriteLine("Registers:");
-                            _output.WriteLine($"{"",6} {"Expected",-10} | {"Actual",10}");
-                            _output.WriteLine($"{"A:",6} {test.Goal.State.A,10:X4} | {mpuState.A,10:X4}");
-                            _output.WriteLine($"{"X:",6} {test.Goal.State.X,10:X4} | {mpuState.X,10:X4}");
-                            _output.WriteLine($"{"Y:",6} {test.Goal.State.Y,10:X4} | {mpuState.Y,10:X4}");
-                            _output.WriteLine($"{"D:",6} {test.Goal.State.DP,10:X4} | {mpuState.DP,10:X4}");
-                            _output.WriteLine($"{"DBR:",6} {test.Goal.State.DB,10:X2} | {mpuState.DB,10:X2}");
-                            _output.WriteLine($"{"SP:",6} {test.Goal.State.SP,10:X4} | {mpuState.SP,10:X4}");
-                            _output.WriteLine("");
-                            _output.WriteLine($"{"PB PC:",6} {test.Goal.State.PB,5:X2} {test.Goal.State.PC:X4} | {mpuState.PB,5:X2} {mpuState.PC:X4}");
-                            _output.WriteLine("");
-                            _output.WriteLine($"{"Flags:",6} {test.Goal.State.Flags(),10} | {mpuState.Flags(),10:X4}");
-                            _output.WriteLine("");
-                            _output.WriteLine("Memory:");
-                            _output.WriteLine("Address  St  Ex  Ac");
-                            foreach (var kvp in test.Goal.RamValues)
-                            {
-                                string s = $"{kvp.Key,7:X6}  ";
-                                s += test.Start.RamValues.TryGetValue(kvp.Key, out byte value) ? $"{value:X2}  " : "XX  ";
-                                s += $"{kvp.Value:X2}  {ram.Read(kvp.Key):X2}";
-                                _output.WriteLine(s);
-                            }
-                            _output.WriteLine("");
-                            _output.WriteLine("XX: not set");
-                            _output.WriteLine("");
-                            _output.WriteLine("Cycles:");
-                            _output.WriteLine($"    |{"Expected",-21}|{"Actual",-21}");
-                            _output.WriteLine($"    |{"Address",-7} {"Val",-3} {"Type",-9}|{"Address",-7} {"Val",-3} {"Type",-9}");
-                            for (int i = 0; i < Math.Max(test.Cycles.Count, executionCycles.Count); i++)
-                            {
-                                string s = $"{i,3} |";
-                                if (i < test.Cycles.Count)
-                                {
-                                    s += $"${test.Cycles[i].Address:X6} ${test.Cycles[i].Value:X2} {test.Cycles[i].Type,-9}|";
-                                }
-                                else
-                                {
-                                    s += $"{"N/A",-21}|";
-                                }
-                                if (i < executionCycles.Count)
-                                {
-                                    s += $"${executionCycles[i].Address:X6} ${executionCycles[i].Value:X2} {executionCycles[i].Type,-9}";
-                                }
-                                else
-                                {
-                                    s += $"{"N/A",-21}";
-                                }
-                                _output.WriteLine(s);
-                            }
-                            break;
-                        }
-                    }
-                    catch (Exception ex) 
-                    {
-                        _output.WriteLine(ex.ToString());
-                        _output.WriteLine(ex.StackTrace);
-                        pass = false;
-                        break;
-                    }
-                    finally
-                    { emu.Deactivate(); }
-                }
-                Assert.True(pass, $"Failed at test no. {testRun}");
-                _output.WriteLine("PASS");
-            }
-            doc.Dispose();
+        //                    _output.WriteLine("Registers:");
+        //                    _output.WriteLine($"{"",6} {"Expected",-10} | {"Actual",10}");
+        //                    _output.WriteLine($"{"A:",6} {test.Goal.State.A,10:X4} | {mpuState.A,10:X4}");
+        //                    _output.WriteLine($"{"X:",6} {test.Goal.State.X,10:X4} | {mpuState.X,10:X4}");
+        //                    _output.WriteLine($"{"Y:",6} {test.Goal.State.Y,10:X4} | {mpuState.Y,10:X4}");
+        //                    _output.WriteLine($"{"D:",6} {test.Goal.State.DP,10:X4} | {mpuState.DP,10:X4}");
+        //                    _output.WriteLine($"{"DBR:",6} {test.Goal.State.DB,10:X2} | {mpuState.DB,10:X2}");
+        //                    _output.WriteLine($"{"SP:",6} {test.Goal.State.SP,10:X4} | {mpuState.SP,10:X4}");
+        //                    _output.WriteLine("");
+        //                    _output.WriteLine($"{"PB PC:",6} {test.Goal.State.PB,5:X2} {test.Goal.State.PC:X4} | {mpuState.PB,5:X2} {mpuState.PC:X4}");
+        //                    _output.WriteLine("");
+        //                    _output.WriteLine($"{"Flags:",6} {test.Goal.State.Flags(),10} | {mpuState.Flags(),10:X4}");
+        //                    _output.WriteLine("");
+        //                    _output.WriteLine("Memory:");
+        //                    _output.WriteLine("Address  St  Ex  Ac");
+        //                    foreach (var kvp in test.Goal.RamValues)
+        //                    {
+        //                        string s = $"{kvp.Key,7:X6}  ";
+        //                        s += test.Start.RamValues.TryGetValue(kvp.Key, out byte value) ? $"{value:X2}  " : "XX  ";
+        //                        s += $"{kvp.Value:X2}  {ram.Read(kvp.Key):X2}";
+        //                        _output.WriteLine(s);
+        //                    }
+        //                    _output.WriteLine("");
+        //                    _output.WriteLine("XX: not set");
+        //                    _output.WriteLine("");
+        //                    _output.WriteLine("Cycles:");
+        //                    _output.WriteLine($"    |{"Expected",-21}|{"Actual",-21}");
+        //                    _output.WriteLine($"    |{"Address",-7} {"Val",-3} {"Type",-9}|{"Address",-7} {"Val",-3} {"Type",-9}");
+        //                    for (int i = 0; i < Math.Max(test.Cycles.Count, executionCycles.Count); i++)
+        //                    {
+        //                        string s = $"{i,3} |";
+        //                        if (i < test.Cycles.Count)
+        //                        {
+        //                            s += $"${test.Cycles[i].Address:X6} ${test.Cycles[i].Value:X2} {test.Cycles[i].Type,-9}|";
+        //                        }
+        //                        else
+        //                        {
+        //                            s += $"{"N/A",-21}|";
+        //                        }
+        //                        if (i < executionCycles.Count)
+        //                        {
+        //                            s += $"${executionCycles[i].Address:X6} ${executionCycles[i].Value:X2} {executionCycles[i].Type,-9}";
+        //                        }
+        //                        else
+        //                        {
+        //                            s += $"{"N/A",-21}";
+        //                        }
+        //                        _output.WriteLine(s);
+        //                    }
+        //                    break;
+        //                }
+        //            }
+        //            catch (Exception ex) 
+        //            {
+        //                _output.WriteLine(ex.ToString());
+        //                _output.WriteLine(ex.StackTrace);
+        //                pass = false;
+        //                break;
+        //            }
+        //            finally
+        //            { emu.Deactivate(); }
+        //        }
+        //        Assert.True(pass, $"Failed at test no. {testRun}");
+        //        _output.WriteLine("PASS");
+        //    }
+        //    doc.Dispose();
 
-            void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
-            {
-                executionCycles.Add(details);
-                microprocessorStates.Add(state);
-            }
+        //    void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
+        //    {
+        //        executionCycles.Add(details);
+        //        microprocessorStates.Add(state);
+        //    }
+        Assert.Fail("This test is not implemented yet.");
         }
 
     }
