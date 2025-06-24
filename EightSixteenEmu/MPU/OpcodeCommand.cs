@@ -996,7 +996,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
-            mpu.Interrupt(InterruptType.BRK);
+            //mpu.Interrupt(InterruptType.BRK);
         }
     }
 
@@ -1006,7 +1006,7 @@ namespace EightSixteenEmu.MPU
         internal override void Execute(Microprocessor mpu)
         {
             mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
-            mpu.Interrupt(InterruptType.COP);
+            //mpu.Interrupt(InterruptType.COP);
         }
     }
 
