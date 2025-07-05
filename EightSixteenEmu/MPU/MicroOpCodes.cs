@@ -23,50 +23,162 @@ namespace EightSixteenEmu.MPU
 {
     internal abstract class MicroOpCode(MicroOpCode.OpCycleType type = MicroOpCode.OpCycleType.NoCycle)
     {
+        /// <summary>
+        /// Enumeration of all possible byte register locations in the W65C816S microprocessor.
+        /// </summary>
         internal enum RegByteLocation
         {
+            /// <summary>
+            /// Special zero pseudo-register, always returns 0 (for STZ etc).
+            /// </summary>
             Zero,
-            MD, // External D/DB Buffer
-            IAL, // Internal Address Low
-            IAH, // Internal Address High
-            IDL, // Internal Data Low
-            IDH, // Internal Data High
-            A, // lower 8 bits of the accumulator
-            B, // upper 8 bits of the accumulator
-            DBR, // Data Bank Register
-            DL, // Direct Page Low
-            DH, // Direct Page High
-            IR, // Instruction Register
-            K, // Program Bank Register
-            PCL, // Program Counter Low
-            PCH, // Program Counter High
-            P, // Processor Status Register
-            SL, // Stack Pointer Low
-            SH, // Stack Pointer High
-            XL, // Index Register X Low
-            XH, // Index Register X High
-            YL, // Index Register Y Low
-            YH, // Index Register Y High
+            /// <summary>
+            /// External D/DB Buffer, used for data transfer operations.
+            /// </summary>
+            MD,
+            /// <summary>
+            /// Low byte of the 16-bit internal address register.
+            /// </summary>
+            IAL,
+            /// <summary>
+            /// High byte of the 16-bit internal address register.
+            /// </summary>
+            IAH,
+            /// <summary>
+            /// Low byte of the 16-bit internal data register.
+            /// </summary>
+            IDL,
+            /// <summary>
+            /// High byte of the 16-bit internal data register.
+            /// </summary>
+            IDH,
+            /// <summary>
+            /// Lower 8 bits of the accumulator (C).
+            /// </summary>
+            A,
+            /// <summary>
+            /// Upper 8 bits of the accumulator (C).
+            /// </summary>
+            B,
+            /// <summary>
+            /// Data Bank Register, used to select the current data bank.
+            /// </summary>
+            DBR,
+            /// <summary>
+            /// Low byte of the 16-bit Direct Page Register.
+            /// </summary>
+            DL,
+            /// <summary>
+            /// High byte of the 16-bit Direct Page Register.
+            /// </summary>
+            DH,
+            /// <summary>
+            /// Instruction Register, holds the current instruction being executed.
+            /// </summary>
+            IR,
+            /// <summary>
+            /// Program Bank Register, used to select the current program bank.
+            /// </summary>
+            K,
+            /// <summary>
+            /// Low byte of the 16-bit Program Counter (PC).
+            /// </summary>
+            PCL,
+            /// <summary>
+            /// High byte of the 16-bit Program Counter (PC).
+            /// </summary>
+            PCH,
+            /// <summary>
+            /// Processor Status Register, holds the status flags of the processor.
+            /// </summary>
+            P,
+            /// <summary>
+            /// Low byte of the 16-bit Stack Pointer (S).
+            /// </summary>
+            SL,
+            /// <summary>
+            /// High byte of the 16-bit Stack Pointer (S).
+            /// </summary>
+            SH,
+            /// <summary>
+            /// Low byte of the 16-bit Index Register X.
+            /// </summary>
+            XL,
+            /// <summary>
+            /// High byte of the 16-bit Index Register X.
+            /// </summary>
+            XH,
+            /// <summary>
+            /// Low byte of the 16-bit Index Register Y.
+            /// </summary>
+            YL,
+            /// <summary>
+            /// High byte of the 16-bit Index Register Y.
+            /// </summary>
+            YH,
         }
-
+        /// <summary>
+        /// Enumeration of all possible word register locations in the W65C816S microprocessor.
+        /// </summary>
         internal enum RegWordLocation
         {
+            /// <summary>
+            /// Special zero pseudo-register, always returns 0 (for STZ etc).
+            /// </summary>
             Zero,
-            IA, // Internal Address (16-bit)
-            ID, // Internal Data (16-bit)
-            C, // Complete 16-bit accumulator (A | B << 8)
-            D, // Direct Page Register
-            PC, // Program Counter
-            S, // Stack Pointer
-            X, // Index Register X
-            Y, // Index Register Y
+            /// <summary>
+            /// The 16-bit internal address register.
+            /// </summary>
+            IA,
+            /// <summary>
+            /// The 16-bit internal data register.
+            /// </summary>
+            ID,
+            /// <summary>
+            /// The complete 16-bit accumulator, which is the combination of A and B registers.
+            /// </summary>
+            C,
+            /// <summary>
+            /// The 16-bit Direct Page Register, which is a pointer to the current direct page.
+            /// </summary>
+            D,
+            /// <summary>
+            /// The 16-bit Program Counter (PC), which points to the next instruction to execute.
+            /// </summary>
+            PC,
+            /// <summary>
+            /// The 16-bit Stack Pointer (S).
+            /// </summary>
+            S,
+            /// <summary>
+            /// The 16-bit Index Register X.
+            /// </summary>
+            X,
+            /// <summary>
+            /// The 16-bit Index Register Y.
+            /// </summary>
+            Y,
         }
-
+        /// <summary>
+        /// Enumeration of the types of operation cycles that can occur in the microprocessor.
+        /// </summary>
         internal enum OpCycleType
         {
+            /// <summary>
+            /// No operation cycle, used for internal operations that do not advance the cycle.
+            /// </summary>
             NoCycle, // Internal operation that does not advance the cycle
+            /// <summary>
+            /// Internal cycle, used for operations that do not require external memory access.
+            /// </summary>
             Internal, // Internal cycle, no external memory access
+            /// <summary>
+            /// Read cycle, used for external memory access to read data.
+            /// </summary>
             Read, // Read cycle, external memory access to read data
+            /// <summary>
+            /// Write cycle, used for external memory access to write data.
+            /// </summary>
             Write, // Write cycle, external memory access to write data
         }
 
@@ -247,7 +359,6 @@ namespace EightSixteenEmu.MPU
                 _ => throw new ArgumentOutOfRangeException(nameof(location), "Invalid source register location.")
             };
         }
-
         internal static void ReadByteAndAdvancePC(Microprocessor mpu, RegByteLocation destination)
         {
             mpu.ByteRead((uint)((mpu.RegPB << 16) | mpu.RegPC));
@@ -255,7 +366,9 @@ namespace EightSixteenEmu.MPU
             mpu.RegPC = (ushort)((mpu.RegPC + 1) & 0xFFFF); // Increment PC after reading
         }
     }
-
+    /// <summary>
+    /// Represents a no-operation (NOP) micro-operation code.
+    /// </summary>
     internal class MicroOpNop : MicroOpCode
     {
         internal override void Execute(Microprocessor mpu)
@@ -263,12 +376,14 @@ namespace EightSixteenEmu.MPU
             // No operation, just a placeholder
         }
     }
-    
+    /// <summary>
+    /// Marks a cycle as an internal cycle, which does not require external memory access.
+    /// </summary>
     internal class MicroOpInternalCycle : MicroOpCode
     {
         internal MicroOpInternalCycle() : base(OpCycleType.Internal)
         {
-            // This operation is used for internal cycles that do not require external memory access.
+            // This operation denotes internal cycles that do not require external memory access.
             // It does not require any parameters as it simply represents an internal operation.
         }
         internal override void Execute(Microprocessor mpu)
@@ -278,6 +393,9 @@ namespace EightSixteenEmu.MPU
     }
 
     // TODO: Change ReadByte and WriteByte in Microprocessor to only affect _regMD...
+    /// <summary>
+    /// Represents a micro-operation code that moves a byte from one register location to another.
+    /// </summary>
     internal class MicroOpMoveByte : MicroOpCode
     {
         private readonly RegByteLocation _source;
@@ -295,12 +413,15 @@ namespace EightSixteenEmu.MPU
             SetByte(mpu, value, _destination);
             if (_setNZFlags) // If set, update the N and Z flags based on the value moved
             {
-                mpu.RegSR = (Microprocessor.StatusFlags)((mpu.RegSR & ~(Microprocessor.StatusFlags.N | Microprocessor.StatusFlags.Z)) |
+                mpu.RegSR = ((mpu.RegSR & ~(Microprocessor.StatusFlags.N | Microprocessor.StatusFlags.Z)) |
                     (value == 0 ? Microprocessor.StatusFlags.Z : 0) |
                     (value >= 0x80 ? Microprocessor.StatusFlags.N : 0));
             }
         }
     }
+    /// <summary>
+    /// Represents a micro-operation code that moves a word (16 bits) from one register location to another.
+    /// </summary>
     internal class MicroOpMoveWord : MicroOpCode
     {
         private readonly RegWordLocation _source;
@@ -319,6 +440,9 @@ namespace EightSixteenEmu.MPU
         }
     }
 
+    /// <summary>
+    /// Represents a micro-operation code that sets a byte register to a specific value.
+    /// </summary>
     internal class MicroOpSetByte : MicroOpCode
     {
         private readonly byte _value;
@@ -334,6 +458,9 @@ namespace EightSixteenEmu.MPU
         }
     }
 
+    /// <summary>
+    /// Represents a micro-operation code that sets a word register to a specific value.
+    /// </summary>
     internal class MicroOpSetWord : MicroOpCode
     {
         private readonly ushort _value;
@@ -348,7 +475,12 @@ namespace EightSixteenEmu.MPU
             SetWord(mpu, _value, _destination);
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that reads a byte from a specified address and moves it to a destination register.
+    /// </summary>
+    /// <remarks>
+    /// Marks a cycle as a Read cycle.
+    /// </remarks>
     internal class MicroOpReadTo : MicroOpCode
     {
         private readonly uint _address;
@@ -366,7 +498,12 @@ namespace EightSixteenEmu.MPU
             SetByte(mpu, mpu.RegMD, _destination);
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that reads a byte from the current program counter (PC) and moves it to a destination register.
+    /// </summary>
+    /// <remarks>
+    /// Marks a cycle as a Read cycle and advances the program counter (PC) after reading.
+    /// </remarks>
     internal class MicroOpReadToAndAdvancePC : MicroOpCode
     {
         private readonly RegByteLocation _destination;
@@ -381,7 +518,12 @@ namespace EightSixteenEmu.MPU
             ReadByteAndAdvancePC(mpu, _destination);
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that writes a byte from a source register to a specified address in memory.
+    /// </summary>
+    /// <remarks>
+    /// Marks a cycle as a Write cycle.
+    /// </remarks>
     internal class MicroOpWriteFrom : MicroOpCode
     {
         private readonly uint _address;
@@ -400,7 +542,9 @@ namespace EightSixteenEmu.MPU
             mpu.ByteWrite(_address);
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that changes the status flags of the microprocessor.
+    /// </summary>
     internal class MicroOpChangeFlags : MicroOpCode
     {
         private readonly Microprocessor.StatusFlags _flagsToSet;
@@ -420,7 +564,12 @@ namespace EightSixteenEmu.MPU
             mpu.RegSR |= _flagsToSet;
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that fetches the next instruction byte and decodes it.
+    /// </summary>
+    /// <remarks>
+    /// Marks a cycle as a Read cycle and advances the program counter (PC) after reading.
+    /// </remarks>
     internal class MicroOpFetchAndDecode : MicroOpCode
     {
         internal MicroOpFetchAndDecode() : base(OpCycleType.Read)
@@ -443,7 +592,12 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that signals the completion of the current instruction execution.
+    /// </summary>
+    /// <remarks>
+    /// Not a true micro-operation, it signals the Microprocessor class to emit the instruction finished event.
+    /// </remarks>
     internal class MicroOpInstructionFinished : MicroOpCode
     {
         // This operation is used to signal that the current instruction has finished execution.

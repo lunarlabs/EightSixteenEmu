@@ -23,7 +23,7 @@ namespace EightSixteenEmu.MPU
 {
     internal abstract class OpcodeCommand
     {
-        [Obsolete("Use Enqueue instead. This method will be removed in a future version.")]
+        [Obsolete("Use Enqueue instead.", true)]
         internal abstract void Execute(Microprocessor mpu);
 
         internal virtual void Enqueue(Microprocessor mpu, AddressingModeStrategy addressing)
@@ -31,6 +31,7 @@ namespace EightSixteenEmu.MPU
             throw new NotImplementedException("Enqueue not implemented yet for " + this.GetType().Name);
         }
 
+        // TODO: make micro-op?
         internal static void BranchTo(Microprocessor mpu, uint address)
         {
             if (mpu.FlagE && (byte)(mpu.RegPC >> 8) != (byte)(address >> 8))
@@ -54,7 +55,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_ADC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort addend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -136,7 +137,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_SBC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort subtrahend = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -237,7 +238,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CMP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -260,7 +261,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CPX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
@@ -283,7 +284,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CPY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit, true);
@@ -306,7 +307,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_DEC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator)
@@ -349,7 +350,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_DEX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -366,7 +367,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_DEY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -383,7 +384,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_INC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator)
@@ -426,7 +427,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_INX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -443,7 +444,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_INY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -460,7 +461,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_AND : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -480,7 +481,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_EOR : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -499,7 +500,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_ORA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -518,7 +519,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BIT : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -545,7 +546,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TRB : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
@@ -566,7 +567,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TSB : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, out uint address, mpu.AccumulatorIs8Bit);
@@ -582,7 +583,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_ASL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator)
@@ -623,7 +624,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_LSR : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.CurrentAddressingMode == W65C816.AddressingMode.Accumulator)
@@ -664,7 +665,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_ROL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint operand;
@@ -707,7 +708,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_ROR : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand;
@@ -753,7 +754,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BCC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -767,7 +768,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BCS : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -781,7 +782,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BEQ : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -795,7 +796,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BMI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -809,7 +810,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BNE : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -823,7 +824,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BPL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -837,7 +838,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BRA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             BranchTo(mpu, mpu.AddressingMode.GetAddress(mpu));
@@ -847,7 +848,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BVC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -861,7 +862,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BVS : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -875,7 +876,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BRL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegPC = (ushort)mpu.AddressingMode.GetAddress(mpu);
@@ -885,7 +886,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_JMP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -900,7 +901,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_JSL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             // wtf? In the SingleStepTests the order seems to be: read lower 16 bits, push PB, read bank address, push PC?!
@@ -926,7 +927,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_JSR : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint destination = mpu.AddressingMode.GetAddress(mpu);
@@ -938,7 +939,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_RTS : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -950,7 +951,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_RTL : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -964,7 +965,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_RTI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             bool bFlag = mpu.ReadStatusFlag(StatusFlags.X);
@@ -992,7 +993,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_BRK : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
@@ -1002,7 +1003,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_COP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.ReadByte(); // Read the next byte to skip over the "signature" byte
@@ -1012,7 +1013,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CLC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.C, false);
@@ -1022,7 +1023,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CLD : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.D, false);
@@ -1032,7 +1033,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CLI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.I, false);
@@ -1042,7 +1043,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_CLV : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.V, false);
@@ -1052,7 +1053,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_SEC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.C, true);
@@ -1062,7 +1063,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_SED : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.D, true);
@@ -1072,7 +1073,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_SEI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.SetStatusFlag(StatusFlags.I, true);
@@ -1082,7 +1083,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_REP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             byte operand = (byte)mpu.AddressingMode.GetOperand(mpu, true);
@@ -1098,7 +1099,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_SEP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             byte operand = (byte)mpu.AddressingMode.GetOperand(mpu, true);
@@ -1119,7 +1120,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_LDA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -1139,7 +1140,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_LDX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
@@ -1159,7 +1160,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_LDY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.IndexesAre8Bit);
@@ -1179,7 +1180,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_STA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint address = mpu.AddressingMode.GetAddress(mpu);
@@ -1196,7 +1197,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_STX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint address = mpu.AddressingMode.GetAddress(mpu);
@@ -1213,7 +1214,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_STY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint address = mpu.AddressingMode.GetAddress(mpu);
@@ -1230,7 +1231,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_STZ : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             uint address = mpu.AddressingMode.GetAddress(mpu);
@@ -1247,7 +1248,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_MVN : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -1267,7 +1268,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_MVP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = mpu.AddressingMode.GetOperand(mpu, mpu.AccumulatorIs8Bit);
@@ -1287,7 +1288,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_NOP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1296,7 +1297,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_WDM : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegPC++;
@@ -1306,7 +1307,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PEA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.PushWord(mpu.AddressingMode.GetOperand(mpu, false));
@@ -1315,7 +1316,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PEI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.PushWord(mpu.AddressingMode.GetOperand(mpu, false));
@@ -1324,7 +1325,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PER : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             ushort operand = (ushort)mpu.AddressingMode.GetAddress(mpu);
@@ -1335,7 +1336,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1352,7 +1353,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1369,7 +1370,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1386,7 +1387,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1407,7 +1408,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1428,7 +1429,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1449,7 +1450,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHB : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1459,7 +1460,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHD : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1469,7 +1470,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHK : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1479,7 +1480,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PHP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1489,7 +1490,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLB : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1502,7 +1503,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLD : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1515,7 +1516,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_PLP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1539,7 +1540,7 @@ namespace EightSixteenEmu.MPU
     // TODO: We need to figure out how to handle the microprocessor state in Microprocessor.cs before we implement these
     internal class OP_STP : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1550,7 +1551,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_WAI : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.InternalCycle();
@@ -1561,7 +1562,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TAX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -1580,7 +1581,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TAY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -1599,7 +1600,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TSX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.FlagE || mpu.IndexesAre8Bit)
@@ -1618,7 +1619,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TXA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.AccumulatorIs8Bit)
@@ -1637,7 +1638,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TXS : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.FlagE)
@@ -1655,7 +1656,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TXY : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -1674,7 +1675,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TYA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.AccumulatorIs8Bit)
@@ -1693,7 +1694,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TYX : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.IndexesAre8Bit)
@@ -1712,7 +1713,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TCD : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegDP = mpu.RegA;
@@ -1723,7 +1724,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TCS : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             if (mpu.FlagE)
@@ -1740,7 +1741,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TDC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegA = mpu.RegDP;
@@ -1751,7 +1752,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_TSC : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             mpu.RegA = mpu.RegSP;
@@ -1762,7 +1763,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_XBA : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             byte temp = mpu.RegAL;
@@ -1776,7 +1777,7 @@ namespace EightSixteenEmu.MPU
 
     internal class OP_XCE : OpcodeCommand
     {
-        [Obsolete]
+        [Obsolete("Use Enqueue instead.", true)]
         internal override void Execute(Microprocessor mpu)
         {
             bool carry = mpu.ReadStatusFlag(StatusFlags.C);

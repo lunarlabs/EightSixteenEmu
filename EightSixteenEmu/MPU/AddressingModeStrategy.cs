@@ -17,18 +17,24 @@
 
 namespace EightSixteenEmu.MPU
 {
+    // Note to self: In the datasheet, the columns for VPB, MLB, VDA, and VPA are based on thier hardware high/low values.
+    // VPB and MLB are *active low* -- remember this if this is ever going to be implemented in the emulator. (SNES?)
+    // also, numbers marked with "a" in the cycle number column means the cycle only happens if the data is 16 bit, not 8 bit.
+    // check the opcode documentation for more details.
+
     // WARN: When using one of these in an opcode command, only use GetAddress or GetOperand, not both.
     // Otherwise, you'll cause the addressing mode to run again, and you'll mess up the program counter.
 
     // INFO: In most cases, using QueueAddress will put the calculated address in InternalAddress.
     internal abstract class AddressingModeStrategy
     {
-        [Obsolete("Use QueueAddress instead. This method will be removed in a future version.")]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal virtual uint GetAddress(Microprocessor mpu) => throw new InvalidOperationException("This addressing mode does not support GetAddress.");
-        [Obsolete("Use QueueOperand instead. This method will be removed in a future version.")]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal virtual ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => isByte ? mpu.ReadByte(GetAddress(mpu)) : mpu.ReadWord(GetAddress(mpu), wrap);
         internal virtual void QueueAddress(Microprocessor mpu) => throw new InvalidOperationException("This addressing mode does not support QueueAddress.");
         internal virtual void QueueOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support QueueOperand.");
+        [Obsolete("Use QueueOperand instead.", true)]
         internal ushort GetOperand(Microprocessor mpu, out uint fetchedAddress, bool isByte = true, bool wrap = false)
         {
             fetchedAddress = GetAddress(mpu);
@@ -46,7 +52,7 @@ namespace EightSixteenEmu.MPU
 
         internal static uint CalculateDirectAddress(Microprocessor mpu, byte offset, ushort register = 0)
         {
-            if (mpu.RegDL != 0x00) mpu.InternalCycle();
+            if (mpu.RegDL != 0x00) mpu.EnqueueMicroOp(new MicroOpInternalCycle());
             if (mpu.FlagE && mpu.RegDL == 0x00)
             {
                 return FullAddress(0, mpu.RegDH, (byte)(offset + (byte)register));
@@ -62,7 +68,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_Immediate : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             ushort result = isByte ? mpu.ReadByte() : mpu.ReadWord();
@@ -81,50 +87,55 @@ namespace EightSixteenEmu.MPU
     internal class AM_Accumulator : AddressingModeStrategy
     {
 
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             mpu.InternalCycle();
             return isByte ? mpu.RegAL : mpu.RegA;
         }
+        internal override void QueueOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
+        {
+            if (isByte) mpu.EnqueueMicroOp(new MicroOpMoveByte(MicroOpCode.RegByteLocation.A, MicroOpCode.RegByteLocation.IDL));
+            else mpu.EnqueueMicroOp(new MicroOpMoveWord(MicroOpCode.RegWordLocation.C, MicroOpCode.RegWordLocation.ID));
+        }
     }
 
     internal class AM_ProgramCounterRelative : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             sbyte offset = (sbyte)mpu.ReadByte();
             return FullAddress(mpu.RegPB, mpu.RegPC + offset);
         }
 
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_ProgramCounterRelativeLong : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort offset = mpu.ReadWord();
             return FullAddress(mpu.RegPB, mpu.RegPC + offset);
         }
 
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_Implied : AddressingModeStrategy
     {
         // this also covers the "stack" addressing mode used by PLA, PLP, etc.
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
 
     internal class AM_Direct : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -135,7 +146,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedX : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -146,7 +157,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedY : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -159,7 +170,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndirect : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -170,7 +181,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndexedIndirect : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -182,7 +193,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_DirectIndirectIndexed : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -196,7 +207,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_DirectIndirectLong : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -206,7 +217,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_DirectIndirectLongIndexedY : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -216,7 +227,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_Absolute : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
@@ -225,7 +236,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteIndexedX : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
@@ -247,7 +258,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_AbsoluteIndexedY : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
@@ -267,7 +278,7 @@ namespace EightSixteenEmu.MPU
 
     internal class AM_AbsoluteLong : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             uint address = mpu.ReadAddr();
@@ -276,7 +287,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteLongIndexedX : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             uint address = mpu.ReadAddr();
@@ -285,7 +296,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_StackRelative : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -295,7 +306,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_StackRelativeIndirectIndexedY : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             byte offset = mpu.ReadByte();
@@ -308,7 +319,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteIndirect : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
@@ -320,7 +331,7 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteIndirectLong : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
@@ -332,19 +343,19 @@ namespace EightSixteenEmu.MPU
     }
     internal class AM_AbsoluteIndexedIndirect : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueAddress instead.", true)]
         internal override uint GetAddress(Microprocessor mpu)
         {
             ushort address = mpu.ReadWord();
             return FullAddress(mpu.RegPB, mpu.ReadWord(FullAddress(mpu.RegPB, address + mpu.RegX), true));
         }
 
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false) => throw new InvalidOperationException("This addressing mode does not support GetOperand.");
     }
     internal class AM_BlockMove : AddressingModeStrategy
     {
-        [Obsolete]
+        [Obsolete("Use QueueOperand instead.", true)]
         internal override ushort GetOperand(Microprocessor mpu, bool isByte = true, bool wrap = false)
         {
             byte source = mpu.ReadByte();

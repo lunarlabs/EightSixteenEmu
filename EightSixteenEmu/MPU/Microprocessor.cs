@@ -618,7 +618,7 @@ namespace EightSixteenEmu.MPU
         }
 
 
-        [Obsolete("Will not be used in new queue-based system, which will handle cycles automatically.")]
+        [Obsolete("Will not be used in new queue-based system, which will handle cycles automatically.", true)]
         internal void InternalCycle()
         {
             OnCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);
@@ -652,12 +652,8 @@ namespace EightSixteenEmu.MPU
                     {
                         // no current operation, fetch the next
                         LastInstructionAddress = _regPC;
+
                         _microOps.Enqueue(new MicroOpFetchAndDecode());
-                        if ((CurrentOpCode != null) && (CurrentAddressingMode != null))
-                        {
-                            OnNewInstruction(CurrentOpCode ?? OpCode.NOP, AddressModeNotation(CurrentAddressingMode ?? W65C816.AddressingMode.Implied));
-                        }
-                        else throw new Exception("Null opcode or addressing mode (bug in MicroOpFetchAndDecode?)");
                     }
                 }
                 // Abort's not going to be implemented in the forseeable future, so we'll just ignore it for now.
@@ -1032,6 +1028,20 @@ namespace EightSixteenEmu.MPU
         {
             // the instruction byte should already be in RegIR
             (CurrentOpCode, CurrentAddressingMode) = OpCodeLookup(RegIR);
+            if (CurrentOpCode == null)
+            {
+                throw new InvalidOperationException($"Invalid opcode {RegIR:X2} at address {_longPC:X6}");
+            }
+            else if (CurrentAddressingMode == null)
+            {
+                throw new InvalidOperationException($"Invalid addressing mode for opcode {CurrentOpCode} at address {_longPC:X6}");
+            }
+            else 
+            {
+                // if we're here, we know CurrentOpCode and CurrentAddressingMode are not null.
+                // we just have to provide "if null" values to please the compiler.
+                OnNewInstruction(CurrentOpCode?? OpCode.NOP, AddressModeNotation(CurrentAddressingMode ?? W65C816.AddressingMode.Implied)); 
+            }
         }
 
         internal void ClearInstruction()
