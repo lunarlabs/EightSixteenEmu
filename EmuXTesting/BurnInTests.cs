@@ -509,22 +509,36 @@ namespace EmuXTesting
                         if (element[0].ValueKind == JsonValueKind.Number)
                         {
                             cycle.Address = element[0].GetUInt32();
-                            if (element[1].ValueKind == JsonValueKind.Null)
+                            string outputsString = element[2].GetString() ?? "---remx-";
+                            if (outputsString.Length < 4)
                             {
-                                cycle.Type = Microprocessor.CycleType.Internal;
-                                cycle.Value = 0x00;
+                                throw new JsonException("Cycle type string is too short.");
                             }
-                            else
+                            bool vdaActive = outputsString[0] == 'd';
+                            bool vpaActive = outputsString[1] == 'p';
+                            bool vpbActive = outputsString[2] == 'v';
+                            if (vdaActive || vpaActive || vpbActive)
                             {
-                                cycle.Value = element[1].GetByte();
-                                cycle.Type = element[2].GetString()[3] switch
+                                // we have a memory access cycle, what type?
+                                cycle.Type = outputsString[3] switch
                                 {
                                     'r' => Microprocessor.CycleType.Read,
                                     'w' => Microprocessor.CycleType.Write,
-                                    _ => throw new JsonException(),
+                                    _ => throw new JsonException("Invalid outputs string in test json"),
                                 };
+                                if (element[1].ValueKind == JsonValueKind.Null)
+                                {
+                                    throw new JsonException("Cycle value is null, but type is not Internal.");
+                                }
+                                else cycle.Value = element[1].GetByte();
                             }
-                            Cycles.Add(cycle);
+                            else
+                            {
+                                // no memory access, so we don't care about the data bus
+                                cycle.Type = Microprocessor.CycleType.Internal;
+                                cycle.Value = 0; // no data bus value
+                            }
+                                Cycles.Add(cycle);
                         }
                         //else
                         //{
