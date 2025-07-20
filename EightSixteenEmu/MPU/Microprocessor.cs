@@ -696,6 +696,18 @@ namespace EightSixteenEmu.MPU
             }
         }
 
+        internal void DiscardInternalCycle()
+        {
+            if(_microOps.Peek().CycleType == OpCycleType.Internal)
+            {
+                _microOps.Dequeue(); // remove the internal cycle micro-operation
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot discard non-internal cycle.");
+            }
+        }
+
         internal void EnqueueInterrupt(InterruptType type)
         {
 
@@ -805,11 +817,12 @@ namespace EightSixteenEmu.MPU
             _core.Mapper[address] = _regMD;
         }
 
-        internal void EnqueueWordRead(RegWordLocation destination, Addr address)
+        internal void EnqueueWordRead(RegWordLocation destination, Addr address, bool wrapping = false)
         {
+            Addr highAddress = wrapping ? Address(BankOf(address), (Word)(address + 1)) : address + 1;
             (RegByteLocation high, RegByteLocation low) = ByteLocationsFromWordLocations(destination);
             EnqueueMicroOp(new MicroOpReadTo(address, low));
-            EnqueueMicroOp(new MicroOpReadTo(address + 1, high));
+            EnqueueMicroOp(new MicroOpReadTo(highAddress, high));
         }
 
         internal void EnqueueWordRead(RegWordLocation destination)

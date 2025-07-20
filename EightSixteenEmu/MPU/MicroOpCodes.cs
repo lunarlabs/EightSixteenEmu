@@ -607,7 +607,9 @@ namespace EightSixteenEmu.MPU
             mpu.ClearInstruction();
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical AND operation on two byte registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicAndByte : MicroOpCode
     {
         private readonly RegByteLocation _src1;
@@ -635,7 +637,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical AND operation on two word registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicAndWord : MicroOpCode
     {
         private readonly RegWordLocation _src1;
@@ -663,7 +667,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical OR operation on two byte registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicOrByte : MicroOpCode
     {
         private readonly RegByteLocation _src1;
@@ -691,7 +697,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical OR operation on two word registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicOrWord : MicroOpCode
     {
         private readonly RegWordLocation _src1;
@@ -719,7 +727,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical XOR operation on two byte registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicXorByte : MicroOpCode
     {
         private readonly RegByteLocation _src1;
@@ -747,7 +757,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that performs a logical XOR operation on two word registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpLogicXorWord : MicroOpCode
     {
         private readonly RegWordLocation _src1;
@@ -775,7 +787,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that adds two byte registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpAddByte : MicroOpCode
     {
         private readonly RegByteLocation _src1;
@@ -843,7 +857,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that adds two word registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpAddWord : MicroOpCode
     {
         private readonly RegWordLocation _src1;
@@ -912,7 +928,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that subtracts two byte registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpSubtractByte : MicroOpCode
     {
         private readonly RegByteLocation _src1;
@@ -1008,7 +1026,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that subtracts two word registers and stores the result in a destination register.
+    /// </summary>
     internal class MicroOpSubtractWord : MicroOpCode
     {
         private readonly RegWordLocation _src1;
@@ -1102,7 +1122,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that increments a byte register by 1 and optionally sets the N and Z flags based on the result.
+    /// </summary>
     internal class MicroOpIncrementByte : MicroOpCode
     {
         private readonly RegByteLocation _location;
@@ -1125,7 +1147,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that increments a word register by 1 and optionally sets the N and Z flags based on the result.
+    /// </summary>
     internal class MicroOpIncrementWord : MicroOpCode
     {
         private readonly RegWordLocation _location;
@@ -1148,7 +1172,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that decrements a byte register by 1 and optionally sets the N and Z flags based on the result.
+    /// </summary>
     internal class MicroOpDecrementByte : MicroOpCode
     {
         private readonly RegByteLocation _location;
@@ -1171,7 +1197,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that decrements a word register by 1 and optionally sets the N and Z flags based on the result.
+    /// </summary>
     internal class MicroOpDecrementWord : MicroOpCode
     {
         private readonly RegWordLocation _location;
@@ -1194,7 +1222,9 @@ namespace EightSixteenEmu.MPU
             }
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that pushes a byte from a source register onto the stack.
+    /// </summary>
     internal class MicroOpPushByteFrom : MicroOpCode
     {
         private readonly RegByteLocation _source;
@@ -1213,7 +1243,9 @@ namespace EightSixteenEmu.MPU
             mpu.RegSP = (ushort)((mpu.RegSP - 1) & 0xFFFF); // Decrement SP after writing
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that pulls a byte from the stack and stores it in a specified destination register.
+    /// </summary>
     internal class MicroOpPullByteTo : MicroOpCode
     {
         private readonly RegByteLocation _destination;
@@ -1230,7 +1262,9 @@ namespace EightSixteenEmu.MPU
             SetByte(mpu, mpu.RegMD, _destination); // Move the value to the destination register
         }
     }
-
+    /// <summary>
+    /// Represents a micro-operation code that resets registers to enter emulation mode.
+    /// </summary>
     internal class MicroOpResetRegistersForEmulation : MicroOpCode
     {
         internal override void Execute(Microprocessor mpu)
