@@ -52,11 +52,35 @@
             private ushort _internalAddress; // internal address register for some operations
             private byte _dataBus; // last value read from or written to memory
 
+            private byte RegAL { get => (byte)(_regA & 0x00FF); set => _regA = (ushort)((_regA & 0xFF00) | value); }
+            private byte RegAH { get => (byte)(_regA >> 8); set => _regA = (ushort)((_regA & 0x00FF) | (value << 8)); }
+            private byte RegXL { get => (byte)(_regX & 0x00FF); set => _regX = (ushort)((_regX & 0xFF00) | value); }
+            private byte RegXH { get => (byte)(_regX >> 8); set => _regX = (ushort)((_regX & 0x00FF) | (value << 8)); }
+            private byte RegYL { get => (byte)(_regY & 0x00FF); set => _regY = (ushort)((_regY & 0xFF00) | value); }
+            private byte RegYH { get => (byte)(_regY >> 8); set => _regY = (ushort)((_regY & 0x00FF) | (value << 8)); }
+            private byte RegDL { get => (byte)(_regDP & 0x00FF); set => _regDP = (ushort)((_regDP & 0xFF00) | value); }
+            private byte RegDH { get => (byte)(_regDP >> 8); set => _regDP = (ushort)((_regDP & 0x00FF) | (value << 8)); }
+            private byte RegSL { get => (byte)(_regSP & 0x00FF); set => _regSP = (ushort)((_regSP & 0xFF00) | value); }
+            private byte RegSH { get => (byte)(_regSP >> 8); set => _regSP = (ushort)((_regSP & 0x00FF) | (value << 8)); }
+            private byte RegPCL { get => (byte)(_regPC & 0x00FF); set => _regPC = (ushort)((_regPC & 0xFF00) | value); }
+            private byte RegPCH { get => (byte)(_regPC >> 8); set => _regPC = (ushort)((_regPC & 0x00FF) | (value << 8)); }
+            private byte RegIDL { get => (byte)(_internalData & 0x00FF); set => _internalData = (ushort)((_internalData & 0xFF00) | value); }
+            private byte RegIDH { get => (byte)(_internalData >> 8); set => _internalData = (ushort)((_internalData & 0x00FF) | (value << 8)); }
+            private byte RegIAL { get => (byte)(_internalAddress & 0x00FF); set => _internalAddress = (ushort)((_internalAddress & 0xFF00) | value); }
+            private byte RegIAH { get => (byte)(_internalAddress >> 8); set => _internalAddress = (ushort)((_internalAddress & 0x00FF) | (value << 8)); }
+
             private W65C816.AddressingMode? currentAddressingMode = null;
             private W65C816.OpCode? currentOpCode = null;
 
             private readonly Queue<Cycle> _cycleQueue = new Queue<Cycle>();
 
+            private void EnqueueMultiple(List<Cycle> cycles)
+            {
+                foreach (var cycle in cycles)
+                {
+                    _cycleQueue.Enqueue(cycle);
+                }
+            }
             class Cycle
             {
                 public enum CycleType
