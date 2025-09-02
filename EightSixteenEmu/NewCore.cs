@@ -71,6 +71,45 @@
 
             private W65C816.AddressingMode? currentAddressingMode = null;
             private W65C816.OpCode? currentOpCode = null;
+            private ClockState _clockState = ClockState.Running;
+
+            internal enum ClockState
+            {
+                Running,
+                Stopped,
+                Waiting,
+            }
+
+            internal enum RegisterType
+            {
+                RegA,
+                RegAH,
+                RegAL,
+                RegX,
+                RegXH,
+                RegXL,
+                RegY,
+                RegYH,
+                RegYL,
+                RegDP,
+                RegDL,
+                RegDH,
+                RegSP,
+                RegSL,
+                RegSH,
+                RegDB,
+                RegPB,
+                RegPC,
+                RegPCH,
+                RegPCL,
+                RegID,
+                RegIDH,
+                RegIDL,
+                RegIA,
+                RegIAH,
+                RegIAL,
+                DataBus,
+            }
 
             private readonly Queue<Cycle> _cycleQueue = new Queue<Cycle>();
 
@@ -92,8 +131,8 @@
                 private CycleType Type { get; }
                 private Processor Processor { get; }
                 private uint? Address { get; }
-                List<Action> MicroOps { get; } = new List<Action>();
-                public Cycle(Processor proc, CycleType type, List<Action> actions, uint? address = null)
+                List<IMicroOp> MicroOps { get; } = new List<IMicroOp>();
+                public Cycle(Processor proc, CycleType type, List<IMicroOp> actions, uint? address = null)
                 {
                     if (Type != CycleType.Internal && address == null)
                     {
@@ -115,7 +154,7 @@
                     }
                     foreach (var microOp in MicroOps)
                     {
-                        microOp();
+                        microOp.Execute(proc: Processor);
                     }
                     if (Type == CycleType.Write)
                     {
@@ -124,6 +163,11 @@
 #pragma warning restore CS8629 // Nullable value type may be null.
                     }
                 }
+            }
+
+            private interface IMicroOp
+            {
+                void Execute(Processor proc);
             }
         }
     }
