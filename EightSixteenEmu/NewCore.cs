@@ -1,10 +1,43 @@
-﻿namespace EightSixteenEmu
+﻿using static EightSixteenEmu.MPU.Microprocessor;
+
+namespace EightSixteenEmu
 {
     public partial class NewCore
     {
         private readonly Processor mpu;
         private readonly MemoryMapping.MemoryMapper mapper;
 
+        private bool _enabled = true;
+
+        public bool Enabled
+        {
+            get => _enabled;
+            set => _enabled = value;
+        }
+
+        public MemoryMapping.MemoryMapper Mapper => mapper;
+
+        public void SetProcessorState(ProcessorState state)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ProcessorState GetProcessorState()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CycleStep()
+        {
+            throw new NotImplementedException();
+        }
+
+        public NewCore(MemoryMapping.MemoryMapper? memoryMapper = null)
+        {
+            memoryMapper ??= new MemoryMapping.MemoryMapper();
+            mapper = memoryMapper;
+            mpu = new Processor(this);
+        }
 
         partial class Processor(NewCore core)
         {
@@ -69,6 +102,11 @@
             private byte RegIAL { get => (byte)(_internalAddress & 0x00FF); set => _internalAddress = (ushort)((_internalAddress & 0xFF00) | value); }
             private byte RegIAH { get => (byte)(_internalAddress >> 8); set => _internalAddress = (ushort)((_internalAddress & 0x00FF) | (value << 8)); }
 
+            private bool _resetSignal = true;
+            private bool _resetting = false;
+            private bool _nmiPending = false;
+            private bool _busReady = true;
+
             private W65C816.AddressingMode? currentAddressingMode = null;
             private W65C816.OpCode? currentOpCode = null;
             private ClockState _clockState = ClockState.Running;
@@ -120,6 +158,30 @@
                     _cycleQueue.Enqueue(cycle);
                 }
             }
+
+            private void OnClockTick()
+            {
+                if (_resetSignal)
+                {
+                    if (!_resetting)
+                    {
+                        _resetting = true;
+                        _clockState = ClockState.Running;
+                        _regDP = 0;
+                        _regDB = 0;
+                        _regPB = 0;
+                        RegSH = 0x01;
+                        RegXH = 0x00;
+                        RegYH = 0x00;
+                        SetFlag(StatusFlags.M | StatusFlags.X | StatusFlags.I, true);
+                        SetFlag(StatusFlags.D, false);
+                        _flagE = true;
+                        _cycleQueue.Clear();
+                        EnqueueMultiple(VectorJump(this, W65C816.Vector.Reset));
+                    }
+                }
+            }
+
             class Cycle
             {
                 public enum CycleType
@@ -168,6 +230,26 @@
             private interface IMicroOp
             {
                 void Execute(Processor proc);
+            }
+
+        }
+
+        public struct ProcessorState
+        {
+            public ushort A;
+            public ushort X;
+            public ushort Y;
+            public ushort DP;
+            public ushort SP;
+            public byte DB;
+            public byte PB;
+            public ushort PC;
+            public byte SR;
+            public bool E;
+
+            public override string ToString()
+            {
+                return $"A:{A:X4} X:{X:X4} Y:{Y:X4} DP:{DP:X4} SP:{SP:X4} DB:{DB:X2} PB:{PB:X2} PC:{PC:X4} SR:{SR:X2} E:{E}";
             }
         }
     }

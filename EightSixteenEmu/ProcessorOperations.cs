@@ -18,7 +18,7 @@
                         new Cycle(
                             proc,
                             Cycle.CycleType.Internal,
-                            new List<IMicroOp> {},
+                            [],
                             null
                         )
                     ],
