@@ -618,7 +618,6 @@ namespace EightSixteenEmu.MPU
         }
 
 
-        [Obsolete("Will not be used in new queue-based system, which will handle cycles automatically.", true)]
         internal void InternalCycle()
         {
             OnCycle(_cycles, new Cycle(CycleType.Internal, _lastAddress), Status);

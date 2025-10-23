@@ -27,7 +27,12 @@ namespace EightSixteenEmu
             throw new NotImplementedException();
         }
 
-        public void CycleStep()
+        public void Reset()
+        {
+            throw new NotImplementedException();
+        }   
+
+        public Cycle CycleStep()
         {
             throw new NotImplementedException();
         }
@@ -251,6 +256,27 @@ namespace EightSixteenEmu
             {
                 return $"A:{A:X4} X:{X:X4} Y:{Y:X4} DP:{DP:X4} SP:{SP:X4} DB:{DB:X2} PB:{PB:X2} PC:{PC:X4} SR:{SR:X2} E:{E}";
             }
+        }
+
+        public struct Cycle
+        {
+            public enum CycleType
+            {
+                Internal,
+                Read,
+                Write,
+            }
+            public enum ClockState
+            {
+                Running,
+                Stopped,
+                Waiting,
+            }
+            public int CycleCount;
+            public CycleType Type;
+            public uint AddressBus;
+            public byte DataBus;
+
         }
     }
 }

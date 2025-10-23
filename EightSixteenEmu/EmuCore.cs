@@ -14,6 +14,7 @@ using EightSixteenEmu.MPU;
 
 namespace EightSixteenEmu
 {
+    [Obsolete]
     public class EmuCore
     {
 

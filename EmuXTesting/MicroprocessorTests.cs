@@ -52,30 +52,30 @@ namespace EmuXTesting
              */
 
             // Arrange
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            emu.MPU.NewInstruction += OnNewInstruction;
-            var ram = new DevRAM(0x8000);
-            emu.Mapper.AddDevice(ram, 0x0000);
-            var rom = new DevROM(romFilePrefix + ".rom");
-            emu.Mapper.AddDevice(rom, 0x8000);
+            //EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            //var ram = new DevRAM(0x8000);
+            //emu.Mapper.AddDevice(ram, 0x0000);
+            //var rom = new DevROM(romFilePrefix + ".rom");
+            //emu.Mapper.AddDevice(rom, 0x8000);
 
-            Microprocessor.MicroprocessorState startState = new()
-            {
-                PB = 0x0b,
-                PC = 0xbabe,
-                A = 0xcafe,
-                X = 0xdead,
-                Y = 0xbeef,
-                DB = 0xec,
-                DP = 0xd00d,
-                SP = 0xecc0,
-                FlagC = true,
-                FlagD = true,
-                FlagV = true
-            };
-            emu.MPU.SetProcessorState(startState);
-            _output.WriteLine($"Start state: {emu.MPU.Status}");
+            //Microprocessor.MicroprocessorState startState = new()
+            //{
+            //    PB = 0x0b,
+            //    PC = 0xbabe,
+            //    A = 0xcafe,
+            //    X = 0xdead,
+            //    Y = 0xbeef,
+            //    DB = 0xec,
+            //    DP = 0xd00d,
+            //    SP = 0xecc0,
+            //    FlagC = true,
+            //    FlagD = true,
+            //    FlagV = true
+            //};
+            //emu.MPU.SetProcessorState(startState);
+            //_output.WriteLine($"Start state: {emu.MPU.Status}");
 
             // Act
             //emu.Activate(false);
@@ -96,7 +96,7 @@ namespace EmuXTesting
             //Assert.True(mpuState.FlagI);
             //Assert.True(mpuState.FlagE);
             //Assert.False(mpuState.FlagD);
-            Assert.Fail("New interrupt methods not yet implemented");
+            Assert.Fail("You didn't code this test yet, dipthong!");
         }
 
         /* As for the other hardware interrupts, their mechanics are quite like the COP and BRK instructions, so much so
@@ -133,16 +133,16 @@ namespace EmuXTesting
         public void NativeNMI_ShouldJumpProperly()
         {
             // Arrange
-            const ushort expectedA = 0xbeef;
-            var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
-            ushort expectedPC = (ushort)labels["nativenmi"];
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            emu.MPU.NewInstruction += OnNewInstruction;
-            var ram = new DevRAM(0x8000);
-            emu.Mapper.AddDevice(ram, 0x0000);
-            var rom = new DevROM(romFilePrefix + ".rom");
-            emu.Mapper.AddDevice(rom, 0x8000);
+            //const ushort expectedA = 0xbeef;
+            //var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
+            //ushort expectedPC = (ushort)labels["nativenmi"];
+            //EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            //var ram = new DevRAM(0x8000);
+            //emu.Mapper.AddDevice(ram, 0x0000);
+            //var rom = new DevROM(romFilePrefix + ".rom");
+            //emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
             //emu.Activate();
@@ -165,7 +165,7 @@ namespace EmuXTesting
             //Assert.Equal(goalNativeStackPointer, emu.MPU.Status.SP);
             //Assert.True(emu.MPU.Status.FlagI);
             //Assert.False(emu.MPU.Status.FlagD);
-            Assert.Fail("New interrupt methods not yet implemented");
+            Assert.Fail("You didn't code this test yet, dipthong!");
 
         }
 
@@ -173,17 +173,17 @@ namespace EmuXTesting
         public void EmulatedNMI_ShouldJumpProperly()
         {
             // Arrange
-            const ushort expectedA = 0x00d0;
-            var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
-            ushort expectedPC = (ushort)labels["emunmi"];
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            emu.MPU.NewInstruction += OnNewInstruction;
-            var ram = new DevRAM(0x8000);
-            ram.Write(0x0000, 0x80); // set emulation mode
-            emu.Mapper.AddDevice(ram, 0x0000);
-            var rom = new DevROM(romFilePrefix + ".rom");
-            emu.Mapper.AddDevice(rom, 0x8000);
+            //const ushort expectedA = 0x00d0;
+            //var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
+            //ushort expectedPC = (ushort)labels["emunmi"];
+            //EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            //var ram = new DevRAM(0x8000);
+            //ram.Write(0x0000, 0x80); // set emulation mode
+            //emu.Mapper.AddDevice(ram, 0x0000);
+            //var rom = new DevROM(romFilePrefix + ".rom");
+            //emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
             //emu.Activate();
@@ -207,7 +207,7 @@ namespace EmuXTesting
             //Assert.Equal(goalEmulatedStackPointer, emu.MPU.Status.SP);
             //Assert.True(emu.MPU.Status.FlagI);
             //Assert.False(emu.MPU.Status.FlagD);
-            Assert.Fail("New interrupt methods not yet implemented");
+            Assert.Fail("You didn't code this test yet, dipthong!");
         }
 
         [Theory]
@@ -221,45 +221,45 @@ namespace EmuXTesting
         [InlineData(true, true, true)]
         public void IRQ_ShouldBehaveProperly(bool emulated, bool interruptsDisabled, bool isWaiting)
         {
-            ushort expectedA;
-            ushort expectedY;
-            ushort expectedSP;
-            ushort expectedPC;
-            //Arrange
-            var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
-            byte signature = (byte)((emulated ? (byte)0x80 : (byte)0x00) 
-                | (interruptsDisabled ? (byte)0x40 : (byte)0x00) 
-                | (isWaiting ? (byte)0x20 : (byte)0x00));
+            //ushort expectedA;
+            //ushort expectedY;
+            //ushort expectedSP;
+            //ushort expectedPC;
+            ////Arrange
+            //var labels = LabelParser.ParseLabels(romFilePrefix + ".listing.txt", romFilePrefix + ".mapfile.txt");
+            //byte signature = (byte)((emulated ? (byte)0x80 : (byte)0x00) 
+            //    | (interruptsDisabled ? (byte)0x40 : (byte)0x00) 
+            //    | (isWaiting ? (byte)0x20 : (byte)0x00));
 
-            expectedA = (ushort)(isWaiting ? (emulated ? 0x000e : 0x0b0e) : 0x00);
-            if (interruptsDisabled)
-            {  
-                expectedPC = (ushort)(isWaiting ? (labels["goWait"] + 4) : labels["spin"]);
-                expectedSP = startStackPointer;
-                expectedY = 0x00;
-            }
-            else if (emulated)
-            {
-                expectedPC = (ushort)(labels["emuirq"]);
-                expectedSP = goalEmulatedStackPointer;
-                expectedY = 0xab;
-            }
-            else
-            {
-                expectedPC = (ushort)(labels["nativeirq"]);
-                expectedSP = goalNativeStackPointer;
-                expectedY = 0xcafe;
-            }
-            EmuCore emu = new();
-            emu.MPU.NewCycle += OnNewCycle;
-            emu.MPU.NewInstruction += OnNewInstruction;
-            var ram = new DevRAM(0x8000);
-            ram.Write(0x0000, signature); // set emulation mode, I flag, and waiting state
-            emu.Mapper.AddDevice(ram, 0x0000);
-            var rom = new DevROM(romFilePrefix + ".rom");
-            var dummyDevice = new DummyInterruptingDevice();
-            emu.Mapper.AddInterruptingDevice(dummyDevice);
-            emu.Mapper.AddDevice(rom, 0x8000);
+            //expectedA = (ushort)(isWaiting ? (emulated ? 0x000e : 0x0b0e) : 0x00);
+            //if (interruptsDisabled)
+            //{  
+            //    expectedPC = (ushort)(isWaiting ? (labels["goWait"] + 4) : labels["spin"]);
+            //    expectedSP = startStackPointer;
+            //    expectedY = 0x00;
+            //}
+            //else if (emulated)
+            //{
+            //    expectedPC = (ushort)(labels["emuirq"]);
+            //    expectedSP = goalEmulatedStackPointer;
+            //    expectedY = 0xab;
+            //}
+            //else
+            //{
+            //    expectedPC = (ushort)(labels["nativeirq"]);
+            //    expectedSP = goalNativeStackPointer;
+            //    expectedY = 0xcafe;
+            //}
+            //EmuCore emu = new();
+            //emu.MPU.NewCycle += OnNewCycle;
+            //emu.MPU.NewInstruction += OnNewInstruction;
+            //var ram = new DevRAM(0x8000);
+            //ram.Write(0x0000, signature); // set emulation mode, I flag, and waiting state
+            //emu.Mapper.AddDevice(ram, 0x0000);
+            //var rom = new DevROM(romFilePrefix + ".rom");
+            //var dummyDevice = new DummyInterruptingDevice();
+            //emu.Mapper.AddInterruptingDevice(dummyDevice);
+            //emu.Mapper.AddDevice(rom, 0x8000);
 
             // Act
             // TODO: Use the new system!!
@@ -296,7 +296,7 @@ namespace EmuXTesting
             //Assert.Equal(expectedY, emu.MPU.Status.Y);
             //Assert.True(actualI);
             //Assert.False(actualD);
-            Assert.Fail("New interrupt methods not yet implemented");
+            Assert.Fail("You didn't code this test yet, dipthong!");
         }
 
         private void OnNewInstruction(W65C816.OpCode opCode, string operand)

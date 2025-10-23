@@ -2,7 +2,6 @@
 using EightSixteenEmu.Devices;
 using EightSixteenEmu.MPU;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Xunit.Abstractions;
 
 namespace EmuXTesting
@@ -130,7 +129,7 @@ namespace EmuXTesting
         //    Assert.True(test.Cycles.Count == executionCycles.Count, "Operation did not run in the expected amount of cycles.");
         //}
 
-        
+
 
         [Fact]
         public void MvnMvpInstructions_WorkProperly()
@@ -221,400 +220,388 @@ namespace EmuXTesting
         [ClassData(typeof(FullBurnInFile))]
         public void FullBurnIn(string fileName)
         {
-        //    // this is going to execute 5,120,000 instructions. God help me.
-        //    var inst = byte.Parse(Path.GetFileNameWithoutExtension(fileName)[..2], System.Globalization.NumberStyles.HexNumber);
-        //    (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(inst);
+            string currentTestLog;
+            List<String> Fails = [];
+            // Arrange:
+            // this is going to execute 5,120,000 instructions. God help me.
+            var inst = byte.Parse(Path.GetFileNameWithoutExtension(fileName)[..2], System.Globalization.NumberStyles.HexNumber);
+            (W65C816.OpCode op, W65C816.AddressingMode mode) = W65C816.OpCodeLookup(inst);
 
-        //    _output.WriteLine($"Testing ${Path.GetFileNameWithoutExtension(fileName)}: {op} {mode}");
+            _output.WriteLine($"Testing ${Path.GetFileNameWithoutExtension(fileName)}: {op} {mode}");
+            _output.WriteLine("Creating emulation environment...");
+            var ram = new DevRAM(0x1000000);
+            var core = new NewCore();
+            core.Enabled = false;
+            core.Mapper.AddDevice(ram, 0);
 
-        //    EmuCore emu = new();
-        //    emu.MPU.NewCycle += OnNewCycle;
-        //    var ram = new DevRAM(0x1000000);
-        //    emu.Mapper.AddDevice(ram, 0, 0, 0x1000000);
-        //    BurnInTest test;
-        //    int testRun = 0;
-        //    string testResult;
-        //    bool pass = true;
+            _output.WriteLine("Loading test data...");
+            Queue<BurnInTest> tests = FullBurnInFile.CreateTests(fileName);
 
-        //    string jsonContent = File.ReadAllText(fileName);
-        //    JsonDocument doc = JsonDocument.Parse(jsonContent);
-
-        //    if (doc.RootElement.ValueKind == JsonValueKind.Array)
-        //    {
-        //        foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
-        //        {
-        //            testResult = "";
-        //            testRun++;
-        //            executionCycles.Clear();
-        //            test = new(testElement);
-        //            Dictionary<string, ushort> goalStateRegisters = test.Goal.State.RegistersAsDictionary;
-        //            foreach (var kvp in test.Start.RamValues)
-        //            {
-        //                ram.Write(kvp.Key, kvp.Value);
-        //            }
-        //            //byte instruction = ram[(uint)((test.Start.State.PB << 16) + test.Start.State.PC)];
-        //            byte instruction = ram.Read((uint)((test.Start.State.PB << 16) + test.Start.State.PC));
-        //            emu.MPU.SetProcessorState(test.Start.State);
-        //            emu.Activate(false);
-        //            try
-        //            {
-        //                emu.MPU.ExecuteInstruction();
-        //                var mpuState = emu.MPU.Status;
-
-        //                bool registersEqual = true;
-        //                foreach (KeyValuePair<string, ushort> kvp in mpuState.RegistersAsDictionary)
-        //                {
-        //                    if (kvp.Value != goalStateRegisters[kvp.Key])
-        //                    {
-        //                        testResult += $"Register {kvp.Key} differs from goal.\n";
-        //                        registersEqual = false;
-        //                    }
-        //                }
-
-        //                bool ignoreV = (op == W65C816.OpCode.ADC || op == W65C816.OpCode.SBC) && mpuState.FlagD;
-        //                bool vMatch = ignoreV || test.Goal.State.FlagV == mpuState.FlagV;
-
-        //                bool checkM = !mpuState.FlagE;
-        //                bool mMatch = !checkM || test.Goal.State.FlagM == mpuState.FlagM;
-
-        //                bool flagsEqual = test.Goal.State.FlagN == mpuState.FlagN
-        //                    && vMatch
-        //                    && mMatch
-        //                    && test.Goal.State.FlagX == mpuState.FlagX
-        //                    && test.Goal.State.FlagD == mpuState.FlagD
-        //                    && test.Goal.State.FlagI == mpuState.FlagI
-        //                    && test.Goal.State.FlagZ == mpuState.FlagZ
-        //                    && test.Goal.State.FlagC == mpuState.FlagC
-        //                    && test.Goal.State.FlagE == mpuState.FlagE;
-
-        //                if (!flagsEqual) testResult += "Status flags differ from goal.\n";
-
-        //                bool cyclesEqual = test.Cycles.Count == executionCycles.Count;
-        //                if (!cyclesEqual) testResult += "Operation did not take the specified number of cycles.\n";
-
-        //                if (!registersEqual || !flagsEqual || !cyclesEqual)
-        //                {
-        //                    pass = false;
-        //                    _output.WriteLine(testResult);
-
-        //                    _output.WriteLine("Registers:");
-        //                    _output.WriteLine($"{"",6} {"Expected",-10} | {"Actual",10}");
-        //                    _output.WriteLine($"{"A:",6} {test.Goal.State.A,10:X4} | {mpuState.A,10:X4}");
-        //                    _output.WriteLine($"{"X:",6} {test.Goal.State.X,10:X4} | {mpuState.X,10:X4}");
-        //                    _output.WriteLine($"{"Y:",6} {test.Goal.State.Y,10:X4} | {mpuState.Y,10:X4}");
-        //                    _output.WriteLine($"{"D:",6} {test.Goal.State.DP,10:X4} | {mpuState.DP,10:X4}");
-        //                    _output.WriteLine($"{"DBR:",6} {test.Goal.State.DB,10:X2} | {mpuState.DB,10:X2}");
-        //                    _output.WriteLine($"{"SP:",6} {test.Goal.State.SP,10:X4} | {mpuState.SP,10:X4}");
-        //                    _output.WriteLine("");
-        //                    _output.WriteLine($"{"PB PC:",6} {test.Goal.State.PB,5:X2} {test.Goal.State.PC:X4} | {mpuState.PB,5:X2} {mpuState.PC:X4}");
-        //                    _output.WriteLine("");
-        //                    _output.WriteLine($"{"Flags:",6} {test.Goal.State.Flags(),10} | {mpuState.Flags(),10:X4}");
-        //                    _output.WriteLine("");
-        //                    _output.WriteLine("Memory:");
-        //                    _output.WriteLine("Address  St  Ex  Ac");
-        //                    foreach (var kvp in test.Goal.RamValues)
-        //                    {
-        //                        string s = $"{kvp.Key,7:X6}  ";
-        //                        s += test.Start.RamValues.TryGetValue(kvp.Key, out byte value) ? $"{value:X2}  " : "XX  ";
-        //                        s += $"{kvp.Value:X2}  {ram.Read(kvp.Key):X2}";
-        //                        _output.WriteLine(s);
-        //                    }
-        //                    _output.WriteLine("");
-        //                    _output.WriteLine("XX: not set");
-        //                    _output.WriteLine("");
-        //                    _output.WriteLine("Cycles:");
-        //                    _output.WriteLine($"    |{"Expected",-21}|{"Actual",-21}");
-        //                    _output.WriteLine($"    |{"Address",-7} {"Val",-3} {"Type",-9}|{"Address",-7} {"Val",-3} {"Type",-9}");
-        //                    for (int i = 0; i < Math.Max(test.Cycles.Count, executionCycles.Count); i++)
-        //                    {
-        //                        string s = $"{i,3} |";
-        //                        if (i < test.Cycles.Count)
-        //                        {
-        //                            s += $"${test.Cycles[i].Address:X6} ${test.Cycles[i].Value:X2} {test.Cycles[i].Type,-9}|";
-        //                        }
-        //                        else
-        //                        {
-        //                            s += $"{"N/A",-21}|";
-        //                        }
-        //                        if (i < executionCycles.Count)
-        //                        {
-        //                            s += $"${executionCycles[i].Address:X6} ${executionCycles[i].Value:X2} {executionCycles[i].Type,-9}";
-        //                        }
-        //                        else
-        //                        {
-        //                            s += $"{"N/A",-21}";
-        //                        }
-        //                        _output.WriteLine(s);
-        //                    }
-        //                    break;
-        //                }
-        //            }
-        //            catch (Exception ex) 
-        //            {
-        //                _output.WriteLine(ex.ToString());
-        //                _output.WriteLine(ex.StackTrace);
-        //                pass = false;
-        //                break;
-        //            }
-        //            finally
-        //            { emu.Deactivate(); }
-        //        }
-        //        Assert.True(pass, $"Failed at test no. {testRun}");
-        //        _output.WriteLine("PASS");
-        //    }
-        //    doc.Dispose();
-
-        //    void OnNewCycle(int cycles, Microprocessor.Cycle details, Microprocessor.MicroprocessorState state)
-        //    {
-        //        executionCycles.Add(details);
-        //        microprocessorStates.Add(state);
-        //    }
-        Assert.Fail("This test is not implemented yet.");
-        }
-
-    }
-
-    public class FullBurnInFile : TheoryData<string>
-    {
-        public FullBurnInFile()
-        {
-            string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
-            foreach (string s in testFiles)
+            //Act:
+            while (tests.Count > 0)
             {
-                if (Path.GetFileNameWithoutExtension(s)[..2] != "54" && Path.GetFileNameWithoutExtension(s)[..2] != "44") Add(s);
-            }
-        }
-    }
-
-    //public class QuickBurnInData : TheoryData<BurnInTest>
-    //{
-    //    /* Goal: After setting up the emulator with the first GauntletTestState, one instruction is run.
-    //     * The state of the emulator is then compared to the second GauntletTestState, and the cycles counter is compared to the int.
-    //     * If the test passes, the behavior of the instruction is identical to the behavior of the real hardware.
-    //     * 
-    //     * Unfortunately, the test jsons have filenames that are just the hex values of the instruction --
-    //     * so we'll want to have some way to tell what instruction was being tested instead of running to the datasheet
-    //     * and finding the instruction mnemonic.
-    //     * 
-    //     * i.e. "af.n.json"'s friendly name becomes "LDA #FEDBCA - Native" or something like that.
-    //     * Maybe write that to the console when the test is run.
-    //     */
-
-
-    //    public QuickBurnInData()
-    //    {
-    //        Random rng = new();
-    //        int testNumber = 1;
-    //        string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
-    //        string cacheFile = $"{Path.GetTempPath()}{testNumber:D5}-testCache.json";
-    //        JsonSerializerOptions options = new()
-    //        {
-    //            PropertyNameCaseInsensitive = true
-    //        };
-    //        if (File.Exists(cacheFile))
-    //        {
-    //            string jsonContent = File.ReadAllText(cacheFile);
-    //            JsonDocument doc = JsonDocument.Parse(jsonContent);
-    //            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-    //            {
-    //                foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
-    //                {
-    //                    BurnInTest test = new(testElement);
-    //                    Console.WriteLine($"Test no. {test.Inst:X2}, {test.IsEmulated}");
-    //                    Add(test);
-    //                }
-    //            }
-    //        }
-    //        else
-    //        {
-    //            JsonArray cacheArray = [];
-    //            foreach (string fileName in testFiles)
-    //            {
-    //                if (Path.GetFileNameWithoutExtension(fileName)[..2] != "54" && Path.GetFileNameWithoutExtension(fileName)[..2] != "44") // skip the block move tests, they're broken
-    //                {
-    //                    Console.WriteLine($"Read from {fileName}");
-    //                    string jsonContent = File.ReadAllText(fileName);
-    //                    JsonDocument doc = JsonDocument.Parse(jsonContent);
-
-    //                    if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > testNumber)
-    //                    {
-    //                        JsonElement testElement = doc.RootElement[testNumber];
-    //                        cacheArray.Add(JsonNode.Parse(testElement.GetRawText()));
-
-    //                        Add(new BurnInTest(testElement));
-
-    //                    }
-    //                }
-    //            }
-    //            File.WriteAllText(cacheFile, cacheArray.ToJsonString());
-    //        }
-    //    }
-    //}
-
-    public class BurnInTest
-    {
-        public readonly byte Inst;
-        public readonly bool IsEmulated;
-        public readonly SystemState Start;
-        public readonly SystemState Goal;
-        public readonly List<Microprocessor.Cycle> Cycles;
-
-        public BurnInTest(byte inst, bool isEmulated, SystemState start, SystemState goal, List<Microprocessor.Cycle> cycles)
-        {
-            Inst = inst;
-            IsEmulated = isEmulated;
-            Start = start;
-            Goal = goal;
-            Cycles = cycles;
-        }
-
-        public BurnInTest(JsonElement json)
-        {
-            JsonSerializerOptions options = new()
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            if (json.ValueKind == JsonValueKind.Object)
-            {
-                string? name = json.GetProperty("name").GetString();
-                if (name == null)
+                BurnInTest test = tests.Dequeue();
+                currentTestLog = $"Test ${test.Inst:X2} {(test.IsEmulated ? "emulated" : "native")}\n";
+                core.SetProcessorState(test.Start.State);
+                foreach (var kvp in test.Start.RamValues)
                 {
-                    throw new JsonException("Does not appear to be a proper burn in JSON");
+                    ram.Write(kvp.Key, kvp.Value);
+                }
+                core.Enabled = true;
+                for (int cycleIndex = 0; cycleIndex < test.Cycles.Count; cycleIndex++)
+                {
+                    NewCore.Cycle expectedCycle = test.Cycles[cycleIndex];
+                    NewCore.Cycle actualCycle = core.CycleStep();
+                    currentTestLog += $"Cycle {cycleIndex,3}: Expected ${expectedCycle.AddressBus:X6} ${expectedCycle.DataBus:X2} {expectedCycle.Type}, Actual ${actualCycle.AddressBus:X6} ${actualCycle.DataBus:X2} {actualCycle.Type}\n";
+                    if (expectedCycle.AddressBus != actualCycle.AddressBus || expectedCycle.DataBus != actualCycle.DataBus || expectedCycle.Type != actualCycle.Type)
+                    {
+                        currentTestLog += " Cycle Mismatch!\n";
+                        Fails.Add(currentTestLog);
+                        break; // move to next test
+                    }
+                }
+                core.Enabled = false;
+                var finalState = core.GetProcessorState();
+                bool registersEqual = test.Goal.State.PC == finalState.PC
+                    && test.Goal.State.A == finalState.A
+                    && test.Goal.State.X == finalState.X
+                    && test.Goal.State.Y == finalState.Y
+                    && test.Goal.State.DP == finalState.DP
+                    && test.Goal.State.SP == finalState.SP
+                    && test.Goal.State.SR == finalState.SR
+                    && test.Goal.State.DB == finalState.DB
+                    && test.Goal.State.PB == finalState.PB;
+                currentTestLog += $"Final State Check: {(registersEqual ? "PASS" : "FAIL")}\n";
+                if (!registersEqual)
+                {
+                    currentTestLog += $" Expected PC:${test.Goal.State.PC:X4} A:${test.Goal.State.A:X4} X:${test.Goal.State.X:X4} Y:${test.Goal.State.Y:X4} DP:${test.Goal.State.DP:X4} SP:${test.Goal.State.SP:X4} SR:${test.Goal.State.SR:X2} DB:${test.Goal.State.DB:X2} PB:${test.Goal.State.PB:X2}\n";
+                    currentTestLog += $" Actual   PC:${finalState.PC:X4} A:${finalState.A:X4} X:${finalState.X:X4} Y:${finalState.Y:X4} DP:${finalState.DP:X4} SP:${finalState.SP:X4} SR:${finalState.SR:X2} DB:${finalState.DB:X2} PB:${finalState.PB:X2}\n";
+                    Fails.Add(currentTestLog);
+                }
+                foreach (var kvp in test.Goal.RamValues)
+                {
+                    byte actualValue = ram.Read(kvp.Key);
+                    if (actualValue != kvp.Value)
+                    {
+                        currentTestLog += $"RAM Mismatch at ${kvp.Key:X6}: Expected ${kvp.Value:X2}, Actual ${actualValue:X2}\n";
+                        Fails.Add(currentTestLog);
+                        break; // move to next test
+                    }
+                }
+            }
+            // Assert:
+            if (Fails.Count > 0)
+            {
+                foreach (var failLog in Fails)
+                {
+                    _output.WriteLine("----- TEST FAILURE -----");
+                    _output.WriteLine(failLog);
+                }
+                Assert.Fail($"{Fails.Count} tests failed. See output for details.");
+            }
+            else
+            {
+                _output.WriteLine("All tests passed.");
+            }
+
+        }
+
+        public class FullBurnInFile : TheoryData<string>
+        {
+            public FullBurnInFile()
+            {
+                string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
+                foreach (string s in testFiles)
+                {
+                    /*
+                     * Okay, why are we excluding the block move tests?
+                     * Simply put, the JSON data is broken. It seems to just be the first 100 cycles of the test. The nature of the block moves
+                     * means that the accumulator will always be 0xFFFF after the copy is finished. The tests in the JSON set the accumulator to
+                     * something like 0xFE8B (65,163 bytes!!) and then the goal state is set after only 100 cycles, meaning only about 14 or so
+                     * bytes are copied at test's end!
+                     * What a shame. 
+                     */
+                    if (Path.GetFileNameWithoutExtension(s)[..2] != "54" && Path.GetFileNameWithoutExtension(s)[..2] != "44") Add(s);
+                }
+            }
+
+            public static Queue<BurnInTest> CreateTests(string fileLocation)
+            {
+                Queue<BurnInTest> result = new Queue<BurnInTest>();
+                JsonSerializerOptions options = new()
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                if (File.Exists(fileLocation))
+                {
+                    string jsonContent = File.ReadAllText(fileLocation);
+                    JsonDocument doc = JsonDocument.Parse(jsonContent);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
+                        {
+                            BurnInTest test = new(testElement);
+                            result.Enqueue(test);
+                        }
+                    }
+                    else
+                    {
+                        throw new JsonException("Does not appear to be a proper burn in JSON");
+                    }
                 }
                 else
                 {
-                    Inst = byte.Parse(name[..2], System.Globalization.NumberStyles.HexNumber);
-                    IsEmulated = name[3] switch
-                    {
-                        'e' => true,
-                        'n' => false,
-                        _ => throw new JsonException(),
-                    };
+                    throw new FileNotFoundException("Could not find burn in test file.", fileLocation);
                 }
+                return result;
+            }
+        }
 
-                string intermediateStateJson = json.GetProperty("initial").GetRawText();
-                BurnInIntermediateState? inIntermediateState = JsonSerializer.Deserialize<BurnInIntermediateState>(intermediateStateJson, options) ?? throw new JsonException();
-                Start = new SystemState(inIntermediateState);
-                intermediateStateJson = json.GetProperty("final").GetRawText();
-                inIntermediateState = JsonSerializer.Deserialize<BurnInIntermediateState>(intermediateStateJson, options) ?? throw new JsonException();
-                Goal = new SystemState(inIntermediateState);
+        //public class QuickBurnInData : TheoryData<BurnInTest>
+        //{
+        //    /* Goal: After setting up the emulator with the first GauntletTestState, one instruction is run.
+        //     * The state of the emulator is then compared to the second GauntletTestState, and the cycles counter is compared to the int.
+        //     * If the test passes, the behavior of the instruction is identical to the behavior of the real hardware.
+        //     * 
+        //     * Unfortunately, the test jsons have filenames that are just the hex values of the instruction --
+        //     * so we'll want to have some way to tell what instruction was being tested instead of running to the datasheet
+        //     * and finding the instruction mnemonic.
+        //     * 
+        //     * i.e. "af.n.json"'s friendly name becomes "LDA #FEDBCA - Native" or something like that.
+        //     * Maybe write that to the console when the test is run.
+        //     */
 
-                Cycles = new List<Microprocessor.Cycle>();
-                JsonElement intermediateCycleList = json.GetProperty("cycles");
-                if (intermediateCycleList.ValueKind == JsonValueKind.Array)
+
+        //    public QuickBurnInData()
+        //    {
+        //        Random rng = new();
+        //        int testNumber = 1;
+        //        string[] testFiles = Directory.GetFiles("testData/v1", "*.json");
+        //        string cacheFile = $"{Path.GetTempPath()}{testNumber:D5}-testCache.json";
+        //        JsonSerializerOptions options = new()
+        //        {
+        //            PropertyNameCaseInsensitive = true
+        //        };
+        //        if (File.Exists(cacheFile))
+        //        {
+        //            string jsonContent = File.ReadAllText(cacheFile);
+        //            JsonDocument doc = JsonDocument.Parse(jsonContent);
+        //            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        //            {
+        //                foreach (JsonElement testElement in doc.RootElement.EnumerateArray())
+        //                {
+        //                    BurnInTest test = new(testElement);
+        //                    Console.WriteLine($"Test no. {test.Inst:X2}, {test.IsEmulated}");
+        //                    Add(test);
+        //                }
+        //            }
+        //        }
+        //        else
+        //        {
+        //            JsonArray cacheArray = [];
+        //            foreach (string fileName in testFiles)
+        //            {
+        //                if (Path.GetFileNameWithoutExtension(fileName)[..2] != "54" && Path.GetFileNameWithoutExtension(fileName)[..2] != "44") // skip the block move tests, they're broken
+        //                {
+        //                    Console.WriteLine($"Read from {fileName}");
+        //                    string jsonContent = File.ReadAllText(fileName);
+        //                    JsonDocument doc = JsonDocument.Parse(jsonContent);
+
+        //                    if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > testNumber)
+        //                    {
+        //                        JsonElement testElement = doc.RootElement[testNumber];
+        //                        cacheArray.Add(JsonNode.Parse(testElement.GetRawText()));
+
+        //                        Add(new BurnInTest(testElement));
+
+        //                    }
+        //                }
+        //            }
+        //            File.WriteAllText(cacheFile, cacheArray.ToJsonString());
+        //        }
+        //    }
+        //}
+
+        public class BurnInTest
+        {
+            public readonly byte Inst;
+            public readonly bool IsEmulated;
+            public readonly SystemState Start;
+            public readonly SystemState Goal;
+            public readonly List<NewCore.Cycle> Cycles;
+
+            public BurnInTest(byte inst, bool isEmulated, SystemState start, SystemState goal, List<NewCore.Cycle> cycles)
+            {
+                Inst = inst;
+                IsEmulated = isEmulated;
+                Start = start;
+                Goal = goal;
+                Cycles = cycles;
+            }
+
+            public BurnInTest(JsonElement json)
+            {
+                JsonSerializerOptions options = new()
                 {
-                    foreach (JsonElement element in intermediateCycleList.EnumerateArray())
+                    PropertyNameCaseInsensitive = true
+                };
+                if (json.ValueKind == JsonValueKind.Object)
+                {
+                    string? name = json.GetProperty("name").GetString();
+                    if (name == null)
                     {
-                        Microprocessor.Cycle cycle = new Microprocessor.Cycle();
-                        if (element[0].ValueKind == JsonValueKind.Number)
+                        throw new JsonException("Does not appear to be a proper burn in JSON");
+                    }
+                    else
+                    {
+                        Inst = byte.Parse(name[..2], System.Globalization.NumberStyles.HexNumber);
+                        IsEmulated = name[3] switch
                         {
-                            cycle.Address = element[0].GetUInt32();
-                            string outputsString = element[2].GetString() ?? "---remx-";
-                            if (outputsString.Length < 4)
+                            'e' => true,
+                            'n' => false,
+                            _ => throw new JsonException(),
+                        };
+                    }
+
+                    Start = new SystemState(json.GetProperty("initial"));
+                    Goal = new SystemState(json.GetProperty("final"));
+
+                    Cycles = new List<NewCore.Cycle>();
+                    JsonElement intermediateCycleList = json.GetProperty("cycles");
+                    if (intermediateCycleList.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (JsonElement element in intermediateCycleList.EnumerateArray())
+                        {
+                            NewCore.Cycle cycle = new NewCore.Cycle();
+                            if (element[0].ValueKind == JsonValueKind.Number)
                             {
-                                throw new JsonException("Cycle type string is too short.");
-                            }
-                            bool vdaActive = outputsString[0] == 'd';
-                            bool vpaActive = outputsString[1] == 'p';
-                            bool vpbActive = outputsString[2] == 'v';
-                            if (vdaActive || vpaActive || vpbActive)
-                            {
-                                // we have a memory access cycle, what type?
-                                cycle.Type = outputsString[3] switch
+                                cycle.AddressBus = element[0].GetUInt32();
+                                string outputsString = element[2].GetString() ?? "---remx-";
+                                if (outputsString.Length < 4)
                                 {
-                                    'r' => Microprocessor.CycleType.Read,
-                                    'w' => Microprocessor.CycleType.Write,
-                                    _ => throw new JsonException("Invalid outputs string in test json"),
-                                };
-                                if (element[1].ValueKind == JsonValueKind.Null)
-                                {
-                                    throw new JsonException("Cycle value is null, but type is not Internal.");
+                                    throw new JsonException("Cycle type string is too short.");
                                 }
-                                else cycle.Value = element[1].GetByte();
-                            }
-                            else
-                            {
-                                // no memory access, so we don't care about the data bus
-                                cycle.Type = Microprocessor.CycleType.Internal;
-                                cycle.Value = 0; // no data bus value
-                            }
+                                bool vdaActive = outputsString[0] == 'd';
+                                bool vpaActive = outputsString[1] == 'p';
+                                bool vpbActive = outputsString[2] == 'v';
+                                if (vdaActive || vpaActive || vpbActive)
+                                {
+                                    // we have a memory access cycle, what type?
+                                    cycle.Type = outputsString[3] switch
+                                    {
+                                        'r' => NewCore.Cycle.CycleType.Read,
+                                        'w' => NewCore.Cycle.CycleType.Write,
+                                        _ => throw new JsonException("Invalid outputs string in test json"),
+                                    };
+                                    if (element[1].ValueKind == JsonValueKind.Null)
+                                    {
+                                        throw new JsonException("Cycle value is null, but type is not Internal.");
+                                    }
+                                    else cycle.DataBus = element[1].GetByte();
+                                }
+                                else
+                                {
+                                    // no memory access, so we don't care about the data bus
+                                    cycle.Type = NewCore.Cycle.CycleType.Internal;
+                                    cycle.DataBus = 0; // no data bus value
+                                }
                                 Cycles.Add(cycle);
+                            }
+                            //else
+                            //{
+                            //    Console.WriteLine("You should only see this if the instruction is STP or WAI");
+                            //}
                         }
-                        //else
-                        //{
-                        //    Console.WriteLine("You should only see this if the instruction is STP or WAI");
-                        //}
+                    }
+
+                }
+                else throw new JsonException();
+            }
+        }
+
+        public class SystemState
+        {
+            public readonly NewCore.ProcessorState State;
+            public readonly Dictionary<uint, byte> RamValues;
+
+            public SystemState(NewCore.ProcessorState state, Dictionary<uint, byte> ramValues)
+            {
+                State = state;
+                RamValues = ramValues;
+            }
+
+            public SystemState(JsonElement json)
+            {
+                State = new NewCore.ProcessorState();
+                RamValues = new Dictionary<uint, byte>();
+
+                JsonSerializerOptions options = new()
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                if (json.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in json.EnumerateObject())
+                    {
+                        string propName = prop.Name.ToLower();
+                        switch (propName)
+                        {
+                            case "pc":
+                                State.PC = prop.Value.GetUInt16();
+                                break;
+                            case "s":
+                                State.SP = prop.Value.GetUInt16();
+                                break;
+                            case "p":
+                                State.SR = prop.Value.GetByte();
+                                break;
+                            case "a":
+                                State.A = prop.Value.GetUInt16();
+                                break;
+                            case "x":
+                                State.X = prop.Value.GetUInt16();
+                                break;
+                            case "y":
+                                State.Y = prop.Value.GetUInt16();
+                                break;
+                            case "dbr":
+                                State.DB = prop.Value.GetByte();
+                                break;
+                            case "d":
+                                State.DP = prop.Value.GetUInt16();
+                                break;
+                            case "pbr":
+                                State.PB = prop.Value.GetByte();
+                                break;
+                            case "e":
+                                State.E = prop.Value.GetInt32() != 0;
+                                break;
+                            case "ram":
+                                var ramJson = prop.Value;
+                                if (ramJson.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var ramEntry in ramJson.EnumerateArray())
+                                    {
+                                        uint address = ramEntry[0].GetUInt32();
+                                        byte value = ramEntry[1].GetByte();
+                                        RamValues[address] = value;
+                                    }
+                                }
+                                else
+                                {
+                                    throw new JsonException("RAM property is not an array.");
+                                }
+                                break;
+                            default:
+                                throw new JsonException($"Unknown property in system state JSON: {prop.Name}");
+                        }
                     }
                 }
 
             }
-            else throw new JsonException();
-        }
-    }
-
-    public class SystemState
-    {
-        public readonly Microprocessor.MicroprocessorState State;
-        public readonly Dictionary<uint, byte> RamValues;
-
-        public SystemState(Microprocessor.MicroprocessorState state, Dictionary<uint, byte> ramValues)
-        {
-            State = state;
-            RamValues = ramValues;
         }
 
-        public SystemState(BurnInIntermediateState state)
-        {
-            State = new Microprocessor.MicroprocessorState
-            {
-                Cycles = 0,
-                PC = (ushort)state.PC,
-                SP = (ushort)state.S,
-                A = (ushort)state.A,
-                X = (ushort)state.X,
-                Y = (ushort)state.Y,
-                DP = (ushort)state.D,
-                DB = (byte)state.DBR,
-                PB = (byte)state.PBR,
-                FlagN = (state.P & 0x80) != 0,
-                FlagV = (state.P & 0x40) != 0,
-                FlagM = (state.P & 0x20) != 0,
-                FlagX = (state.P & 0x10) != 0,
-                FlagD = (state.P & 0x08) != 0,
-                FlagI = (state.P & 0x04) != 0,
-                FlagZ = (state.P & 0x02) != 0,
-                FlagC = (state.P & 0x01) != 0,
-                FlagE = state.E != 0,
-            };
-            RamValues = new Dictionary<uint, byte>();
-            foreach (var ram in state.RAM)
-            {
-                RamValues[(uint)ram[0]] = (byte)ram[1];
-            }
-        }
     }
-
-    public class BurnInParameters
-    {
-        public string Name { get; set; }
-        public BurnInIntermediateState Initial { get; set; }
-        public BurnInIntermediateState Final { get; set; }
-        public List<List<object>> Cycles { get; set; }
-    }
-
-    public class BurnInIntermediateState
-    {
-        public int PC { get; set; }
-        public int S { get; set; }
-        public int P { get; set; }
-        public int A { get; set; }
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int DBR { get; set; }
-        public int D { get; set; }
-        public int PBR { get; set; }
-        public int E { get; set; }
-        public List<List<int>> RAM { get; set; }
-    }
-
 }

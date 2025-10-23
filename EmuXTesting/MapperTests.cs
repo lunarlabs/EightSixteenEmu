@@ -11,7 +11,7 @@ namespace EmuXTesting
         [Fact]
         public void AddDevice_ShouldMapCorrectly()
         {
-            EmuCore emu = new EmuCore();
+            NewCore emu = new();
             var device = new DevRAM(0x1000);
             emu.Mapper.AddDevice(device, 0x0000, 0x0000, 0x1000);
 
@@ -24,7 +24,7 @@ namespace EmuXTesting
         [Fact]
         public void AddDevice_ShouldNotAllowZeroLength()
         {
-            EmuCore emu = new EmuCore();
+            NewCore emu = new NewCore();
             var device = new DevRAM(0x1000);
             Assert.Throws<ArgumentOutOfRangeException>(() => emu.Mapper.AddDevice(device, 0x0000, 0x0000, 0));
         }
@@ -33,7 +33,7 @@ namespace EmuXTesting
         public void ToJson_ShouldSerializeDevicesAndMappings()
         {
             // Arrange
-            EmuCore emu = new EmuCore();
+            NewCore emu = new NewCore();
             var device = new DevRAM(0x1000);
             emu.Mapper.AddDevice(device, 0x2000, 0x0000, 0x1000);
 
@@ -66,7 +66,7 @@ namespace EmuXTesting
         public void FromJson_ShouldRestoreDevicesAndMappings()
         {
             // Arrange: create a mapper, add a device, serialize to JSON
-            EmuCore emu = new EmuCore();
+            NewCore emu = new NewCore();
             var device = new DevRAM(0x800);
             emu.Mapper.AddDevice(device, 0x4000, 0x0000, 0x800);
             JsonObject json = emu.Mapper.ToJson();
