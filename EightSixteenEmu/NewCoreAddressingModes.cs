@@ -338,6 +338,240 @@ namespace EightSixteenEmu
 
                 return cycles;
             }
+
+            /// <summary>
+            /// Generates cycles for Direct Indexed with Y addressing mode
+            /// </summary>
+            private static List<Cycle> AM_DirectIndexedY(Processor proc)
+            {
+                var cycles = new List<Cycle>
+                {
+                    // Read offset byte from program counter
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL),
+                            new MicroOpSetRegister(RegisterType.RegIDH, 0)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Internal cycle for index calculation
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Internal,
+                        new List<IMicroOp>(),
+                        null
+                    )
+                };
+
+                // Add internal cycle if direct page low byte is not 0
+                if (proc.RegDL != 0x00)
+                {
+                    cycles.Add(new Cycle(
+                        proc,
+                        Cycle.CycleType.Internal,
+                        new List<IMicroOp>(),
+                        null
+                    ));
+                }
+
+                // Calculate the final address: DP + offset + Y
+                cycles.Add(new Cycle(
+                    proc,
+                    Cycle.CycleType.Internal,
+                    new List<IMicroOp>
+                    {
+                        new MicroOpAddRegisters(RegisterType.RegID, RegisterType.RegY, RegisterType.RegID),
+                        new MicroOpAddRegisters(RegisterType.RegDP, RegisterType.RegID, RegisterType.RegIA)
+                    },
+                    null
+                ));
+
+                return cycles;
+            }
+
+            /// <summary>
+            /// Generates cycles for Absolute Indexed with Y addressing mode
+            /// </summary>
+            private static List<Cycle> AM_AbsoluteIndexedY(Processor proc, bool addPenaltyCycle)
+            {
+                var cycles = new List<Cycle>
+                {
+                    // Read low byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read high byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDH)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    )
+                };
+
+                // Calculate indexed address
+                cycles.Add(new Cycle(
+                    proc,
+                    Cycle.CycleType.Internal,
+                    new List<IMicroOp>
+                    {
+                        new MicroOpAddRegisters(RegisterType.RegID, RegisterType.RegY, RegisterType.RegIA)
+                    },
+                    null
+                ));
+
+                // Add penalty cycle for page boundary crossing or certain opcodes
+                if (addPenaltyCycle)
+                {
+                    cycles.Add(new Cycle(
+                        proc,
+                        Cycle.CycleType.Internal,
+                        new List<IMicroOp>(),
+                        null
+                    ));
+                }
+
+                return cycles;
+            }
+
+            /// <summary>
+            /// Generates cycles for Absolute Long addressing mode (24-bit address)
+            /// </summary>
+            private static List<Cycle> AM_AbsoluteLong(Processor proc)
+            {
+                var cycles = new List<Cycle>
+                {
+                    // Read low byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIAL)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read high byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIAH)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read bank byte
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegDB)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    )
+                };
+
+                return cycles;
+            }
+
+            /// <summary>
+            /// Generates cycles for Absolute Long Indexed with X addressing mode
+            /// </summary>
+            private static List<Cycle> AM_AbsoluteLongIndexedX(Processor proc)
+            {
+                var cycles = new List<Cycle>
+                {
+                    // Read low byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read high byte of address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDH)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read bank byte and calculate indexed address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegDB),
+                            new MicroOpAddRegisters(RegisterType.RegID, RegisterType.RegX, RegisterType.RegIA)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    )
+                };
+
+                return cycles;
+            }
+
+            /// <summary>
+            /// Generates cycles for Program Counter Relative Long addressing mode (16-bit offset)
+            /// </summary>
+            private static List<Cycle> AM_ProgramCounterRelativeLong(Processor proc)
+            {
+                var cycles = new List<Cycle>
+                {
+                    // Read low byte of offset
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Read high byte of offset
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Read,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDH)
+                        },
+                        MakeAddress(proc._regPB, proc._regPC)
+                    ),
+                    // Calculate target address
+                    new Cycle(
+                        proc,
+                        Cycle.CycleType.Internal,
+                        new List<IMicroOp>
+                        {
+                            new MicroOpAddRegisters(RegisterType.RegPC, RegisterType.RegID, RegisterType.RegIA)
+                        },
+                        null
+                    )
+                };
+
+                return cycles;
+            }
         }
     }
 }

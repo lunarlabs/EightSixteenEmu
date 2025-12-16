@@ -200,9 +200,14 @@
                     [W65C816.AddressingMode.Immediate] = proc => AM_Immediate(proc, proc.IsAccumulatorByte()),
                     [W65C816.AddressingMode.Direct] = proc => AM_Direct(proc),
                     [W65C816.AddressingMode.DirectIndexedWithX] = proc => AM_DirectIndexedX(proc),
+                    [W65C816.AddressingMode.DirectIndexedWithY] = proc => AM_DirectIndexedY(proc),
                     [W65C816.AddressingMode.Absolute] = proc => AM_Absolute(proc),
                     [W65C816.AddressingMode.AbsoluteIndexedWithX] = proc => AM_AbsoluteIndexedX(proc, false),
+                    [W65C816.AddressingMode.AbsoluteIndexedWithY] = proc => AM_AbsoluteIndexedY(proc, false),
+                    [W65C816.AddressingMode.AbsoluteLong] = proc => AM_AbsoluteLong(proc),
+                    [W65C816.AddressingMode.AbsoluteLongIndexed] = proc => AM_AbsoluteLongIndexedX(proc),
                     [W65C816.AddressingMode.ProgramCounterRelative] = proc => AM_ProgramCounterRelative(proc),
+                    [W65C816.AddressingMode.ProgramCounterRelativeLong] = proc => AM_ProgramCounterRelativeLong(proc),
                     [W65C816.AddressingMode.StackRelative] = proc => AM_StackRelative(proc),
                 };
 
