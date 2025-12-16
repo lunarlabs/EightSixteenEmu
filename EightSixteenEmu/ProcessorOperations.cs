@@ -18,17 +18,172 @@
                         new Cycle(
                             proc,
                             Cycle.CycleType.Internal,
-                            [],
+                            new List<IMicroOp>(),
                             null
                         )
+                    ],
+                    
+                    // Flag manipulation opcodes
+                    [W65C816.OpCode.CLC] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.C, false) }, null)
+                    ],
+                    [W65C816.OpCode.SEC] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.C, true) }, null)
+                    ],
+                    [W65C816.OpCode.CLD] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.D, false) }, null)
+                    ],
+                    [W65C816.OpCode.SED] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.D, true) }, null)
+                    ],
+                    [W65C816.OpCode.CLI] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.I, false) }, null)
+                    ],
+                    [W65C816.OpCode.SEI] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.I, true) }, null)
+                    ],
+                    [W65C816.OpCode.CLV] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpSetFlag(StatusFlags.V, false) }, null)
+                    ],
+                    
+                    // Register transfer opcodes
+                    [W65C816.OpCode.TAX] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsIndexRegisterByte() 
+                                ? new MicroOpMove(RegisterType.RegAL, RegisterType.RegXL)
+                                : new MicroOpMove(RegisterType.RegA, RegisterType.RegX),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.TAY] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsIndexRegisterByte() 
+                                ? new MicroOpMove(RegisterType.RegAL, RegisterType.RegYL)
+                                : new MicroOpMove(RegisterType.RegA, RegisterType.RegY),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.TXA] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsAccumulatorByte() 
+                                ? new MicroOpMove(RegisterType.RegXL, RegisterType.RegAL)
+                                : new MicroOpMove(RegisterType.RegX, RegisterType.RegA),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsAccumulatorByte() ? RegisterType.RegAL : RegisterType.RegA)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.TYA] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsAccumulatorByte() 
+                                ? new MicroOpMove(RegisterType.RegYL, RegisterType.RegAL)
+                                : new MicroOpMove(RegisterType.RegY, RegisterType.RegA),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsAccumulatorByte() ? RegisterType.RegAL : RegisterType.RegA)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.TXY] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsIndexRegisterByte() 
+                                ? new MicroOpMove(RegisterType.RegXL, RegisterType.RegYL)
+                                : new MicroOpMove(RegisterType.RegX, RegisterType.RegY),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.TYX] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            proc.IsIndexRegisterByte() 
+                                ? new MicroOpMove(RegisterType.RegYL, RegisterType.RegXL)
+                                : new MicroOpMove(RegisterType.RegY, RegisterType.RegX),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.XBA] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>(), null),
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpExchangeBA() }, null)
+                    ],
+                    [W65C816.OpCode.XCE] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpExchangeCE() }, null)
+                    ],
+                    
+                    // Increment/Decrement opcodes
+                    [W65C816.OpCode.INX] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            new MicroOpIncrementRegister(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.INY] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            new MicroOpIncrementRegister(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.DEX] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            new MicroOpDecrementRegister(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegXL : RegisterType.RegX)
+                        }, null)
+                    ],
+                    [W65C816.OpCode.DEY] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>
+                        {
+                            new MicroOpDecrementRegister(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY),
+                            new MicroOpUpdateZeroAndNegativeFlags(proc.IsIndexRegisterByte() ? RegisterType.RegYL : RegisterType.RegY)
+                        }, null)
+                    ],
+                    
+                    // System control opcodes
+                    [W65C816.OpCode.STP] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>(), null),
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpEnterStopMode() }, null)
+                    ],
+                    [W65C816.OpCode.WAI] = proc =>
+                    [
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>(), null),
+                        new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpEnterWaitMode() }, null)
                     ],
                 };
 
             private static readonly Dictionary<W65C816.AddressingMode, Func<Processor, List<Cycle>>> AddressingModeLookupTable
                 = new()
                 {
-                    [W65C816.AddressingMode.Implied] = proc => [],
-                    [W65C816.AddressingMode.Accumulator] = proc => [],
+                    [W65C816.AddressingMode.Implied] = proc => new List<Cycle>(),
+                    [W65C816.AddressingMode.Stack] = proc => new List<Cycle>(),
+                    [W65C816.AddressingMode.Accumulator] = proc => new List<Cycle>(),
+                    [W65C816.AddressingMode.Immediate] = proc => AM_Immediate(proc, proc.IsAccumulatorByte()),
+                    [W65C816.AddressingMode.Direct] = proc => AM_Direct(proc),
+                    [W65C816.AddressingMode.DirectIndexedWithX] = proc => AM_DirectIndexedX(proc),
+                    [W65C816.AddressingMode.Absolute] = proc => AM_Absolute(proc),
+                    [W65C816.AddressingMode.AbsoluteIndexedWithX] = proc => AM_AbsoluteIndexedX(proc, false),
+                    [W65C816.AddressingMode.ProgramCounterRelative] = proc => AM_ProgramCounterRelative(proc),
+                    [W65C816.AddressingMode.StackRelative] = proc => AM_StackRelative(proc),
                 };
 
             private static List<Cycle> VectorJump(Processor proc, W65C816.Vector vector) =>
