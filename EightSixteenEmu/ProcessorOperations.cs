@@ -169,6 +169,26 @@
                         new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp>(), null),
                         new Cycle(proc, Cycle.CycleType.Internal, new List<IMicroOp> { new MicroOpEnterWaitMode() }, null)
                     ],
+                    
+                    // Load/Store operations
+                    [W65C816.OpCode.LDA] = OP_LDA,
+                    [W65C816.OpCode.LDX] = OP_LDX,
+                    [W65C816.OpCode.LDY] = OP_LDY,
+                    [W65C816.OpCode.STA] = OP_STA,
+                    
+                    // Logical operations
+                    [W65C816.OpCode.AND] = OP_AND,
+                    [W65C816.OpCode.ORA] = OP_ORA,
+                    [W65C816.OpCode.EOR] = OP_EOR,
+                    
+                    // Arithmetic operations
+                    [W65C816.OpCode.ADC] = OP_ADC,
+                    [W65C816.OpCode.SBC] = OP_SBC,
+                    
+                    // Compare operations
+                    [W65C816.OpCode.CMP] = OP_CMP,
+                    [W65C816.OpCode.CPX] = OP_CPX,
+                    [W65C816.OpCode.CPY] = OP_CPY,
                 };
 
             private static readonly Dictionary<W65C816.AddressingMode, Func<Processor, List<Cycle>>> AddressingModeLookupTable
