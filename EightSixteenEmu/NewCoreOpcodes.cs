@@ -275,9 +275,10 @@ namespace EightSixteenEmu
                         Cycle.CycleType.Internal,
                         new List<IMicroOp>
                         {
-                            isByte 
-                                ? new MicroOpCompareRegisters(RegisterType.RegAL, RegisterType.RegIDL, true)
-                                : new MicroOpCompareRegisters(RegisterType.RegA, RegisterType.RegID, false)
+                            new MicroOpCompareRegisters(
+                                isByte ? RegisterType.RegAL : RegisterType.RegA,
+                                isByte ? RegisterType.RegIDL : RegisterType.RegID,
+                                isByte)
                         },
                         null
                     )
@@ -298,9 +299,10 @@ namespace EightSixteenEmu
                         Cycle.CycleType.Internal,
                         new List<IMicroOp>
                         {
-                            isByte 
-                                ? new MicroOpCompareRegisters(RegisterType.RegXL, RegisterType.RegIDL, true)
-                                : new MicroOpCompareRegisters(RegisterType.RegX, RegisterType.RegID, false)
+                            new MicroOpCompareRegisters(
+                                isByte ? RegisterType.RegXL : RegisterType.RegX,
+                                isByte ? RegisterType.RegIDL : RegisterType.RegID,
+                                isByte)
                         },
                         null
                     )
@@ -321,9 +323,10 @@ namespace EightSixteenEmu
                         Cycle.CycleType.Internal,
                         new List<IMicroOp>
                         {
-                            isByte 
-                                ? new MicroOpCompareRegisters(RegisterType.RegYL, RegisterType.RegIDL, true)
-                                : new MicroOpCompareRegisters(RegisterType.RegY, RegisterType.RegID, false)
+                            new MicroOpCompareRegisters(
+                                isByte ? RegisterType.RegYL : RegisterType.RegY,
+                                isByte ? RegisterType.RegIDL : RegisterType.RegID,
+                                isByte)
                         },
                         null
                     )

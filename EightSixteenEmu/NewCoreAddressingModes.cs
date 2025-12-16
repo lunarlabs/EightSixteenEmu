@@ -273,23 +273,24 @@ namespace EightSixteenEmu
             {
                 var cycles = new List<Cycle>
                 {
-                    // Read signed offset
+                    // Read signed offset - need to sign-extend for proper signed arithmetic
                     new Cycle(
                         proc,
                         Cycle.CycleType.Read,
                         new List<IMicroOp>
                         {
-                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL),
-                            new MicroOpSetRegister(RegisterType.RegIDH, 0)
+                            new MicroOpReadByteAndAdvancePC(RegisterType.RegIDL)
                         },
                         MakeAddress(proc._regPB, proc._regPC)
                     ),
-                    // Calculate target address
+                    // Sign extend the offset and calculate target address
                     new Cycle(
                         proc,
                         Cycle.CycleType.Internal,
                         new List<IMicroOp>
                         {
+                            // Sign extend: if bit 7 is set, set high byte to 0xFF, otherwise 0x00
+                            new MicroOpSetRegister(RegisterType.RegIDH, (ushort)((proc.RegIDL & 0x80) != 0 ? 0xFF : 0x00)),
                             new MicroOpAddRegisters(RegisterType.RegPC, RegisterType.RegID, RegisterType.RegIA)
                         },
                         null

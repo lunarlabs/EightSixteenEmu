@@ -153,14 +153,14 @@ namespace EightSixteenEmu
                 private readonly RegisterType _accumulator;
                 private readonly RegisterType _operand;
                 private readonly bool _isByte;
-                private readonly bool _immediate;
+                private readonly bool _skipNVFlags;
                 
-                public MicroOpBitTest(RegisterType accumulator, RegisterType operand, bool isByte, bool immediate)
+                public MicroOpBitTest(RegisterType accumulator, RegisterType operand, bool isByte, bool skipNVFlags)
                 {
                     _accumulator = accumulator;
                     _operand = operand;
                     _isByte = isByte;
-                    _immediate = immediate;
+                    _skipNVFlags = skipNVFlags;
                 }
                 
                 public void Execute(Processor proc)
@@ -174,7 +174,7 @@ namespace EightSixteenEmu
                         operandValue &= 0x00FF;
                         byte result = (byte)(accValue & operandValue);
                         
-                        if (!_immediate)
+                        if (!_skipNVFlags)
                         {
                             proc.SetFlag(StatusFlags.N, (operandValue & 0x80) != 0);
                             proc.SetFlag(StatusFlags.V, (operandValue & 0x40) != 0);
@@ -185,7 +185,7 @@ namespace EightSixteenEmu
                     {
                         ushort result = (ushort)(accValue & operandValue);
                         
-                        if (!_immediate)
+                        if (!_skipNVFlags)
                         {
                             proc.SetFlag(StatusFlags.N, (operandValue & 0x8000) != 0);
                             proc.SetFlag(StatusFlags.V, (operandValue & 0x4000) != 0);
